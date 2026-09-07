@@ -1,3 +1,8 @@
+# Isle Live Map 1.7.9
+
+- Giữ nguyên đăng nhập khi nâng cấp: tự chuyển token IslePilot đã mã hóa, WebView2 cookies và thiết lập overlay từ vùng dữ liệu của các bản cũ sang vùng dữ liệu hiện tại.
+- Migration chỉ chạy khi dữ liệu đích chưa có, không ghi đè phiên mới và không chặn app khởi động nếu dữ liệu cũ hỏng hoặc bị khóa.
+
 # Isle Live Map 1.7.8
 
 - Hiện dialog custom ngay khi phát hiện update, với lựa chọn cập nhật ngay hoặc bỏ qua.

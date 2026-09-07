@@ -19,6 +19,7 @@ public static class Program
 
         using (instanceLease)
         {
+            LegacyAppDataMigration.Run();
             var application = new App();
             application.InitializeComponent();
             application.Run();

@@ -37,7 +37,7 @@
     <Product>Isle Live Map</Product>
     <Description>Live map overlay for The Isle Evrima.</Description>
     <Authors>IsleLiveMap</Authors>
-    <Version>1.7.8</Version>
+    <Version>1.7.9</Version>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <ApplicationIcon>Assets\IsleLiveMap.ico</ApplicationIcon>
   </PropertyGroup>

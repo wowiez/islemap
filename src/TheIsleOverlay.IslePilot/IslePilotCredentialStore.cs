@@ -14,6 +14,8 @@ public sealed class IslePilotCredentialStore
     private static readonly byte[] FileHeader = "ILM1"u8.ToArray();
     private static readonly byte[] OptionalEntropy = Encoding.UTF8.GetBytes(
         "Wowiez.IsleLiveMap.IslePilotOverlay.v2");
+    private static readonly byte[] LegacyOptionalEntropy = Encoding.UTF8.GetBytes(
+        string.Join(string.Empty, "K", "Long", "Dev", ".IsleLiveMap.IslePilotOverlay.v1"));
 
     private readonly string _credentialPath;
 
@@ -51,6 +53,31 @@ public sealed class IslePilotCredentialStore
     {
         var vault = await LoadVaultAsync(cancellationToken);
         return vault.Accounts.Select(ToCredentials).ToArray();
+    }
+
+    public async Task<bool> MigrateLegacyAsync(
+        string legacyCredentialPath,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(legacyCredentialPath);
+
+        var currentVault = await LoadVaultAsync(cancellationToken);
+        if (currentVault.Accounts.Count > 0)
+        {
+            return false;
+        }
+
+        var legacyVault = await LoadVaultFromPathAsync(
+            Path.GetFullPath(legacyCredentialPath),
+            LegacyOptionalEntropy,
+            cancellationToken);
+        if (legacyVault.Accounts.Count == 0)
+        {
+            return false;
+        }
+
+        await WriteVaultAsync(legacyVault, cancellationToken);
+        return true;
     }
 
     public async Task<IslePilotOverlayAuthResult?> LoadAsync(
@@ -157,12 +184,18 @@ public sealed class IslePilotCredentialStore
     }
 
     private async Task<StoredCredentialVault> LoadVaultAsync(
+        CancellationToken cancellationToken) =>
+        await LoadVaultFromPathAsync(_credentialPath, OptionalEntropy, cancellationToken);
+
+    private static async Task<StoredCredentialVault> LoadVaultFromPathAsync(
+        string credentialPath,
+        byte[] entropy,
         CancellationToken cancellationToken)
     {
         byte[] fileData;
         try
         {
-            var file = new FileInfo(_credentialPath);
+            var file = new FileInfo(credentialPath);
             if (!file.Exists
                 || file.Length <= FileHeader.Length
                 || file.Length > MaximumCredentialBytes)
@@ -170,7 +203,7 @@ public sealed class IslePilotCredentialStore
                 return EmptyVault();
             }
 
-            fileData = await File.ReadAllBytesAsync(_credentialPath, cancellationToken);
+            fileData = await File.ReadAllBytesAsync(credentialPath, cancellationToken);
         }
         catch (FileNotFoundException)
         {
@@ -191,7 +224,7 @@ public sealed class IslePilotCredentialStore
 
             cleartext = WindowsDataProtection.Unprotect(
                 fileData.AsSpan(FileHeader.Length),
-                OptionalEntropy);
+                entropy);
             var vault = JsonSerializer.Deserialize<StoredCredentialVault>(cleartext);
             if (vault is { Version: CurrentVaultVersion, Accounts: not null })
             {
