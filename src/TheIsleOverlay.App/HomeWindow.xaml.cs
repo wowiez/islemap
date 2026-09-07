@@ -65,7 +65,7 @@ public partial class HomeWindow : Window
                     VersionStatusLabel.Text = $"ISLE LIVE MAP · v{CurrentVersion()} · PORTABLE/DEV";
                     break;
                 case UpdateCheckState.Unavailable:
-                    VersionStatusLabel.Text = $"ISLE LIVE MAP · v{CurrentVersion()} · UPDATE OFFLINE";
+                    VersionStatusLabel.Text = $"ISLE LIVE MAP · v{CurrentVersion()} · KHÔNG CHECK ĐƯỢC UPDATE";
                     break;
                 default:
                     VersionStatusLabel.Text = $"ISLE LIVE MAP · v{CurrentVersion()} · MỚI NHẤT";

@@ -42,6 +42,32 @@ public class GitHubUpdateServiceTests
     }
 
     [Fact]
+    public async Task RepeatedAndConcurrentChecks_ShareOneBackendRequest()
+    {
+        var blocker = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var backend = new FakeBackend
+        {
+            Version = "1.7.12",
+            CheckBlocker = blocker.Task
+        };
+        var service = Service(backend);
+        var checks = Enumerable.Range(0, 20)
+            .Select(_ => service.CheckForUpdateAsync())
+            .ToArray();
+
+        await backend.CheckStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(1, backend.CheckCalls);
+        blocker.SetResult();
+
+        var results = await Task.WhenAll(checks);
+        Assert.All(results, result =>
+            Assert.Equal(new UpdateCheckResult(UpdateCheckState.Available, "1.7.12"), result));
+        Assert.Equal(1, backend.CheckCalls);
+        Assert.Equal(results[0], await service.CheckForUpdateAsync());
+        Assert.Equal(1, backend.CheckCalls);
+    }
+
+    [Fact]
     public async Task AvailableUpdate_WaitsForExplicitDownloadAndApplyConsent()
     {
         var backend = new FakeBackend { Version = "1.7.8" };
@@ -111,16 +137,28 @@ public class GitHubUpdateServiceTests
         public string? Version { get; init; }
         public Exception? CheckException { get; init; }
         public Exception? DownloadException { get; init; }
+        public Task? CheckBlocker { get; init; }
+        public TaskCompletionSource CheckStarted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
         public int CheckCalls { get; private set; }
         public int DownloadCalls { get; private set; }
         public int ScheduleCalls { get; private set; }
 
-        public Task<string?> CheckForUpdateAsync(CancellationToken cancellationToken)
+        public async Task<string?> CheckForUpdateAsync(CancellationToken cancellationToken)
         {
             CheckCalls++;
-            return CheckException is null
-                ? Task.FromResult(Version)
-                : Task.FromException<string?>(CheckException);
+            CheckStarted.TrySetResult();
+            if (CheckBlocker is not null)
+            {
+                await CheckBlocker.WaitAsync(cancellationToken);
+            }
+
+            if (CheckException is not null)
+            {
+                throw CheckException;
+            }
+
+            return Version;
         }
 
         public Task DownloadUpdateAsync(Action<int>? progress, CancellationToken cancellationToken)

@@ -21,7 +21,9 @@ public sealed class GitHubUpdateService
     public const string UpdateFeedUrl = RepositoryUrl + "/releases/latest/download/";
 
     private readonly Func<IAppUpdateBackend> _backendFactory;
+    private readonly object _checkSync = new();
     private IAppUpdateBackend? _backend;
+    private Task<UpdateCheckResult>? _checkTask;
     private string? _availableVersion;
     private bool _ready;
 
@@ -35,8 +37,22 @@ public sealed class GitHubUpdateService
         _backendFactory = backendFactory ?? throw new ArgumentNullException(nameof(backendFactory));
     }
 
-    public async Task<UpdateCheckResult> CheckForUpdateAsync(
+    public Task<UpdateCheckResult> CheckForUpdateAsync(
         CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Task<UpdateCheckResult> checkTask;
+        lock (_checkSync)
+        {
+            _checkTask ??= CheckForUpdateCoreAsync(cancellationToken);
+            checkTask = _checkTask;
+        }
+
+        return checkTask.WaitAsync(cancellationToken);
+    }
+
+    private async Task<UpdateCheckResult> CheckForUpdateCoreAsync(
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -103,7 +119,10 @@ internal sealed class VelopackWebUpdateBackend : IAppUpdateBackend
     private UpdateInfo? _pendingUpdate;
 
     internal static IUpdateSource CreateUpdateSource() =>
-        new SimpleWebSource(GitHubUpdateService.UpdateFeedUrl);
+        new SimpleWebSource(
+            GitHubUpdateService.UpdateFeedUrl,
+            downloader: null,
+            timeout: 0.25);
 
     public bool CanUpdate => _manager.CurrentVersion is not null && !_manager.IsPortable;
 

@@ -1,3 +1,9 @@
+# Isle Live Map 1.7.12
+
+- Single-flight toàn bộ bước check update: mọi lời gọi đồng thời/lặp trong cùng phiên app dùng chung đúng một request, không tạo request chồng.
+- Chỉ check một lần khi Home khởi động, không polling nền; feed trực tiếp có timeout 15 giây và package chỉ tải sau khi người dùng xác nhận.
+- Đổi trạng thái lỗi thành `KHÔNG CHECK ĐƯỢC UPDATE` để không gây hiểu nhầm app hoặc telemetry đang offline.
+
 # Isle Live Map 1.7.11
 
 - Sửa `UPDATE OFFLINE` do GitHub REST API giới hạn request theo IP: updater nay đọc feed/package trực tiếp từ GitHub Release, không dùng API và không cần nhúng access token.
