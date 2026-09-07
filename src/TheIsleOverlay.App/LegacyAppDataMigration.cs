@@ -14,12 +14,20 @@ internal static class LegacyAppDataMigration
     public static void Run()
     {
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var installerOwnedRoot = Path.Combine(localAppData, "IsleLiveMap");
         var legacyRoots = LegacyVendorDirectories.Select(
             vendor => Path.Combine(localAppData, vendor, "IsleLiveMap"));
-        Run(legacyRoots, AppPaths.Root);
+
+        // Versions 1.7.10-1.7.12 accidentally wrote user data beside the
+        // Velopack installation. Read from there first, but never delete it.
+        Run([installerOwnedRoot], AppPaths.Root, deleteSources: false);
+        Run(legacyRoots, AppPaths.Root, deleteSources: true);
     }
 
-    internal static void Run(IEnumerable<string> legacyRoots, string currentRoot)
+    internal static void Run(
+        IEnumerable<string> legacyRoots,
+        string currentRoot,
+        bool deleteSources = true)
     {
         var removableRoots = new List<string>();
         try
@@ -43,7 +51,7 @@ internal static class LegacyAppDataMigration
                     .MigrateLegacyAsync(legacyCredential)
                     .GetAwaiter()
                     .GetResult();
-                if (credentialsSafe)
+                if (credentialsSafe && deleteSources)
                 {
                     removableRoots.Add(legacyRoot);
                 }

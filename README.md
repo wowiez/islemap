@@ -41,12 +41,12 @@ Bấm `Ctrl + Shift + O`, sau đó dùng thanh `HUD SIZE`, `MAP CROP`, lựa ch�
 App mở website đăng nhập trong Microsoft Edge WebView2 với profile riêng tại:
 
 ```text
-%LocalAppData%\IsleLiveMap\WebView2
+%LocalAppData%\IsleLiveMapData\WebView2
 ```
 
 Callback IslePilot `isle-overlay://` được bắt ngay bên trong WebView2. Isle Live Map không đăng ký hoặc chiếm protocol này trong Windows.
 
-Overlay Bearer token được lưu tại `%LocalAppData%\IsleLiveMap` sau khi mã hóa bằng DPAPI CurrentUser. Token:
+Overlay Bearer token được lưu tại `%LocalAppData%\IsleLiveMapData` sau khi mã hóa bằng DPAPI CurrentUser. Thư mục này tách biệt với install root `%LocalAppData%\IsleLiveMap` do Velopack quản lý. Token:
 
 - Không được ghi vào log, source, `.env` hoặc JSON plaintext.
 - Chỉ được gửi tới host cố định `https://islepilot.eu` và `wss://islepilot.eu/ows`.
@@ -77,7 +77,7 @@ dotnet build .\TheIsleOverlay.sln --configuration Release
 Build installer:
 
 ```powershell
-.\scripts\Package-Release.ps1 -Version 1.7.12
+.\scripts\Package-Release.ps1 -Version 1.7.13
 ```
 
 Output nằm trong `artifacts/distribution`.

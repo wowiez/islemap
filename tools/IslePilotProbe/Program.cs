@@ -3,7 +3,7 @@ using TheIsleOverlay.IslePilot;
 
 var credentialPath = Path.Combine(
     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-    "IsleLiveMap",
+    "IsleLiveMapData",
     "islepilot-overlay.credential");
 var credentialStore = new IslePilotCredentialStore(credentialPath);
 var accounts = await credentialStore.LoadAllAsync();

@@ -1,3 +1,9 @@
+# Isle Live Map 1.7.13
+
+- Sửa mất phiên đăng nhập do UserData từng trùng với install root của Velopack: dữ liệu runtime nay nằm riêng tại `%LocalAppData%\IsleLiveMapData`.
+- Ưu tiên phục hồi credential/layout/WebView2 từ install root cho máy chưa bị dọn, nhưng không bao giờ xóa hoặc sửa cấu trúc cài đặt Velopack.
+- Giữ migration từ các vùng dữ liệu cũ; chỉ xóa nguồn cũ sau khi credential được đọc an toàn.
+
 # Isle Live Map 1.7.12
 
 - Single-flight toàn bộ bước check update: mọi lời gọi đồng thời/lặp trong cùng phiên app dùng chung đúng một request, không tạo request chồng.

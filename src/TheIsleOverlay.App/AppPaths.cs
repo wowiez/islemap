@@ -6,7 +6,7 @@ public static class AppPaths
 {
     public static string Root { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "IsleLiveMap");
+        "IsleLiveMapData");
 
     public static string WebView2Profile { get; } = Path.Combine(Root, "WebView2");
 

@@ -42,12 +42,25 @@ public sealed class LegacyAppDataMigrationTests : IDisposable
     }
 
     [Fact]
+    public void Run_NeverDeletesInstallerOwnedSource()
+    {
+        var installerRoot = Path.Combine(_root, "installer-owned");
+        var current = Path.Combine(_root, "safe-data");
+        WriteFile(installerRoot, "overlay-layout.json", "layout");
+
+        LegacyAppDataMigration.Run([installerRoot], current, deleteSources: false);
+
+        Assert.True(Directory.Exists(installerRoot));
+        Assert.Equal("layout", File.ReadAllText(Path.Combine(current, "overlay-layout.json")));
+    }
+
+    [Fact]
     public void AppDataRoot_HasNoVendorOrPersonalNamespace()
     {
         Assert.Equal(
             Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "IsleLiveMap"),
+                "IsleLiveMapData"),
             AppPaths.Root);
     }
 
