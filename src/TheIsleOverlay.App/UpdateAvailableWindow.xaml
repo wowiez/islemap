@@ -1,0 +1,81 @@
+<Window x:Class="TheIsleOverlay.App.UpdateAvailableWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Có bản cập nhật" Width="430" Height="282"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        FontFamily="Segoe UI" UseLayoutRounding="True" SnapsToDevicePixels="True">
+    <Window.Resources>
+        <Style x:Key="UpdateButton" TargetType="Button">
+            <Setter Property="Height" Value="38" />
+            <Setter Property="Padding" Value="16,0" />
+            <Setter Property="Foreground" Value="#B8CEC8" />
+            <Setter Property="Background" Value="#0B211E" />
+            <Setter Property="BorderBrush" Value="#426B63" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontFamily" Value="Bahnschrift SemiCondensed" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" CornerRadius="3" Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#173B35" />
+                                <Setter Property="Foreground" Value="#F0FFF9" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#24564D" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border Background="#F20A1C19" BorderBrush="#397068" BorderThickness="1" CornerRadius="8">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="48" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="66" />
+            </Grid.RowDefinitions>
+
+            <Grid Background="#B50D2521" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="48" /></Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" Margin="18,0" VerticalAlignment="Center">
+                    <Ellipse Width="7" Height="7" Fill="#44E0CC" Margin="0,0,9,0" />
+                    <TextBlock Text="PHÁT HIỆN BẢN CẬP NHẬT" Foreground="#D8EEE8"
+                               FontFamily="Bahnschrift SemiCondensed" FontWeight="SemiBold" FontSize="12" />
+                </StackPanel>
+                <Button Grid.Column="1" Content="×" Style="{StaticResource UpdateButton}" Height="30" Width="30"
+                        Padding="0" Margin="0" Background="Transparent" BorderBrush="#355A53"
+                        Click="SkipButton_Click" />
+            </Grid>
+
+            <StackPanel Grid.Row="1" Margin="24,20,24,12">
+                <TextBlock Text="ISLE LIVE MAP CÓ BẢN MỚI" Foreground="#F0FAF6"
+                           FontFamily="Bahnschrift SemiCondensed" FontSize="23" FontWeight="Bold" />
+                <TextBlock x:Name="VersionText" Margin="0,8,0,0" Foreground="#67E1CF"
+                           FontFamily="Bahnschrift SemiCondensed" FontSize="14" FontWeight="SemiBold" />
+                <TextBlock Text="Bạn có thể cập nhật ngay hoặc bỏ qua. Nút UPDATE sẽ luôn nằm ở footer để cập nhật sau."
+                           Margin="0,12,0,0" Foreground="#9CB5AE" FontSize="12" TextWrapping="Wrap" />
+            </StackPanel>
+
+            <Grid Grid.Row="2" Margin="24,10,24,18">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="10" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                <Button Content="BỎ QUA" Style="{StaticResource UpdateButton}" Click="SkipButton_Click" />
+                <Button Grid.Column="2" Content="CẬP NHẬT NGAY" Style="{StaticResource UpdateButton}"
+                        Foreground="#071815" Background="#61DCC8" BorderBrush="#7CF0DD"
+                        Click="UpdateButton_Click" />
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

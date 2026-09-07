@@ -1,0 +1,13 @@
+bin/
+obj/
+.vs/
+.idea/
+*.user
+*.suo
+.env
+artifacts/
+screenshots/
+.playwright-cli/
+*.WebView2/
+AGENTS.md
+_ref.webp

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
+    canvas { display: block; width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    const query = new URLSearchParams(location.search);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(2);
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setClearColor(0x000000, 0);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    document.body.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 100);
+    camera.position.set(-19.33, 0.89, -0.02);
+    camera.lookAt(0, 0, 0);
+    scene.add(new THREE.HemisphereLight(0xf4f0ed, 0x17191d, 1.3));
+    const key = new THREE.DirectionalLight(0xfff4ed, 4.2);
+    key.position.set(0, 11.644, 2.903);
+    scene.add(key);
+    const rim = new THREE.DirectionalLight(0x91b9d2, 1.6);
+    rim.position.set(2, 3, -8);
+    scene.add(rim);
+
+    const scale = Number(query.get('scale') || 1);
+    const position = (query.get('position') || '0,0,0').split(',').map(Number);
+    const color = query.get('color') || '#767a80';
+    new GLTFLoader().load(query.get('model'), gltf => {
+      const model = gltf.scene;
+      model.scale.setScalar(scale);
+      model.position.set(position[0] || 0, position[1] || 0, position[2] || 0);
+      model.traverse(node => {
+        if (!node.isMesh) return;
+        node.material = new THREE.MeshStandardMaterial({
+          color,
+          roughness: 0.82,
+          metalness: 0.02,
+          side: THREE.DoubleSide
+        });
+      });
+      scene.add(model);
+      renderer.render(scene, camera);
+      requestAnimationFrame(() => {
+        renderer.render(scene, camera);
+        document.title = 'READY';
+      });
+    }, undefined, error => {
+      console.error(error);
+      document.title = 'FAILED';
+    });
+  </script>
+</body>
+</html>
