@@ -89,7 +89,7 @@ public partial class MainWindow : Window
     private string _mapStyle = OverlayLayoutRules.DefaultMapStyle;
     private bool _showMap = true;
     private bool _showActivity = true;
-    private bool _rotateMap = true;
+    private bool _rotateMap;
     private bool _autoDetectLiveMap = true;
     private bool _showPrimeTasks;
     private bool _usesIslePilotMap;

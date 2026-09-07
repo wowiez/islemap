@@ -11,7 +11,7 @@ public sealed record OverlayLayoutSettings
     public string MapStyle { get; init; } = OverlayLayoutRules.DefaultMapStyle;
     public bool ShowMap { get; init; } = true;
     public bool ShowActivity { get; init; } = true;
-    public bool RotateMap { get; init; } = true;
+    public bool RotateMap { get; init; }
     public bool AutoDetectLiveMap { get; init; } = true;
     public bool ShowPrimeTasks { get; init; }
     public double? Left { get; init; }

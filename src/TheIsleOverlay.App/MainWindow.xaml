@@ -352,7 +352,7 @@
                 <Grid Grid.Row="6" Margin="0,8,0,0">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                     <TextBlock Text="MAP ROTATE" Foreground="#D5DDD5" FontFamily="Bahnschrift SemiCondensed" FontSize="10" VerticalAlignment="Center" />
-                    <Button x:Name="MapRotationButton" Grid.Column="1" Style="{StaticResource ChromeButton}" Content="ROTATE · ON" Padding="8,4" Click="MapRotationButton_Click" />
+                    <Button x:Name="MapRotationButton" Grid.Column="1" Style="{StaticResource ChromeButton}" Content="ROTATE · OFF" Padding="8,4" Click="MapRotationButton_Click" />
                 </Grid>
 
                 <Grid Grid.Row="7" Margin="0,8,0,0">

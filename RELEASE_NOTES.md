@@ -1,3 +1,7 @@
+# Isle Live Map 1.7.14
+
+- Đặt `ROTATE` mặc định là OFF cho lần chạy mới và khi file layout không hợp lệ; lựa chọn đã lưu của người dùng cũ vẫn được giữ nguyên.
+
 # Isle Live Map 1.7.13
 
 - Sửa mất phiên đăng nhập do UserData từng trùng với install root của Velopack: dữ liệu runtime nay nằm riêng tại `%LocalAppData%\IsleLiveMapData`.

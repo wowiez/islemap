@@ -73,6 +73,7 @@ public sealed class OverlayLayoutSettingsTests
         {
             var store = new OverlayLayoutSettingsStore(path);
             Assert.Equal(new OverlayLayoutSettings(), store.Load());
+            Assert.False(store.Load().RotateMap);
             Assert.False(store.Load().ShowPrimeTasks);
 
             store.Save(new OverlayLayoutSettings
@@ -82,7 +83,7 @@ public sealed class OverlayLayoutSettingsTests
                 MapStyle = "SQUARE",
                 ShowMap = false,
                 ShowActivity = true,
-                RotateMap = false,
+                RotateMap = true,
                 AutoDetectLiveMap = false,
                 ShowPrimeTasks = false,
                 Left = 120.5d,
@@ -94,7 +95,7 @@ public sealed class OverlayLayoutSettingsTests
             Assert.Equal(OverlayLayoutRules.SquareMapStyle, restored.MapStyle);
             Assert.False(restored.ShowMap);
             Assert.True(restored.ShowActivity);
-            Assert.False(restored.RotateMap);
+            Assert.True(restored.RotateMap);
             Assert.False(restored.AutoDetectLiveMap);
             Assert.False(restored.ShowPrimeTasks);
             Assert.Equal(120.5d, restored.Left);
@@ -102,6 +103,7 @@ public sealed class OverlayLayoutSettingsTests
 
             File.WriteAllText(path, "{broken");
             Assert.Equal(new OverlayLayoutSettings(), store.Load());
+            Assert.False(store.Load().RotateMap);
         }
         finally
         {
