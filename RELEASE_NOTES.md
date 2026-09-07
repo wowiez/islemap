@@ -1,3 +1,8 @@
+# Isle Live Map 1.7.11
+
+- Sửa `UPDATE OFFLINE` do GitHub REST API giới hạn request theo IP: updater nay đọc feed/package trực tiếp từ GitHub Release, không dùng API và không cần nhúng access token.
+- Giữ nguyên cơ chế xác nhận trước khi tải/cài; lỗi kiểm tra update vẫn không ảnh hưởng đăng nhập và overlay.
+
 # Isle Live Map 1.7.10
 
 - Chuyển toàn bộ dữ liệu người dùng sang `%LocalAppData%\IsleLiveMap`, không dùng tên cá nhân trong đường dẫn, mutex hoặc DPAPI namespace.

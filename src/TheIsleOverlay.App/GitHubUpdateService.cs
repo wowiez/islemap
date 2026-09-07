@@ -18,6 +18,7 @@ public interface IAppUpdateBackend
 public sealed class GitHubUpdateService
 {
     public const string RepositoryUrl = "https://github.com/wowiez/islemap";
+    public const string UpdateFeedUrl = RepositoryUrl + "/releases/latest/download/";
 
     private readonly Func<IAppUpdateBackend> _backendFactory;
     private IAppUpdateBackend? _backend;
@@ -25,7 +26,7 @@ public sealed class GitHubUpdateService
     private bool _ready;
 
     public GitHubUpdateService()
-        : this(() => new VelopackGitHubUpdateBackend())
+        : this(() => new VelopackWebUpdateBackend())
     {
     }
 
@@ -96,11 +97,13 @@ public sealed class GitHubUpdateService
         _ready && _backend?.ScheduleApplyAndRestart() == true;
 }
 
-internal sealed class VelopackGitHubUpdateBackend : IAppUpdateBackend
+internal sealed class VelopackWebUpdateBackend : IAppUpdateBackend
 {
-    private readonly UpdateManager _manager = new(
-        new GithubSource(GitHubUpdateService.RepositoryUrl, accessToken: null, prerelease: false));
+    private readonly UpdateManager _manager = new(CreateUpdateSource());
     private UpdateInfo? _pendingUpdate;
+
+    internal static IUpdateSource CreateUpdateSource() =>
+        new SimpleWebSource(GitHubUpdateService.UpdateFeedUrl);
 
     public bool CanUpdate => _manager.CurrentVersion is not null && !_manager.IsPortable;
 

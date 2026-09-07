@@ -1,10 +1,21 @@
 using System.Net.Http;
 using TheIsleOverlay.App;
+using Velopack.Sources;
 
 namespace TheIsleOverlay.App.Tests;
 
 public class GitHubUpdateServiceTests
 {
+    [Fact]
+    public void ProductionBackend_UsesDirectReleaseFeedWithoutGitHubApi()
+    {
+        var source = Assert.IsType<SimpleWebSource>(VelopackWebUpdateBackend.CreateUpdateSource());
+
+        Assert.Equal(
+            "https://github.com/wowiez/islemap/releases/latest/download/",
+            source.BaseUri.AbsoluteUri);
+    }
+
     [Fact]
     public async Task PortableOrDevelopmentBuild_DoesNotContactGitHub()
     {

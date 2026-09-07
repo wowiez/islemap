@@ -77,7 +77,7 @@ dotnet build .\TheIsleOverlay.sln --configuration Release
 Build installer:
 
 ```powershell
-.\scripts\Package-Release.ps1 -Version 1.7.10
+.\scripts\Package-Release.ps1 -Version 1.7.11
 ```
 
 Output nằm trong `artifacts/distribution`.
@@ -90,7 +90,7 @@ Luồng auto-update hiện tại:
 
 1. GitHub Actions chạy khi push tag `vX.Y.Z`, test rồi gọi `scripts/Package-Release.ps1`.
 2. Toàn bộ file trong `artifacts/distribution` được đính kèm vào GitHub Release, đặc biệt là `releases.win.json`, full `.nupkg` và installer.
-3. Bản cài đặt dùng `Velopack.UpdateManager` với `GithubSource` trỏ tới repository public `https://github.com/wowiez/islemap`; không nhúng GitHub token vào app.
+3. Bản cài đặt dùng `Velopack.UpdateManager` với `SimpleWebSource` trỏ thẳng tới `https://github.com/wowiez/islemap/releases/latest/download/`; không gọi GitHub REST API và không nhúng GitHub token vào app.
 4. App chỉ kiểm tra một lần sau khi Home đã mở. Khi có bản mới, dialog cho phép cập nhật ngay hoặc bỏ qua; nếu bỏ qua, footer giữ trạng thái `CẦN UPDATE` và nút `UPDATE`.
 5. Portable/dev build không tự cập nhật; luồng update chỉ bật khi bản hiện tại là package đã cài (`CurrentVersion` có giá trị và `IsPortable` là false).
 
