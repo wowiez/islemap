@@ -20,11 +20,35 @@ public sealed class LegacyAppDataMigrationTests : IDisposable
         WriteFile(legacy, "overlay-layout.json", "legacy-layout");
         WriteFile(current, "overlay-layout.json", "current-layout");
 
-        LegacyAppDataMigration.Run(legacy, current);
+        LegacyAppDataMigration.Run([legacy], current);
 
         Assert.Equal("legacy-cookie", File.ReadAllText(Path.Combine(current, "WebView2", "cookie.db")));
         Assert.Equal("legacy-steam", File.ReadAllText(Path.Combine(current, "WebView2-IslePilot", "steam.db")));
         Assert.Equal("current-layout", File.ReadAllText(Path.Combine(current, "overlay-layout.json")));
+        Assert.False(Directory.Exists(legacy));
+    }
+
+    [Fact]
+    public void Run_DoesNotDeleteSourceWhenEncryptedCredentialCannotBeRecovered()
+    {
+        var legacy = Path.Combine(_root, "legacy-corrupt");
+        var current = Path.Combine(_root, "current-corrupt");
+        WriteFile(legacy, "islepilot-overlay.credential", "not-a-valid-credential");
+
+        LegacyAppDataMigration.Run([legacy], current);
+
+        Assert.True(Directory.Exists(legacy));
+        Assert.True(File.Exists(Path.Combine(legacy, "islepilot-overlay.credential")));
+    }
+
+    [Fact]
+    public void AppDataRoot_HasNoVendorOrPersonalNamespace()
+    {
+        Assert.Equal(
+            Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "IsleLiveMap"),
+            AppPaths.Root);
     }
 
     public void Dispose()

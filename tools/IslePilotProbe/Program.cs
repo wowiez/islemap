@@ -3,7 +3,6 @@ using TheIsleOverlay.IslePilot;
 
 var credentialPath = Path.Combine(
     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-    "Wowiez",
     "IsleLiveMap",
     "islepilot-overlay.credential");
 var credentialStore = new IslePilotCredentialStore(credentialPath);

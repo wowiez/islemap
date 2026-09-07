@@ -110,7 +110,49 @@ public sealed class IslePilotCredentialStoreTests : IDisposable
             new IslePilotOverlayAuthResult(steamId, token, "Player"),
             await store.LoadAsync());
         Assert.True(File.Exists(legacyPath));
+        Assert.True(await store.MigrateLegacyAsync(legacyPath));
+    }
+
+    [Fact]
+    public async Task MigrateLegacy_MergesOlderAccountsWithoutReplacingCurrentSelection()
+    {
+        var olderPath = Path.Combine(_directory, "older", "islepilot.credential");
+        var previousPath = Path.Combine(_directory, "previous", "islepilot.credential");
+        var currentPath = Path.Combine(_directory, "current-merged", "islepilot.credential");
+        await WriteLegacyVaultAsync(
+            olderPath,
+            string.Join(string.Empty, "K", "Long", "Dev", ".IsleLiveMap.IslePilotOverlay.v1"),
+            "76561198000000001",
+            "older-token");
+        await WriteLegacyVaultAsync(
+            previousPath,
+            string.Join(string.Empty, "Wo", "wiez", ".IsleLiveMap.IslePilotOverlay.v2"),
+            "76561198000000002",
+            "previous-token");
+        var store = new IslePilotCredentialStore(currentPath);
+        var current = new IslePilotOverlayAuthResult("76561198000000003", "current-token", "Current");
+        await store.SaveAsync(current);
+
+        Assert.True(await store.MigrateLegacyAsync(previousPath));
+        Assert.True(await store.MigrateLegacyAsync(olderPath));
+
+        Assert.Equal(3, (await store.LoadAllAsync()).Count);
+        Assert.Equal(current, await store.LoadAsync());
+    }
+
+    [Fact]
+    public async Task MigrateLegacy_RejectsCorruptSourceWithoutChangingCurrentVault()
+    {
+        var legacyPath = Path.Combine(_directory, "corrupt", "islepilot.credential");
+        var currentPath = Path.Combine(_directory, "current-safe", "islepilot.credential");
+        Directory.CreateDirectory(Path.GetDirectoryName(legacyPath)!);
+        await File.WriteAllTextAsync(legacyPath, "corrupt");
+        var store = new IslePilotCredentialStore(currentPath);
+        var current = new IslePilotOverlayAuthResult("76561198000000003", "current-token");
+        await store.SaveAsync(current);
+
         Assert.False(await store.MigrateLegacyAsync(legacyPath));
+        Assert.Equal(current, await store.LoadAsync());
     }
 
     [Fact]
@@ -145,5 +187,24 @@ public sealed class IslePilotCredentialStoreTests : IDisposable
         {
             Directory.Delete(_directory, recursive: true);
         }
+    }
+
+    private static async Task WriteLegacyVaultAsync(
+        string path,
+        string entropyText,
+        string steamId,
+        string token)
+    {
+        var payload = JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            Version = 2,
+            SelectedSteamId = steamId,
+            Accounts = new[] { new { SteamId = steamId, OverlayToken = token, PersonaName = "Legacy" } }
+        });
+        var encrypted = WindowsDataProtection.Protect(
+            payload,
+            Encoding.UTF8.GetBytes(entropyText));
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        await File.WriteAllBytesAsync(path, "ILM1"u8.ToArray().Concat(encrypted).ToArray());
     }
 }

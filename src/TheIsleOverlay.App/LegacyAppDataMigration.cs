@@ -5,42 +5,60 @@ namespace TheIsleOverlay.App;
 
 internal static class LegacyAppDataMigration
 {
-    private static readonly string LegacyVendorDirectory =
-        string.Join(string.Empty, "K", "Long", "Dev");
+    private static readonly string[] LegacyVendorDirectories =
+    [
+        string.Join(string.Empty, "Wo", "wiez"),
+        string.Join(string.Empty, "K", "Long", "Dev")
+    ];
 
     public static void Run()
     {
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var legacyRoot = Path.Combine(localAppData, LegacyVendorDirectory, "IsleLiveMap");
-        Run(legacyRoot, AppPaths.Root);
+        var legacyRoots = LegacyVendorDirectories.Select(
+            vendor => Path.Combine(localAppData, vendor, "IsleLiveMap"));
+        Run(legacyRoots, AppPaths.Root);
     }
 
-    internal static void Run(string legacyRoot, string currentRoot)
+    internal static void Run(IEnumerable<string> legacyRoots, string currentRoot)
     {
+        var removableRoots = new List<string>();
         try
         {
-            legacyRoot = Path.GetFullPath(legacyRoot);
             currentRoot = Path.GetFullPath(currentRoot);
-            if (!Directory.Exists(legacyRoot) || PathsEqual(legacyRoot, currentRoot))
+            foreach (var candidate in legacyRoots)
             {
-                return;
+                var legacyRoot = Path.GetFullPath(candidate);
+                if (!Directory.Exists(legacyRoot) || PathsEqual(legacyRoot, currentRoot))
+                {
+                    continue;
+                }
+
+                CopyFileIfMissing(legacyRoot, currentRoot, "overlay-layout.json");
+                CopyDirectoryIfMissing(legacyRoot, currentRoot, "WebView2");
+                CopyDirectoryIfMissing(legacyRoot, currentRoot, "WebView2-IslePilot");
+
+                var legacyCredential = Path.Combine(legacyRoot, "islepilot-overlay.credential");
+                var currentCredential = Path.Combine(currentRoot, "islepilot-overlay.credential");
+                var credentialsSafe = new IslePilotCredentialStore(currentCredential)
+                    .MigrateLegacyAsync(legacyCredential)
+                    .GetAwaiter()
+                    .GetResult();
+                if (credentialsSafe)
+                {
+                    removableRoots.Add(legacyRoot);
+                }
             }
 
-            CopyFileIfMissing(legacyRoot, currentRoot, "overlay-layout.json");
-            CopyDirectoryIfMissing(legacyRoot, currentRoot, "WebView2");
-            CopyDirectoryIfMissing(legacyRoot, currentRoot, "WebView2-IslePilot");
-
-            var legacyCredential = Path.Combine(legacyRoot, "islepilot-overlay.credential");
-            var currentCredential = Path.Combine(currentRoot, "islepilot-overlay.credential");
-            new IslePilotCredentialStore(currentCredential)
-                .MigrateLegacyAsync(legacyCredential)
-                .GetAwaiter()
-                .GetResult();
+            foreach (var removableRoot in removableRoots)
+            {
+                Directory.Delete(removableRoot, recursive: true);
+                DeleteParentIfEmpty(removableRoot);
+            }
         }
         catch (Exception exception)
         {
-            // Updating must never make the application unusable. The regular login
-            // flow remains available if old data is locked, corrupt, or inaccessible.
+            // Updating must never make the application unusable. A source directory
+            // remains untouched whenever its credential could not be recovered.
             CrashReporter.Write("Legacy app-data migration", exception);
         }
     }
@@ -81,6 +99,17 @@ internal static class LegacyAppDataMigration
         foreach (var directory in Directory.EnumerateDirectories(source))
         {
             CopyDirectory(directory, Path.Combine(target, Path.GetFileName(directory)));
+        }
+    }
+
+    private static void DeleteParentIfEmpty(string removedRoot)
+    {
+        var parent = Directory.GetParent(removedRoot)?.FullName;
+        if (parent is not null &&
+            Directory.Exists(parent) &&
+            !Directory.EnumerateFileSystemEntries(parent).Any())
+        {
+            Directory.Delete(parent, recursive: false);
         }
     }
 

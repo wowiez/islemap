@@ -1,3 +1,8 @@
+# Isle Live Map 1.7.10
+
+- Chuyển toàn bộ dữ liệu người dùng sang `%LocalAppData%\IsleLiveMap`, không dùng tên cá nhân trong đường dẫn, mutex hoặc DPAPI namespace.
+- Tự nhập session từ cả hai vùng dữ liệu cũ, ưu tiên dữ liệu mới hơn và xóa đúng thư mục app cũ sau khi migration thành công.
+
 # Isle Live Map 1.7.9
 
 - Giữ nguyên đăng nhập khi nâng cấp: tự chuyển token IslePilot đã mã hóa, WebView2 cookies và thiết lập overlay từ vùng dữ liệu của các bản cũ sang vùng dữ liệu hiện tại.

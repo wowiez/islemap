@@ -13,9 +13,14 @@ public sealed class IslePilotCredentialStore
 
     private static readonly byte[] FileHeader = "ILM1"u8.ToArray();
     private static readonly byte[] OptionalEntropy = Encoding.UTF8.GetBytes(
-        "Wowiez.IsleLiveMap.IslePilotOverlay.v2");
-    private static readonly byte[] LegacyOptionalEntropy = Encoding.UTF8.GetBytes(
-        string.Join(string.Empty, "K", "Long", "Dev", ".IsleLiveMap.IslePilotOverlay.v1"));
+        "IsleLiveMap.IslePilotOverlay.v3");
+    private static readonly byte[][] LegacyOptionalEntropies =
+    [
+        Encoding.UTF8.GetBytes(
+            string.Join(string.Empty, "Wo", "wiez", ".IsleLiveMap.IslePilotOverlay.v2")),
+        Encoding.UTF8.GetBytes(
+            string.Join(string.Empty, "K", "Long", "Dev", ".IsleLiveMap.IslePilotOverlay.v1"))
+    ];
 
     private readonly string _credentialPath;
 
@@ -61,22 +66,44 @@ public sealed class IslePilotCredentialStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(legacyCredentialPath);
 
-        var currentVault = await LoadVaultAsync(cancellationToken);
-        if (currentVault.Accounts.Count > 0)
+        legacyCredentialPath = Path.GetFullPath(legacyCredentialPath);
+        if (!File.Exists(legacyCredentialPath))
         {
-            return false;
+            return true;
         }
 
-        var legacyVault = await LoadVaultFromPathAsync(
-            Path.GetFullPath(legacyCredentialPath),
-            LegacyOptionalEntropy,
+        var legacyVault = await TryLoadVaultFromPathAsync(
+            legacyCredentialPath,
+            LegacyOptionalEntropies,
             cancellationToken);
-        if (legacyVault.Accounts.Count == 0)
+        if (legacyVault is null)
         {
             return false;
         }
 
-        await WriteVaultAsync(legacyVault, cancellationToken);
+        var currentVault = await LoadVaultAsync(cancellationToken);
+        var accounts = legacyVault.Accounts
+            .Concat(currentVault.Accounts)
+            .Where(IsValid)
+            .GroupBy(account => account.SteamId, StringComparer.Ordinal)
+            .Select(group => group.Last())
+            .ToArray();
+        var selectedSteamId = currentVault.Accounts.Count > 0
+            ? currentVault.SelectedSteamId
+            : legacyVault.SelectedSteamId;
+
+        if (accounts.Length > 0)
+        {
+            await WriteVaultAsync(
+                new StoredCredentialVault
+                {
+                    Version = CurrentVaultVersion,
+                    SelectedSteamId = selectedSteamId,
+                    Accounts = accounts
+                },
+                cancellationToken);
+        }
+
         return true;
     }
 
@@ -185,11 +212,12 @@ public sealed class IslePilotCredentialStore
 
     private async Task<StoredCredentialVault> LoadVaultAsync(
         CancellationToken cancellationToken) =>
-        await LoadVaultFromPathAsync(_credentialPath, OptionalEntropy, cancellationToken);
+        await TryLoadVaultFromPathAsync(_credentialPath, [OptionalEntropy], cancellationToken)
+        ?? EmptyVault();
 
-    private static async Task<StoredCredentialVault> LoadVaultFromPathAsync(
+    private static async Task<StoredCredentialVault?> TryLoadVaultFromPathAsync(
         string credentialPath,
-        byte[] entropy,
+        IReadOnlyList<byte[]> entropies,
         CancellationToken cancellationToken)
     {
         byte[] fileData;
@@ -200,64 +228,74 @@ public sealed class IslePilotCredentialStore
                 || file.Length <= FileHeader.Length
                 || file.Length > MaximumCredentialBytes)
             {
-                return EmptyVault();
+                return null;
             }
 
             fileData = await File.ReadAllBytesAsync(credentialPath, cancellationToken);
         }
         catch (FileNotFoundException)
         {
-            return EmptyVault();
+            return null;
         }
         catch (DirectoryNotFoundException)
         {
-            return EmptyVault();
+            return null;
         }
 
-        byte[]? cleartext = null;
         try
         {
             if (!fileData.AsSpan(0, FileHeader.Length).SequenceEqual(FileHeader))
             {
-                return EmptyVault();
+                return null;
             }
 
-            cleartext = WindowsDataProtection.Unprotect(
-                fileData.AsSpan(FileHeader.Length),
-                entropy);
-            var vault = JsonSerializer.Deserialize<StoredCredentialVault>(cleartext);
-            if (vault is { Version: CurrentVaultVersion, Accounts: not null })
+            foreach (var entropy in entropies)
             {
-                return Normalize(vault);
+                byte[]? cleartext = null;
+                try
+                {
+                    cleartext = WindowsDataProtection.Unprotect(
+                        fileData.AsSpan(FileHeader.Length),
+                        entropy);
+                    var vault = JsonSerializer.Deserialize<StoredCredentialVault>(cleartext);
+                    if (vault is { Version: CurrentVaultVersion, Accounts: not null })
+                    {
+                        return Normalize(vault);
+                    }
+
+                    // Backward-compatible migration from the original single-account
+                    // ILM1 payload. It is rewritten as a v2 vault on the next save.
+                    var legacy = JsonSerializer.Deserialize<StoredCredential>(cleartext);
+                    if (legacy is not null && IsValid(legacy))
+                    {
+                        return new StoredCredentialVault
+                        {
+                            Version = CurrentVaultVersion,
+                            SelectedSteamId = legacy.SteamId,
+                            Accounts = [legacy]
+                        };
+                    }
+                }
+                catch (CryptographicException)
+                {
+                }
+                catch (JsonException)
+                {
+                }
+                finally
+                {
+                    if (cleartext is not null)
+                    {
+                        CryptographicOperations.ZeroMemory(cleartext);
+                    }
+                }
             }
 
-            // Backward-compatible migration from the original single-account
-            // ILM1 payload. It is rewritten as a v2 vault on the next save.
-            var legacy = JsonSerializer.Deserialize<StoredCredential>(cleartext);
-            return legacy is not null && IsValid(legacy)
-                ? new StoredCredentialVault
-                {
-                    Version = CurrentVaultVersion,
-                    SelectedSteamId = legacy.SteamId,
-                    Accounts = [legacy]
-                }
-                : EmptyVault();
-        }
-        catch (CryptographicException)
-        {
-            return EmptyVault();
-        }
-        catch (JsonException)
-        {
-            return EmptyVault();
+            return null;
         }
         finally
         {
             CryptographicOperations.ZeroMemory(fileData);
-            if (cleartext is not null)
-            {
-                CryptographicOperations.ZeroMemory(cleartext);
-            }
         }
     }
 

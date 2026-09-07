@@ -11,7 +11,7 @@ public static class Program
         VelopackApp.Build().Run();
 
         if (!SingleInstanceLease.TryAcquire(
-                @"Local\Wowiez.IsleLiveMap.SingleInstance",
+                @"Local\IsleLiveMap.SingleInstance",
                 out var instanceLease))
         {
             return;
