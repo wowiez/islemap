@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows10.0.17763.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <UseWPF>true</UseWPF>
+    <DefaultItemExcludes>$(DefaultItemExcludes);bin/**;obj/**;artifacts/**</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\TheIsleOverlay.App\TheIsleOverlay.App.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\..\src\TheIsleOverlay.App\HomeWindow.xaml"
+             Link="TestAssets\HomeWindow.xaml"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\TheIsleOverlay.App\MainWindow.xaml"
+             Link="TestAssets\MainWindow.xaml"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\TheIsleOverlay.App\LargeMapWindow.xaml"
+             Link="TestAssets\LargeMapWindow.xaml"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\TheIsleOverlay.App\GuideWindow.xaml"
+             Link="TestAssets\GuideWindow.xaml"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\TheIsleOverlay.App\IslePilotSteamLoginWindow.xaml"
+             Link="TestAssets\IslePilotSteamLoginWindow.xaml"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\TheIsleOverlay.App\Assets\GatewayZones.json"
+             Link="TestAssets\GatewayZones.json"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

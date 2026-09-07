@@ -1,0 +1,542 @@
+<Window x:Class="TheIsleOverlay.App.GuideWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:TheIsleOverlay.App"
+        Title="Isle Live Map · Cẩm nang" Width="1080" Height="760"
+        MinWidth="900" MinHeight="650" WindowStartupLocation="CenterScreen"
+        WindowStyle="None" ResizeMode="NoResize" Background="Transparent" AllowsTransparency="True"
+        Topmost="True" ShowInTaskbar="False" KeyDown="Window_KeyDown"
+        Loaded="Window_Loaded">
+    <Window.Resources>
+        <SolidColorBrush x:Key="PanelBrush" Color="#C9161719" />
+        <SolidColorBrush x:Key="BorderBrush" Color="#3B3D41" />
+        <SolidColorBrush x:Key="AccentBrush" Color="#E2E4E7" />
+        <Style x:Key="NavButton" TargetType="Button">
+            <Setter Property="Foreground" Value="#9A9DA2" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="#3B3D41" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="FontFamily" Value="Bahnschrift SemiCondensed" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style x:Key="TrackButton" TargetType="Button" BasedOn="{StaticResource NavButton}">
+            <Setter Property="Height" Value="66" />
+            <Setter Property="Margin" Value="0,0,12,0" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="FontSize" Value="14" />
+        </Style>
+        <Style x:Key="GuideProgress" TargetType="ProgressBar">
+            <Setter Property="Height" Value="7" />
+            <Setter Property="Maximum" Value="100" />
+            <Setter Property="Background" Value="#34363A" />
+            <Setter Property="Foreground" Value="#C8CACD" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Grid ClipToBounds="True">
+                            <Border Background="{TemplateBinding Background}" CornerRadius="4" />
+                            <Border x:Name="PART_Track" />
+                            <Border x:Name="PART_Indicator" Background="{TemplateBinding Foreground}"
+                                    CornerRadius="4" HorizontalAlignment="Left" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Foreground" Value="#ECEDEF" />
+            <Setter Property="Background" Value="#17181A" />
+            <Setter Property="BorderBrush" Value="#55585D" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="11,7" />
+            <Setter Property="FontFamily" Value="Bahnschrift SemiCondensed" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton x:Name="DropDownToggle" Focusable="False" ClickMode="Press"
+                                          IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="ToggleBorder" Background="#17181A" BorderBrush="#55585D"
+                                                BorderThickness="1" CornerRadius="5" Padding="12,8">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="22" /></Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding SelectedItem.Name, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                           Foreground="#FFFFFF" FontFamily="Bahnschrift SemiCondensed"
+                                                           FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <Path Grid.Column="1" Data="M 2 3 L 7 8 L 12 3" Stroke="#D9DBDE"
+                                                      StrokeThickness="1.8" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="ToggleBorder" Property="BorderBrush" Value="#9B9EA3" />
+                                                <Setter TargetName="ToggleBorder" Property="Background" Value="#222326" />
+                                            </Trigger>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="ToggleBorder" Property="BorderBrush" Value="#B8BBC0" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <Popup x:Name="PART_Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
+                                <Border MinWidth="{Binding ActualWidth, ElementName=DropDownToggle}"
+                                        MaxHeight="390" Margin="0,4,0,0" Padding="4"
+                                        Background="#FA111214" BorderBrush="#55585D" BorderThickness="1"
+                                        CornerRadius="6">
+                                    <ScrollViewer VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled"
+                                                  PanningMode="VerticalOnly">
+                                        <ItemsPresenter />
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="#E4E5E7" />
+            <Setter Property="Background" Value="#151618" />
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="FontFamily" Value="Bahnschrift SemiCondensed" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="ItemBorder" Background="{TemplateBinding Background}"
+                                CornerRadius="4" Padding="{TemplateBinding Padding}" Margin="1">
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#2A2B2F" />
+                                <Setter Property="Foreground" Value="#FFFFFF" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#3A3C41" />
+                                <Setter Property="Foreground" Value="#FFFFFF" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border BorderThickness="0" Background="#E80B0C0E" CornerRadius="12">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="52" />
+                <RowDefinition Height="50" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" BorderBrush="#323438" BorderThickness="0,0,0,1"
+                    MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid Margin="16,0,10,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Path Data="M8,0 L10,6 L16,8 L10,10 L8,16 L6,10 L0,8 L6,6 Z"
+                              Fill="#D7D9DC" Width="14" Height="14" Stretch="Uniform" Margin="0,0,10,0" />
+                        <StackPanel>
+                            <TextBlock Text="ISLE LIVE MAP · CẨM NANG" Foreground="#EAF4F0"
+                                       FontFamily="Bahnschrift SemiCondensed" FontSize="15" FontWeight="SemiBold" />
+                            <TextBlock Text="F8 · MỞ / ĐÓNG" Foreground="#617D76" FontSize="9" />
+                        </StackPanel>
+                    </StackPanel>
+                    <Button HorizontalAlignment="Right" VerticalAlignment="Center" Width="34" Height="30"
+                            Content="×" Foreground="#C5C7CA" Background="#1C1D20"
+                            BorderBrush="#404247" FontSize="17" Cursor="Hand" Click="CloseButton_Click" />
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="1" Background="#B8111214" BorderBrush="#303236" BorderThickness="0,0,0,1">
+                <StackPanel Orientation="Horizontal" Margin="16,7">
+                    <Button x:Name="OverviewNavButton" Style="{StaticResource NavButton}" Click="OverviewNavButton_Click">
+                        <StackPanel Orientation="Horizontal"><Path Data="M8,1 A3,3 0 1 1 7.9,1 M2,15 C2,10 14,10 14,15" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.5" Width="14" Height="14" Stretch="Uniform" Margin="0,0,8,0" /><TextBlock Text="TỔNG QUAN" /></StackPanel>
+                    </Button>
+                    <Button x:Name="MapNavButton" Style="{StaticResource NavButton}" Click="MapNavButton_Click">
+                        <StackPanel Orientation="Horizontal"><Path Data="M1,3 L5,1 L11,3 L15,1 L15,13 L11,15 L5,13 L1,15 Z M5,1 L5,13 M11,3 L11,15" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.3" Width="14" Height="14" Stretch="Uniform" Margin="0,0,8,0" /><TextBlock Text="BẢN ĐỒ ĐẢO" /></StackPanel>
+                    </Button>
+                    <Button x:Name="GarageNavButton" Style="{StaticResource NavButton}" Click="GarageNavButton_Click">
+                        <StackPanel Orientation="Horizontal"><Path Data="M1,6 L8,1 L15,6 L15,15 L1,15 Z M4,15 L4,8 L12,8 L12,15 M6,11 L10,11" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.35" Width="14" Height="14" Stretch="Uniform" Margin="0,0,8,0" /><TextBlock Text="GARAGE" /></StackPanel>
+                    </Button>
+                    <Button x:Name="MutationNavButton" Style="{StaticResource NavButton}" Click="MutationNavButton_Click">
+                        <StackPanel Orientation="Horizontal"><Path Data="M8,1 C3,3 3,7 8,8 C13,9 13,13 8,15 M8,1 C13,3 13,7 8,8 C3,9 3,13 8,15 M4,4 L12,4 M4,12 L12,12" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.3" Width="14" Height="14" Stretch="Uniform" Margin="0,0,8,0" /><TextBlock Text="TIẾN HÓA MUTATION" /></StackPanel>
+                    </Button>
+                </StackPanel>
+            </Border>
+
+            <Grid Grid.Row="2">
+                <ScrollViewer x:Name="OverviewPage" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="24">
+                        <TextBlock Text="TỔNG QUAN" Foreground="{StaticResource AccentBrush}"
+                                   FontFamily="Bahnschrift SemiCondensed" FontSize="12" FontWeight="SemiBold" />
+                        <TextBlock Text="Dino hiện tại" Foreground="#F1F2F3"
+                                   FontFamily="Bahnschrift SemiCondensed" FontSize="30" FontWeight="Bold" Margin="0,4,0,4" />
+                        <TextBlock x:Name="OverviewStateLabel" Text="Đang chờ dữ liệu từ server"
+                                   Foreground="#95989D" FontSize="13" TextWrapping="Wrap" />
+
+                        <Border Background="{StaticResource PanelBrush}" BorderBrush="#3E4045" BorderThickness="1"
+                                CornerRadius="8" Padding="20" Margin="0,20,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="310" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <StackPanel Margin="0,0,24,0">
+                                    <TextBlock Text="ĐANG CHƠI" Foreground="#85888D" FontSize="10" FontWeight="SemiBold" />
+                                    <TextBlock x:Name="OverviewSpeciesLabel" Text="NO ACTIVE DINOSAUR" Foreground="#F0F1F2"
+                                               FontFamily="Bahnschrift SemiCondensed" FontWeight="Bold" FontSize="25" Margin="0,6,0,0" />
+                                    <TextBlock x:Name="OverviewPlayerLabel" Text="—" Foreground="#A1A4A8" Margin="0,3,0,0" />
+                                    <Grid Margin="0,18,0,0">
+                                        <TextBlock Text="GROWTH" Foreground="#777A7F" FontSize="10" />
+                                        <TextBlock x:Name="OverviewGrowthLabel" Text="—" Foreground="#E1E2E4"
+                                                   HorizontalAlignment="Right" FontWeight="SemiBold" />
+                                    </Grid>
+                                    <ProgressBar x:Name="OverviewGrowthBar" Style="{StaticResource GuideProgress}" Margin="0,6,0,0" />
+                                    <TextBlock x:Name="OverviewServerLabel" Text="Chưa kết nối server" Foreground="#717479"
+                                               FontSize="10" Margin="0,13,0,0" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+
+                                <Grid Grid.Column="1">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*" /><RowDefinition Height="*" />
+                                        <RowDefinition Height="*" /><RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="80" /><ColumnDefinition Width="*" /><ColumnDefinition Width="50" /></Grid.ColumnDefinitions><TextBlock Text="HP" Foreground="#AEB0B4" /><ProgressBar x:Name="OverviewHealthBar" Grid.Column="1" Style="{StaticResource GuideProgress}" VerticalAlignment="Center" Foreground="#D7D9DC" /><TextBlock x:Name="OverviewHealthLabel" Grid.Column="2" Text="—" Foreground="#C7C9CC" HorizontalAlignment="Right" /></Grid>
+                                    <Grid Grid.Row="1" Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="80" /><ColumnDefinition Width="*" /><ColumnDefinition Width="50" /></Grid.ColumnDefinitions><TextBlock Text="STAMINA" Foreground="#AEB0B4" /><ProgressBar x:Name="OverviewStaminaBar" Grid.Column="1" Style="{StaticResource GuideProgress}" VerticalAlignment="Center" Foreground="#BFC1C5" /><TextBlock x:Name="OverviewStaminaLabel" Grid.Column="2" Text="—" Foreground="#C7C9CC" HorizontalAlignment="Right" /></Grid>
+                                    <Grid Grid.Row="2" Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="80" /><ColumnDefinition Width="*" /><ColumnDefinition Width="50" /></Grid.ColumnDefinitions><TextBlock Text="FOOD" Foreground="#AEB0B4" /><ProgressBar x:Name="OverviewFoodBar" Grid.Column="1" Style="{StaticResource GuideProgress}" VerticalAlignment="Center" Foreground="#A8AAAE" /><TextBlock x:Name="OverviewFoodLabel" Grid.Column="2" Text="—" Foreground="#C7C9CC" HorizontalAlignment="Right" /></Grid>
+                                    <Grid Grid.Row="3"><Grid.ColumnDefinitions><ColumnDefinition Width="80" /><ColumnDefinition Width="*" /><ColumnDefinition Width="50" /></Grid.ColumnDefinitions><TextBlock Text="WATER" Foreground="#AEB0B4" /><ProgressBar x:Name="OverviewWaterBar" Grid.Column="1" Style="{StaticResource GuideProgress}" VerticalAlignment="Center" Foreground="#92959A" /><TextBlock x:Name="OverviewWaterLabel" Grid.Column="2" Text="—" Foreground="#C7C9CC" HorizontalAlignment="Right" /></Grid>
+                                </Grid>
+                            </Grid>
+                        </Border>
+
+                        <TextBlock Text="HELP · PHÍM TẮT" Foreground="#D5D7DA" FontFamily="Bahnschrift SemiCondensed"
+                                   FontWeight="SemiBold" FontSize="13" Margin="0,24,0,10" />
+                        <UniformGrid Columns="2">
+                            <Border Background="#B8131416" BorderBrush="#35373B" BorderThickness="1" CornerRadius="6" Padding="13" Margin="0,0,10,10"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="F8" Foreground="#F1F2F3" FontFamily="Bahnschrift" FontWeight="Bold" /><TextBlock Grid.Column="1" Text="Mở / đóng cẩm nang" Foreground="#96999E" /></Grid></Border>
+                            <Border Background="#B8131416" BorderBrush="#35373B" BorderThickness="1" CornerRadius="6" Padding="13" Margin="0,0,0,10"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="ALT + M" Foreground="#F1F2F3" FontFamily="Bahnschrift" FontWeight="Bold" /><TextBlock Grid.Column="1" Text="Mở / đóng bản đồ tương tác" Foreground="#96999E" /></Grid></Border>
+                            <Border Background="#B8131416" BorderBrush="#35373B" BorderThickness="1" CornerRadius="6" Padding="13" Margin="0,0,10,0"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="ALT + / −" Foreground="#F1F2F3" FontFamily="Bahnschrift" FontWeight="Bold" /><TextBlock Grid.Column="1" Text="Zoom minimap" Foreground="#96999E" /></Grid></Border>
+                            <Border Background="#B8131416" BorderBrush="#35373B" BorderThickness="1" CornerRadius="6" Padding="13"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="120" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="CTRL + SHIFT + O" Foreground="#F1F2F3" FontFamily="Bahnschrift" FontWeight="Bold" /><TextBlock Grid.Column="1" Text="Mở setting overlay" Foreground="#96999E" /></Grid></Border>
+                        </UniformGrid>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <Grid x:Name="MapPage" Visibility="Collapsed" Margin="20">
+                    <ContentControl x:Name="GuideMapHost" HorizontalContentAlignment="Stretch"
+                                    VerticalContentAlignment="Stretch" />
+                </Grid>
+
+                <ScrollViewer x:Name="GaragePage" Visibility="Collapsed"
+                              VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Margin="24,20,20,24">
+                        <Grid Margin="0,0,4,18">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="M1,6 L8,1 L15,6 L15,15 L1,15 Z M4,15 L4,8 L12,8 L12,15"
+                                          Stroke="#D7D9DC" StrokeThickness="1.4" Width="13" Height="13"
+                                          Stretch="Uniform" Margin="0,0,8,0" />
+                                    <TextBlock Text="DINO GARAGE" Foreground="{StaticResource AccentBrush}"
+                                               FontWeight="SemiBold" FontSize="12" />
+                                </StackPanel>
+                                <TextBlock Text="Dinosaur đã lưu" Foreground="#F2F3F4"
+                                           FontFamily="Bahnschrift SemiCondensed" FontSize="30"
+                                           FontWeight="Bold" Margin="0,3,0,2" />
+                                <TextBlock Text="Đồng bộ trực tiếp với IslePilot · có xác nhận trước khi cất hoặc lấy Dino"
+                                           Foreground="#898C91" FontSize="12" />
+                            </StackPanel>
+                            <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom">
+                                <TextBlock x:Name="GarageModeLabel" Text="CHẾ ĐỘ · —" Foreground="#7F8287"
+                                           HorizontalAlignment="Right" FontSize="9" Margin="0,0,0,3" />
+                                <TextBlock x:Name="GarageCountLabel" Text="—" Foreground="#AEB1B5"
+                                           HorizontalAlignment="Right" FontSize="11" Margin="0,0,0,7" />
+                                <StackPanel Orientation="Horizontal">
+                                    <Button x:Name="GarageParkButton" Content="CẤT DINO HIỆN TẠI"
+                                            Style="{StaticResource NavButton}" Padding="15,7"
+                                            Click="GarageParkButton_Click" />
+                                    <Button x:Name="GarageRefreshButton" Content="LÀM MỚI" Style="{StaticResource NavButton}"
+                                            Margin="0" Padding="15,7" Click="GarageRefreshButton_Click" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+
+                        <Border x:Name="GarageStatePanel" Background="#B8151618" BorderBrush="#36383C"
+                                BorderThickness="1" CornerRadius="8" Padding="22" Margin="0,0,4,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="38" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <Border Width="26" Height="26" CornerRadius="13" Background="#25272A"
+                                        HorizontalAlignment="Left">
+                                    <Path Data="M3,8 A5,5 0 1 1 8,13" Stroke="#C9CBCF" StrokeThickness="1.6"
+                                          Width="13" Height="13" Stretch="Uniform" />
+                                </Border>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock x:Name="GarageStateTitle" Text="Đang chờ mở Garage"
+                                               Foreground="#E4E5E7" FontFamily="Bahnschrift SemiCondensed"
+                                               FontSize="16" FontWeight="SemiBold" />
+                                    <TextBlock x:Name="GarageStateMessage" Text="Dữ liệu sẽ chỉ tải khi bạn chọn tab này."
+                                               Foreground="#8D9095" FontSize="11" Margin="0,3,0,0"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <ItemsControl x:Name="GarageCards" Visibility="Collapsed">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Width="322" MinHeight="438" Background="#E3141517"
+                                            BorderBrush="#3A3C40" BorderThickness="1" CornerRadius="9"
+                                            Margin="0,0,12,12" ClipToBounds="True">
+                                        <Grid>
+                                            <Grid.RowDefinitions><RowDefinition Height="212" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                                            <Grid Background="#0D0E10" ClipToBounds="True">
+                                                <Grid>
+                                                    <Grid.Style>
+                                                        <Style TargetType="Grid">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding HasPreview}" Value="False">
+                                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Grid.Style>
+                                                    <Image Source="{Binding PreviewUrl}" Stretch="Uniform" Margin="8,3,8,0"
+                                                           Opacity="1" RenderOptions.BitmapScalingMode="HighQuality">
+                                                        <Image.Effect><DropShadowEffect Color="#000000" BlurRadius="15" ShadowDepth="7" Opacity="0.6" /></Image.Effect>
+                                                    </Image>
+                                                    <Border Background="{Binding BodyColor}" Opacity="0.18" Margin="8,3,8,0">
+                                                        <Border.OpacityMask>
+                                                            <ImageBrush ImageSource="{Binding PreviewUrl}" Stretch="Uniform" />
+                                                        </Border.OpacityMask>
+                                                    </Border>
+                                                </Grid>
+                                                <Grid>
+                                                    <Grid.Style>
+                                                        <Style TargetType="Grid">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding HasPreview}" Value="False">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Grid.Style>
+                                                    <Path Data="M12,75 C30,34 65,22 96,34 C123,14 170,18 199,48 C221,49 246,62 270,83 L270,112 L12,112 Z"
+                                                          Fill="{Binding AccentColor}" Opacity="0.08" Stretch="Fill" />
+                                                    <Path Data="M27,76 C54,54 79,48 107,52 C139,27 181,34 203,61 C225,63 246,73 270,90"
+                                                          Stroke="{Binding AccentColor}" StrokeThickness="1.5" Opacity="0.28"
+                                                          Stretch="Fill" Margin="17,18,17,13" />
+                                                    <TextBlock Text="{Binding SpeciesCode}" Foreground="#16FFFFFF"
+                                                               FontFamily="Bahnschrift SemiCondensed" FontSize="56"
+                                                               FontWeight="Bold" HorizontalAlignment="Right"
+                                                               VerticalAlignment="Center" Margin="0,0,18,0" />
+                                                </Grid>
+                                                <local:GarageModelControl VerticalAlignment="Top" />
+                                                <ItemsControl ItemsSource="{Binding PaletteColors}"
+                                                              VerticalAlignment="Bottom" Margin="18,0,18,13">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border Width="18" Height="4" CornerRadius="2" Background="{Binding}"
+                                                                    Margin="0,0,4,0" />
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </Grid>
+
+                                            <StackPanel Grid.Row="1" Margin="18,16,18,17">
+                                                <Grid>
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding DisplayName}" Foreground="#F0F1F2"
+                                                                   FontFamily="Bahnschrift SemiCondensed" FontSize="19"
+                                                                   FontWeight="Bold" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Text="{Binding Species}" Foreground="#8F9297"
+                                                                   FontSize="11" Margin="0,1,0,0" />
+                                                    </StackPanel>
+                                                    <Border Background="#232529" BorderBrush="#3C3E43" BorderThickness="1"
+                                                            CornerRadius="4" Padding="7,3" HorizontalAlignment="Right"
+                                                            VerticalAlignment="Top">
+                                                        <TextBlock Text="{Binding PrimeLabel}" Foreground="#C7C9CC"
+                                                                   FontSize="9" FontWeight="SemiBold" />
+                                                    </Border>
+                                                </Grid>
+
+                                                <Grid Margin="0,14,0,0">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Giới tính / Gender" Foreground="#8F9297" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding Gender}" Foreground="#E2E3E5" FontWeight="SemiBold" />
+                                                </Grid>
+                                                <Grid Margin="0,7,0,0">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Tăng trưởng / Growth" Foreground="#8F9297" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding GrowthLabel}" Foreground="#E2E3E5" FontWeight="SemiBold" />
+                                                </Grid>
+                                                <ProgressBar Value="{Binding Growth}" Style="{StaticResource GuideProgress}"
+                                                             Height="5" Foreground="{Binding AccentColor}" Margin="0,6,0,12" />
+
+                                                <Grid Margin="0,0,0,7"><Grid.ColumnDefinitions><ColumnDefinition Width="65" /><ColumnDefinition Width="*" /><ColumnDefinition Width="42" /></Grid.ColumnDefinitions><TextBlock Text="HEALTH" Foreground="#777A7F" FontSize="9" /><ProgressBar Grid.Column="1" Value="{Binding Health}" Style="{StaticResource GuideProgress}" Height="5" VerticalAlignment="Center" Foreground="#C7C9CC" /><TextBlock Grid.Column="2" Text="{Binding HealthLabel}" Foreground="#AEB1B5" FontSize="9" HorizontalAlignment="Right" /></Grid>
+                                                <Grid Margin="0,0,0,7"><Grid.ColumnDefinitions><ColumnDefinition Width="65" /><ColumnDefinition Width="*" /><ColumnDefinition Width="42" /></Grid.ColumnDefinitions><TextBlock Text="FOOD" Foreground="#777A7F" FontSize="9" /><ProgressBar Grid.Column="1" Value="{Binding Hunger}" Style="{StaticResource GuideProgress}" Height="5" VerticalAlignment="Center" Foreground="#B3A37E" /><TextBlock Grid.Column="2" Text="{Binding HungerLabel}" Foreground="#AEB1B5" FontSize="9" HorizontalAlignment="Right" /></Grid>
+                                                <Grid Margin="0,0,0,7"><Grid.ColumnDefinitions><ColumnDefinition Width="65" /><ColumnDefinition Width="*" /><ColumnDefinition Width="42" /></Grid.ColumnDefinitions><TextBlock Text="WATER" Foreground="#777A7F" FontSize="9" /><ProgressBar Grid.Column="1" Value="{Binding Thirst}" Style="{StaticResource GuideProgress}" Height="5" VerticalAlignment="Center" Foreground="#7D9EAA" /><TextBlock Grid.Column="2" Text="{Binding ThirstLabel}" Foreground="#AEB1B5" FontSize="9" HorizontalAlignment="Right" /></Grid>
+                                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65" /><ColumnDefinition Width="*" /><ColumnDefinition Width="42" /></Grid.ColumnDefinitions><TextBlock Text="STAMINA" Foreground="#777A7F" FontSize="9" /><ProgressBar Grid.Column="1" Value="{Binding Stamina}" Style="{StaticResource GuideProgress}" Height="5" VerticalAlignment="Center" Foreground="#A8AAAE" /><TextBlock Grid.Column="2" Text="{Binding StaminaLabel}" Foreground="#AEB1B5" FontSize="9" HorizontalAlignment="Right" /></Grid>
+
+                                                <Button Content="{Binding ActionLabel}" Tag="{Binding DinoId}"
+                                                        Style="{StaticResource NavButton}" Margin="0,13,0,0"
+                                                        Padding="12,7" HorizontalAlignment="Stretch"
+                                                        HorizontalContentAlignment="Center"
+                                                        Click="RestoreDinoButton_Click" />
+
+                                                <Border BorderBrush="#303236" BorderThickness="0,1,0,0" Margin="0,12,0,0" Padding="0,10,0,0">
+                                                    <Grid>
+                                                        <TextBlock Text="{Binding ParkedLabel}" Foreground="#777A7F" FontSize="9" />
+                                                        <TextBlock Text="{Binding MutationLabel}" Foreground="#AEB1B5" FontSize="9"
+                                                                   FontWeight="SemiBold" HorizontalAlignment="Right" />
+                                                    </Grid>
+                                                </Border>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <Grid x:Name="GarageCommandOverlay" Visibility="Collapsed" Background="#B5000000"
+                      Panel.ZIndex="20">
+                    <Border Width="430" Background="#F3161719" BorderBrush="#505257" BorderThickness="1"
+                            CornerRadius="10" Padding="22" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <StackPanel>
+                            <Border Width="38" Height="38" CornerRadius="19" Background="#292B2F"
+                                    HorizontalAlignment="Left" Margin="0,0,0,14">
+                                <Path Data="M1,6 L8,1 L15,6 L15,15 L1,15 Z M4,15 L4,8 L12,8 L12,15"
+                                      Stroke="#E0E2E4" StrokeThickness="1.5" Width="18" Height="18"
+                                      Stretch="Uniform" />
+                            </Border>
+                            <TextBlock x:Name="GarageCommandTitle" Text="Xác nhận thao tác"
+                                       Foreground="#F1F2F3" FontFamily="Bahnschrift SemiCondensed"
+                                       FontSize="22" FontWeight="Bold" />
+                            <TextBlock x:Name="GarageCommandMessage" Text="—" Foreground="#A3A6AA"
+                                       TextWrapping="Wrap" LineHeight="19" Margin="0,7,0,0" />
+                            <TextBlock x:Name="GarageCommandProgress" Text="" Foreground="#D5D7DA"
+                                       FontFamily="Bahnschrift SemiCondensed" FontSize="16"
+                                       FontWeight="SemiBold" Margin="0,14,0,0" />
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+                                <Button x:Name="GarageCommandCancelButton" Content="HỦY"
+                                        Style="{StaticResource NavButton}" Click="GarageCommandCancelButton_Click" />
+                                <Button x:Name="GarageCommandConfirmButton" Content="XÁC NHẬN"
+                                        Style="{StaticResource NavButton}" Margin="0"
+                                        Click="GarageCommandConfirmButton_Click" />
+                                <Button x:Name="GarageCommandCloseButton" Content="ĐÓNG" Visibility="Collapsed"
+                                        Style="{StaticResource NavButton}" Margin="0"
+                                        Click="GarageCommandCloseButton_Click" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <ScrollViewer x:Name="MutationPage" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="20">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="320" /></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="M8,0 L10,6 L16,8 L10,10 L8,16 L6,10 L0,8 L6,6 Z"
+                                          Fill="#D7D9DC" Width="12" Height="12" Stretch="Uniform" Margin="0,0,8,0" />
+                                    <TextBlock Text="TIẾN HÓA THEO LOÀI" Foreground="{StaticResource AccentBrush}"
+                                               FontWeight="SemiBold" FontSize="12" />
+                                </StackPanel>
+                                <TextBlock Text="Hướng dẫn Mutation" Foreground="#F2F6F4"
+                                           FontFamily="Bahnschrift SemiCondensed" FontSize="30" FontWeight="Bold" Margin="0,3,0,2" />
+                                <TextBlock x:Name="SpeciesSummaryLabel" Foreground="#8FA49E" FontSize="12"
+                                           TextWrapping="Wrap" MaxWidth="650" HorizontalAlignment="Left" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="CHỌN LOÀI KHỦNG LONG (23 LOÀI)" Foreground="#C9CBCF"
+                                           FontSize="10" FontWeight="SemiBold" Margin="0,0,0,5" />
+                                <ComboBox x:Name="SpeciesComboBox" SelectionChanged="SpeciesComboBox_SelectionChanged" />
+                                <TextBlock x:Name="SpeciesProfileLabel" Foreground="#777A7F" FontSize="10" Margin="2,5,0,0" />
+                            </StackPanel>
+                        </Grid>
+
+                        <UniformGrid Columns="3" Margin="0,20,0,18">
+                            <Button x:Name="SurvivalTrackButton" Style="{StaticResource TrackButton}" Click="SurvivalTrackButton_Click">
+                                <StackPanel Orientation="Horizontal"><Path Data="M8,1 L14,4 L14,9 C14,13 11,15 8,16 C5,15 2,13 2,9 L2,4 Z" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.5" Width="16" Height="16" Stretch="Uniform" Margin="0,0,10,0" /><TextBlock Text="SINH TỒN" /></StackPanel>
+                            </Button>
+                            <Button x:Name="CombatTrackButton" Style="{StaticResource TrackButton}" Click="CombatTrackButton_Click">
+                                <StackPanel Orientation="Horizontal"><Path Data="M2,2 L14,14 M14,2 L2,14 M1,1 L5,2 L2,5 Z M15,1 L11,2 L14,5 Z" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.5" Width="16" Height="16" Stretch="Uniform" Margin="0,0,10,0" /><TextBlock Text="COMBAT" /></StackPanel>
+                            </Button>
+                            <Button x:Name="MovementTrackButton" Style="{StaticResource TrackButton}" Click="MovementTrackButton_Click">
+                                <StackPanel Orientation="Horizontal"><Path Data="M2,14 L14,2 M7,2 L14,2 L14,9" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.6" Width="16" Height="16" Stretch="Uniform" Margin="0,0,10,0" /><TextBlock Text="DI CHUYỂN" /></StackPanel>
+                            </Button>
+                        </UniformGrid>
+
+                        <Grid Margin="0,0,0,10">
+                            <TextBlock x:Name="RecommendationTitleLabel" Foreground="#EDF5F1"
+                                       FontFamily="Bahnschrift SemiCondensed" FontSize="20" FontWeight="Bold" />
+                            <TextBlock Text="Ưu tiên từ trái sang phải" HorizontalAlignment="Right"
+                                       Foreground="#777A7F" VerticalAlignment="Center" />
+                        </Grid>
+
+                        <ItemsControl x:Name="MutationCards">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><UniformGrid Columns="3" /></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#C9161719" BorderBrush="#3B3D42" BorderThickness="1"
+                                            CornerRadius="7" Padding="15" Margin="0,0,12,0" MinHeight="225">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Text="{Binding Priority, StringFormat={}{0:00}}" Foreground="#D4D6D9"
+                                                       FontFamily="Bahnschrift" FontWeight="Bold" />
+                                            <TextBlock Grid.Row="1" Text="{Binding DisplayName}" Foreground="#F1F5F3"
+                                                       FontFamily="Bahnschrift SemiCondensed" FontSize="17" FontWeight="Bold"
+                                                       TextWrapping="Wrap" Margin="0,9,0,1" />
+                                            <Border Grid.Row="3" Background="#B8212225" CornerRadius="5" Padding="10" Margin="0,12,0,12">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Effect}" Foreground="#CACCCE" TextWrapping="Wrap" LineHeight="18" />
+                                                    <TextBlock Text="{Binding Why}" Foreground="#92959A" TextWrapping="Wrap"
+                                                               LineHeight="17" Margin="0,8,0,0" />
+                                                </StackPanel>
+                                            </Border>
+                                            <TextBlock Grid.Row="4" Text="{Binding Tag}" Foreground="#B8BBC0"
+                                                       FontSize="9" FontWeight="SemiBold" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Border Background="#B816171A" BorderBrush="#3B3D42" BorderThickness="1" CornerRadius="6"
+                                Padding="12" Margin="0,18,12,0">
+                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <Path Data="M8,1 A7,7 0 1 1 7.9,1 M8,7 L8,12 M8,4 L8,5" Stroke="#BFC1C5" StrokeThickness="1.5" Width="16" Height="16" Stretch="Uniform" />
+                                <TextBlock Grid.Column="1" Text="Đây là khuyến nghị cộng đồng theo vai trò của loài. Giá trị và pool có thể đổi theo patch hoặc cấu hình server; hãy kiểm tra trong TAB trước khi chọn."
+                                           Foreground="#A5A8AD" TextWrapping="Wrap" />
+                            </Grid>
+                        </Border>
+                        <TextBlock Text="Nguồn tham khảo: theisle.info · dữ liệu Mutation 28/05/2026"
+                                   Foreground="#66696E" FontSize="10" Margin="0,10,0,0" />
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

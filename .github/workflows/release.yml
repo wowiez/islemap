@@ -1,0 +1,48 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  windows-release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Validate tag and project version
+        shell: pwsh
+        run: |
+          $tagVersion = "${{ github.ref_name }}".TrimStart("v")
+          [xml]$project = Get-Content .\src\TheIsleOverlay.App\TheIsleOverlay.App.csproj
+          $projectVersion = [string]$project.Project.PropertyGroup.Version
+          if ($tagVersion -ne $projectVersion) {
+            throw "Tag version $tagVersion does not match project version $projectVersion."
+          }
+
+      - name: Package installer and update feed
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          .\scripts\Package-Release.ps1 -Version $version
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" .\artifacts\distribution\* `
+            --repo "${{ github.repository }}" `
+            --title "Isle Live Map ${{ github.ref_name }}" `
+            --notes-file .\RELEASE_NOTES.md `
+            --verify-tag
