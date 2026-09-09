@@ -51,16 +51,24 @@ public sealed class IslePilotOverlayWebSocketTests
         Assert.Null(message);
     }
 
-    [Theory]
-    [InlineData(HttpStatusCode.Unauthorized)]
-    [InlineData(HttpStatusCode.Forbidden)]
-    public void IsAuthenticationFailure_RecognizesHandshakeStatus(HttpStatusCode statusCode)
+    [Fact]
+    public void IsAuthenticationFailure_RecognizesUnauthorizedHandshake()
     {
         var exception = new WebSocketException(
             "handshake failed",
-            new HttpRequestException("request failed", null, statusCode));
+            new HttpRequestException("request failed", null, HttpStatusCode.Unauthorized));
 
         Assert.True(IslePilotOverlayWebSocket.IsAuthenticationFailure(exception));
+    }
+
+    [Fact]
+    public void IsAuthenticationFailure_DoesNotTreatForbiddenAsAnExpiredCredential()
+    {
+        var exception = new WebSocketException(
+            "handshake failed",
+            new HttpRequestException("request failed", null, HttpStatusCode.Forbidden));
+
+        Assert.False(IslePilotOverlayWebSocket.IsAuthenticationFailure(exception));
     }
 
     private sealed class FragmentedWebSocket(params byte[][] fragments) : WebSocket

@@ -1,3 +1,9 @@
+# Isle Live Map 1.7.15
+
+- Không còn tự xóa tài khoản Steam đã lưu khi một endpoint IslePilot hoặc WebSocket tạm trả 401/403; credential chỉ bị xóa khi người dùng bấm `XÓA TÀI KHOẢN`.
+- Chỉ `/me` mới kết luận phiên hết hạn sau ba lần xác minh liên tiếp; lỗi quyền của `/map`, `/markers` và WS giữ REST session cùng dữ liệu tài khoản hoạt động.
+- Xóa đầy đủ cookie và site data trong WebView2 khi mở luồng đăng nhập để việc đổi tài khoản Steam không bị dính phiên cũ.
+
 # Isle Live Map 1.7.14
 
 - Đặt `ROTATE` mặc định là OFF cho lần chạy mới và khi file layout không hợp lệ; lựa chọn đã lưu của người dùng cũ vẫn được giữ nguyên.

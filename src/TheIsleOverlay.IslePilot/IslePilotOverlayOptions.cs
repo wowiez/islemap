@@ -16,4 +16,6 @@ public sealed record IslePilotOverlayOptions
     public TimeSpan RestRequestTimeout { get; init; } = TimeSpan.FromSeconds(5);
     public TimeSpan RestTimeoutRetryDelay { get; init; } = TimeSpan.FromMilliseconds(250);
     public int RestTimeoutRetryCount { get; init; } = 1;
+    public TimeSpan AuthenticationRetryDelay { get; init; } = TimeSpan.FromSeconds(1);
+    public int AuthenticationRetryCount { get; init; } = 2;
 }

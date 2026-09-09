@@ -508,18 +508,25 @@ public sealed class IslePilotRealtimeSessionTests
     }
 
     [Fact]
-    public async Task AuthenticationFailure_StopsBeforeWebSocketAndRequiresLogin()
+    public async Task RepeatedMeAuthenticationFailure_RequiresLoginOnlyAfterConfirmation()
     {
         var api = new FakeApiClient
         {
             Failure = new IslePilotOverlayAuthenticationException("expired")
         };
         var socketFactoryCalls = 0;
-        await using var session = CreateSession(api, () =>
-        {
-            socketFactoryCalls++;
-            return new FakeWebSocket([]);
-        });
+        await using var session = new IslePilotRealtimeSession(
+            api,
+            Options() with
+            {
+                AuthenticationRetryDelay = TimeSpan.FromMilliseconds(1),
+                AuthenticationRetryCount = 2
+            },
+            () =>
+            {
+                socketFactoryCalls++;
+                return new FakeWebSocket([]);
+            });
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
         await using var snapshots = session.WatchAsync(timeout.Token).GetAsyncEnumerator();
 
@@ -528,18 +535,38 @@ public sealed class IslePilotRealtimeSessionTests
             value => value.SessionState == TelemetrySessionState.AuthenticationRequired,
             timeout.Token);
 
-        Assert.Equal("PHIÊN ĐÃ HẾT HẠN", snapshot.StatusMessage);
-        Assert.Equal(0, socketFactoryCalls);
+        Assert.Equal("PHIÊN CẦN XÁC THỰC LẠI", snapshot.StatusMessage);
+        Assert.Equal(3, api.MeCalls);
+        Assert.True(socketFactoryCalls >= 1);
         Assert.False(await snapshots.MoveNextAsync());
     }
 
     [Fact]
-    public async Task WebSocketAuthenticationFailure_DoesNotReconnect()
+    public async Task TransientMeAuthenticationFailure_RecoversWithoutRequiringLogin()
     {
-        var api = new FakeApiClient();
-        var socket = new FakeWebSocket(
-            [],
-            connectFailure: new IslePilotOverlayAuthenticationException("expired"));
+        var api = new FakeApiClient { Online = true };
+        api.MeFailures.Enqueue(new IslePilotOverlayAuthenticationException("temporary"));
+        await using var session = new IslePilotRealtimeSession(
+            api,
+            Options() with
+            {
+                AuthenticationRetryDelay = TimeSpan.FromMilliseconds(1),
+                AuthenticationRetryCount = 2
+            },
+            () => new FakeWebSocket([]));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        await using var snapshots = session.WatchAsync(timeout.Token).GetAsyncEnumerator();
+
+        var snapshot = await ReadUntilAsync(snapshots, value => value.PlayerOnline, timeout.Token);
+
+        Assert.NotEqual(TelemetrySessionState.AuthenticationRequired, snapshot.SessionState);
+        Assert.Equal(2, api.MeCalls);
+    }
+
+    [Fact]
+    public async Task WebSocketAuthenticationFailure_KeepsRestSessionAliveAndReconnects()
+    {
+        var api = new FakeApiClient { Online = true };
         var socketFactoryCalls = 0;
         var reconnectDelayCalls = 0;
         await using var session = new IslePilotRealtimeSession(
@@ -548,26 +575,58 @@ public sealed class IslePilotRealtimeSessionTests
             () =>
             {
                 socketFactoryCalls++;
-                return socket;
+                return new FakeWebSocket(
+                    [],
+                    connectFailure: new IslePilotOverlayAuthenticationException("temporary"));
             },
             new IslePilotReconnectBackoff(() => 0.5),
-            (_, _) =>
+            async (_, cancellationToken) =>
             {
                 reconnectDelayCalls++;
-                return Task.CompletedTask;
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             },
             () => DateTimeOffset.UtcNow);
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
         await using var snapshots = session.WatchAsync(timeout.Token).GetAsyncEnumerator();
 
-        _ = await ReadUntilAsync(
+        var snapshot = await ReadUntilAsync(
             snapshots,
-            value => value.SessionState == TelemetrySessionState.AuthenticationRequired,
+            value => value.PlayerOnline && reconnectDelayCalls > 0,
             timeout.Token);
 
         Assert.Equal(1, socketFactoryCalls);
-        Assert.Equal(0, reconnectDelayCalls);
-        Assert.True(socket.Disposed);
+        Assert.Equal(1, reconnectDelayCalls);
+        Assert.NotEqual(TelemetrySessionState.AuthenticationRequired, snapshot.SessionState);
+    }
+
+    [Fact]
+    public async Task FeatureEndpointAuthenticationFailures_DoNotEndTheSession()
+    {
+        var api = new FakeApiClient { Online = true, Server = "SBTC ISLAND" };
+        api.MapFailures.Enqueue(new IslePilotOverlayAuthenticationException("map forbidden"));
+        api.MarkersFailures.Enqueue(new IslePilotOverlayAuthenticationException("markers forbidden"));
+        await using var session = new IslePilotRealtimeSession(
+            api,
+            Options() with
+            {
+                MapRefreshInterval = TimeSpan.FromMilliseconds(20),
+                MarkersRefreshInterval = TimeSpan.FromMilliseconds(20)
+            },
+            () => new FakeWebSocket([]));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        await using var snapshots = session.WatchAsync(timeout.Token).GetAsyncEnumerator();
+
+        TelemetrySnapshot? latest = null;
+        while ((api.MapCalls < 2 || api.MarkersCalls < 2) &&
+               await snapshots.MoveNextAsync().AsTask().WaitAsync(timeout.Token))
+        {
+            latest = snapshots.Current;
+            Assert.NotEqual(TelemetrySessionState.AuthenticationRequired, latest.SessionState);
+        }
+
+        Assert.True(api.MapCalls >= 2);
+        Assert.True(api.MarkersCalls >= 2);
+        Assert.NotNull(latest);
     }
 
     [Fact]
@@ -625,7 +684,9 @@ public sealed class IslePilotRealtimeSessionTests
         public Exception? Failure { get; init; }
         public bool Online { get; init; }
         public string Server { get; init; } = "IslePilot Server";
+        public Queue<Exception> MeFailures { get; } = [];
         public Queue<Exception> MapFailures { get; } = [];
+        public Queue<Exception> MarkersFailures { get; } = [];
         public IslePilotOverlayMarkersDto MarkersResponse { get; init; } = new();
         public IslePilotOverlayMapDto MapResponse { get; set; } = new()
         {
@@ -643,6 +704,11 @@ public sealed class IslePilotRealtimeSessionTests
         public Task<IslePilotOverlayMeDto> GetMeAsync(CancellationToken cancellationToken = default)
         {
             MeCalls++;
+            if (MeFailures.TryDequeue(out var meFailure))
+            {
+                return Task.FromException<IslePilotOverlayMeDto>(meFailure);
+            }
+
             if (Failure is not null)
             {
                 return Task.FromException<IslePilotOverlayMeDto>(Failure);
@@ -680,6 +746,11 @@ public sealed class IslePilotRealtimeSessionTests
             CancellationToken cancellationToken = default)
         {
             MarkersCalls++;
+            if (MarkersFailures.TryDequeue(out var markersFailure))
+            {
+                return Task.FromException<IslePilotOverlayMarkersDto>(markersFailure);
+            }
+
             return Task.FromResult(MarkersResponse);
         }
     }

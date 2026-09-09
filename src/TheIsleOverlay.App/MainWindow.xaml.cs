@@ -343,7 +343,7 @@ public partial class MainWindow : Window
 
             if (snapshot.SessionState == TelemetrySessionState.AuthenticationRequired)
             {
-                ShowTelemetryUnavailable("PHIÊN ĐÃ HẾT HẠN", "Đăng nhập lại đúng website nguồn để tiếp tục");
+                ShowTelemetryUnavailable("PHIÊN CẦN XÁC THỰC LẠI", "Tài khoản đã lưu vẫn được giữ; mở lại Home để xác thực");
                 RequestStatusLabel.Text = activityStatus;
                 return;
             }

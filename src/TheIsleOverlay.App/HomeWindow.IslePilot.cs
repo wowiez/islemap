@@ -59,11 +59,8 @@ public partial class HomeWindow
                 var savedValidation = await ValidateIslePilotCredentialsAsync(credentials);
                 if (savedValidation.State == IslePilotOverlayAuthValidationState.Invalid)
                 {
-                    await _islePilotCredentialStore.RemoveAsync(credentials.SteamId, _shutdown.Token);
                     credentials = null;
-                    _islePilotCredentials = null;
-                    await ReloadSteamAccountsAsync();
-                    SourceStatusLabel.Text = "Phiên đã hết hạn. Hãy đăng nhập Steam lại.";
+                    SourceStatusLabel.Text = "Phiên cần xác thực lại. Tài khoản đã lưu vẫn được giữ.";
                 }
                 else if (savedValidation.State == IslePilotOverlayAuthValidationState.Valid)
                 {
@@ -192,27 +189,36 @@ public partial class HomeWindow
         IslePilotOverlayAuthResult credentials)
     {
         using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
-        try
+        for (var attempt = 0; attempt < 3; attempt++)
         {
-            var apiClient = new IslePilotOverlayApiClient(
-                httpClient,
-                new IslePilotOverlayOptions { OverlayToken = credentials.OverlayToken });
-            var me = await apiClient.GetMeAsync(_shutdown.Token);
-            var personaName = me.PersonaName ?? me.Name ?? credentials.PersonaName;
-            return new SteamAccountValidation(
-                IslePilotOverlayAuthValidationState.Valid,
-                credentials with { PersonaName = personaName });
+            try
+            {
+                var apiClient = new IslePilotOverlayApiClient(
+                    httpClient,
+                    new IslePilotOverlayOptions { OverlayToken = credentials.OverlayToken });
+                var me = await apiClient.GetMeAsync(_shutdown.Token);
+                var personaName = me.PersonaName ?? me.Name ?? credentials.PersonaName;
+                return new SteamAccountValidation(
+                    IslePilotOverlayAuthValidationState.Valid,
+                    credentials with { PersonaName = personaName });
+            }
+            catch (IslePilotOverlayAuthenticationException) when (attempt < 2)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(1), _shutdown.Token);
+            }
+            catch (IslePilotOverlayAuthenticationException)
+            {
+                return new SteamAccountValidation(IslePilotOverlayAuthValidationState.Invalid, credentials);
+            }
+            catch (Exception exception) when (
+                exception is HttpRequestException or System.IO.IOException or System.IO.InvalidDataException or System.Text.Json.JsonException ||
+                exception is OperationCanceledException && !_shutdown.IsCancellationRequested)
+            {
+                return new SteamAccountValidation(IslePilotOverlayAuthValidationState.Unavailable, credentials);
+            }
         }
-        catch (IslePilotOverlayAuthenticationException)
-        {
-            return new SteamAccountValidation(IslePilotOverlayAuthValidationState.Invalid, credentials);
-        }
-        catch (Exception exception) when (
-            exception is HttpRequestException or System.IO.IOException or System.IO.InvalidDataException or System.Text.Json.JsonException ||
-            exception is OperationCanceledException && !_shutdown.IsCancellationRequested)
-        {
-            return new SteamAccountValidation(IslePilotOverlayAuthValidationState.Unavailable, credentials);
-        }
+
+        return new SteamAccountValidation(IslePilotOverlayAuthValidationState.Unavailable, credentials);
     }
 
     private async Task OpenIslePilotOverlayAsync(IslePilotOverlayAuthResult credentials)
@@ -222,10 +228,6 @@ public partial class HomeWindow
             OverlayToken = credentials.OverlayToken,
             PersonaName = credentials.PersonaName
         });
-        var session = new AuthenticationInvalidatingTelemetrySession(
-            realtimeSession,
-            () => _islePilotCredentialStore.Remove(credentials.SteamId));
-
         try
         {
             var garageApi = new GuideGarageApi(
@@ -233,14 +235,14 @@ public partial class HomeWindow
                 realtimeSession.ParkGarageDinoAsync,
                 realtimeSession.RestoreGarageDinoAsync,
                 realtimeSession.GetGarageCommandStatusAsync);
-            var overlay = new MainWindow(session, "ISLEPILOT", garageApi);
+            var overlay = new MainWindow(realtimeSession, "ISLEPILOT", garageApi);
             Application.Current.MainWindow = overlay;
             overlay.Show();
             Close();
         }
         catch
         {
-            await session.DisposeAsync();
+            await realtimeSession.DisposeAsync();
             throw;
         }
     }

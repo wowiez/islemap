@@ -506,7 +506,7 @@ public sealed class IslePilotOverlayStateReducer
 
     private static string ResolveStatusMessage(TelemetrySessionState state, bool playerOnline) => state switch
     {
-        TelemetrySessionState.AuthenticationRequired => "PHIÊN ĐÃ HẾT HẠN",
+        TelemetrySessionState.AuthenticationRequired => "PHIÊN CẦN XÁC THỰC LẠI",
         TelemetrySessionState.UnsupportedServer => "ISLEPILOT · CHƯA VÀO SERVER HỖ TRỢ",
         TelemetrySessionState.Reconnecting => "ISLEPILOT · RECONNECTING",
         TelemetrySessionState.Stale => "ISLEPILOT · DATA STALE",

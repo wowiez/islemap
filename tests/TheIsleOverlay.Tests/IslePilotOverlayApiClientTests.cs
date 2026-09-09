@@ -168,18 +168,29 @@ public sealed class IslePilotOverlayApiClientTests
         Assert.True(handler.NoStore);
     }
 
-    [Theory]
-    [InlineData(HttpStatusCode.Unauthorized)]
-    [InlineData(HttpStatusCode.Forbidden)]
-    public async Task AuthenticationFailure_RequiresLoginWithoutLeakingToken(HttpStatusCode statusCode)
+    [Fact]
+    public async Task Unauthorized_RequiresLoginWithoutLeakingToken()
     {
-        using var handler = new RecordingHandler(statusCode, "unauthorized");
+        using var handler = new RecordingHandler(HttpStatusCode.Unauthorized, "unauthorized");
         using var httpClient = new HttpClient(handler);
         var client = CreateClient(httpClient);
 
         var exception = await Assert.ThrowsAnyAsync<TelemetryAuthenticationException>(
             () => client.GetMeAsync());
 
+        Assert.DoesNotContain(Token, exception.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Forbidden_DoesNotClassifyTheSavedCredentialAsExpired()
+    {
+        using var handler = new RecordingHandler(HttpStatusCode.Forbidden, "forbidden");
+        using var httpClient = new HttpClient(handler);
+        var client = CreateClient(httpClient);
+
+        var exception = await Assert.ThrowsAsync<HttpRequestException>(() => client.GetMeAsync());
+
+        Assert.IsNotAssignableFrom<TelemetryAuthenticationException>(exception);
         Assert.DoesNotContain(Token, exception.ToString(), StringComparison.Ordinal);
     }
 

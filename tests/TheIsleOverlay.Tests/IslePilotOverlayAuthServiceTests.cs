@@ -55,18 +55,30 @@ public sealed class IslePilotOverlayAuthServiceTests
         Assert.Equal(IslePilotOverlayAuthValidationState.Valid, state);
     }
 
-    [Theory]
-    [InlineData(HttpStatusCode.Unauthorized)]
-    [InlineData(HttpStatusCode.Forbidden)]
-    public async Task ValidateAsync_ReturnsInvalidForRejectedCredentials(HttpStatusCode statusCode)
+    [Fact]
+    public async Task ValidateAsync_ReturnsInvalidForUnauthorizedCredentials()
     {
-        using var httpClient = new HttpClient(new StubHandler(new HttpResponseMessage(statusCode)));
+        using var httpClient = new HttpClient(new StubHandler(
+            new HttpResponseMessage(HttpStatusCode.Unauthorized)));
 
         var state = await IslePilotOverlayAuthService.ValidateAsync(
             httpClient,
             Credentials());
 
         Assert.Equal(IslePilotOverlayAuthValidationState.Invalid, state);
+    }
+
+    [Fact]
+    public async Task ValidateAsync_TreatsForbiddenAsUnavailableWithoutInvalidatingCredentials()
+    {
+        using var httpClient = new HttpClient(new StubHandler(
+            new HttpResponseMessage(HttpStatusCode.Forbidden)));
+
+        var state = await IslePilotOverlayAuthService.ValidateAsync(
+            httpClient,
+            Credentials());
+
+        Assert.Equal(IslePilotOverlayAuthValidationState.Unavailable, state);
     }
 
     [Fact]

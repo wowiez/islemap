@@ -100,7 +100,7 @@ public sealed class IslePilotOverlayApiClient : IIslePilotOverlayApiClient
             request,
             HttpCompletionOption.ResponseHeadersRead,
             cancellationToken);
-        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
             throw new IslePilotOverlayAuthenticationException(
                 "Phiên IslePilot đã hết hạn hoặc chưa đăng nhập.");
@@ -135,7 +135,7 @@ public sealed class IslePilotOverlayApiClient : IIslePilotOverlayApiClient
             HttpCompletionOption.ResponseHeadersRead,
             cancellationToken);
 
-        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
             throw new IslePilotOverlayAuthenticationException(
                 "Phiên IslePilot đã hết hạn hoặc chưa đăng nhập.");
@@ -168,7 +168,7 @@ public sealed class IslePilotOverlayApiClient : IIslePilotOverlayApiClient
             request,
             HttpCompletionOption.ResponseHeadersRead,
             cancellationToken);
-        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
             throw new IslePilotOverlayAuthenticationException(
                 "Phiên IslePilot đã hết hạn hoặc chưa đăng nhập.");

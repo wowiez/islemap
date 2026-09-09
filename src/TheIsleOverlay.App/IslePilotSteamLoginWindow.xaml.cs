@@ -171,7 +171,8 @@ public partial class IslePilotSteamLoginWindow : Window
         BrowserLoadingPanel.Visibility = Visibility.Visible;
         LoginStatusLabel.Text = "Đang xóa phiên Steam cũ để chọn tài khoản…";
         LoginBrowser.CoreWebView2.CookieManager.DeleteAllCookies();
-        await Task.Yield();
+        await LoginBrowser.CoreWebView2.Profile.ClearBrowsingDataAsync(
+            CoreWebView2BrowsingDataKinds.AllSite);
     }
 
     private static Task<CoreWebView2Environment> CreateSharedEnvironmentAsync()

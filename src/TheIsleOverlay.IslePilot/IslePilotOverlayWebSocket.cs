@@ -204,7 +204,7 @@ public sealed class IslePilotOverlayWebSocket : IIslePilotOverlayWebSocket
         {
             if (current is HttpRequestException
                 {
-                    StatusCode: HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden
+                    StatusCode: HttpStatusCode.Unauthorized
                 })
             {
                 return true;

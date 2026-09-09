@@ -88,7 +88,8 @@ public sealed class IslePilotRealtimeSession : ITelemetrySession
             options.LiveDataLifetime,
             options.PositionFallbackAfter,
             options.MeRefreshInterval + options.RestRequestTimeout * (options.RestTimeoutRetryCount + 1) +
-            options.RestTimeoutRetryDelay * options.RestTimeoutRetryCount);
+            options.RestTimeoutRetryDelay * options.RestTimeoutRetryCount +
+            options.AuthenticationRetryDelay * options.AuthenticationRetryCount);
         _snapshots = Channel.CreateBounded<TelemetrySnapshot>(new BoundedChannelOptions(1)
         {
             FullMode = BoundedChannelFullMode.DropOldest,
@@ -245,7 +246,8 @@ public sealed class IslePilotRealtimeSession : ITelemetrySession
                 _apiClient.GetMeAsync,
                 _meRequestGate,
                 "/ME",
-                cancellationToken);
+                cancellationToken,
+                confirmAuthenticationFailure: true);
             UpdateState(reducer => reducer.ApplyMe(me, _utcNow(), requestStartedAt));
         }
         catch (TelemetryAuthenticationException)
@@ -276,7 +278,8 @@ public sealed class IslePilotRealtimeSession : ITelemetrySession
                     _apiClient.GetMeAsync,
                     _meRequestGate,
                     "/ME",
-                    cancellationToken);
+                    cancellationToken,
+                    confirmAuthenticationFailure: true);
                 UpdateState(reducer => reducer.ApplyMe(me, _utcNow(), requestStartedAt));
             }
             catch (TelemetryAuthenticationException)
@@ -309,7 +312,8 @@ public sealed class IslePilotRealtimeSession : ITelemetrySession
             }
             catch (TelemetryAuthenticationException)
             {
-                throw;
+                // A map endpoint can reject one feature while the overlay token
+                // remains valid. Only /me may invalidate the active session.
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -379,7 +383,8 @@ public sealed class IslePilotRealtimeSession : ITelemetrySession
                 }
                 catch (TelemetryAuthenticationException)
                 {
-                    throw;
+                    // Dedicated markers can be forbidden independently of /me.
+                    // Keep the account and the remaining telemetry streams alive.
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -402,7 +407,8 @@ public sealed class IslePilotRealtimeSession : ITelemetrySession
         Func<CancellationToken, Task<T>> request,
         SemaphoreSlim requestGate,
         string endpoint,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool confirmAuthenticationFailure = false)
     {
         // Each endpoint owns one gate. Repeated requests of the same type can
         // never overlap or accumulate, while one /me and one /map may run in
@@ -410,7 +416,10 @@ public sealed class IslePilotRealtimeSession : ITelemetrySession
         await requestGate.WaitAsync(cancellationToken);
         try
         {
-            for (var attempt = 0; ; attempt++)
+            var attempt = 0;
+            var timeoutRetries = 0;
+            var authenticationRetries = 0;
+            while (true)
             {
                 SetRequestActivity(endpoint, attempt == 0 ? "REQUESTING" : "RETRYING");
                 using var requestCancellation = CancellationTokenSource.CreateLinkedTokenSource(
@@ -422,10 +431,19 @@ public sealed class IslePilotRealtimeSession : ITelemetrySession
                     requestCancellation.Token.ThrowIfCancellationRequested();
                     return result;
                 }
+                catch (TelemetryAuthenticationException) when (
+                    confirmAuthenticationFailure &&
+                    authenticationRetries < _options.AuthenticationRetryCount)
+                {
+                    authenticationRetries++;
+                    SetRequestActivity(endpoint, "VERIFYING SESSION");
+                    await Task.Delay(_options.AuthenticationRetryDelay, cancellationToken);
+                }
                 catch (OperationCanceledException) when (
                     !cancellationToken.IsCancellationRequested &&
-                    attempt < _options.RestTimeoutRetryCount)
+                    timeoutRetries < _options.RestTimeoutRetryCount)
                 {
+                    timeoutRetries++;
                     SetRequestActivity(endpoint, "RETRYING");
                     await Task.Delay(_options.RestTimeoutRetryDelay, cancellationToken);
                 }
@@ -433,6 +451,8 @@ public sealed class IslePilotRealtimeSession : ITelemetrySession
                 {
                     SetRequestActivity(endpoint, null);
                 }
+
+                attempt++;
             }
         }
         finally
@@ -479,7 +499,11 @@ public sealed class IslePilotRealtimeSession : ITelemetrySession
             }
             catch (TelemetryAuthenticationException)
             {
-                throw;
+                // WebSocket authorization can fail during a server deploy while
+                // the REST token is still valid. Let /me be the authority and
+                // keep reconnecting with the normal bounded backoff.
+                UpdateState(reducer => reducer.SetSessionState(TelemetrySessionState.Reconnecting));
+                RequestFallbackPositionRefresh();
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -681,7 +705,9 @@ public sealed class IslePilotRealtimeSession : ITelemetrySession
             options.WebSocketConnectTimeout <= TimeSpan.Zero ||
             options.RestRequestTimeout <= TimeSpan.Zero ||
             options.RestTimeoutRetryDelay < TimeSpan.Zero ||
-            options.RestTimeoutRetryCount < 0)
+            options.RestTimeoutRetryCount < 0 ||
+            options.AuthenticationRetryDelay < TimeSpan.Zero ||
+            options.AuthenticationRetryCount < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(options), "Overlay intervals must be positive.");
         }
