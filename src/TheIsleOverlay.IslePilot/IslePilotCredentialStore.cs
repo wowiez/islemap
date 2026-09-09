@@ -21,6 +21,11 @@ public sealed class IslePilotCredentialStore
         Encoding.UTF8.GetBytes(
             string.Join(string.Empty, "K", "Long", "Dev", ".IsleLiveMap.IslePilotOverlay.v1"))
     ];
+    private static readonly byte[][] MigrationOptionalEntropies =
+    [
+        OptionalEntropy,
+        .. LegacyOptionalEntropies
+    ];
 
     private readonly string _credentialPath;
 
@@ -74,7 +79,7 @@ public sealed class IslePilotCredentialStore
 
         var legacyVault = await TryLoadVaultFromPathAsync(
             legacyCredentialPath,
-            LegacyOptionalEntropies,
+            MigrationOptionalEntropies,
             cancellationToken);
         if (legacyVault is null)
         {

@@ -1,3 +1,9 @@
+# Isle Live Map 1.7.16
+
+- Khôi phục đúng vault v3 của các bản 1.7.10–1.7.12 từ thư mục cài đặt cũ; trước đây migration chỉ thử khóa v1/v2 nên một số máy hiển thị mất toàn bộ tài khoản sau update.
+- Không còn tự xóa cookie và site data khi cửa sổ đăng nhập mở; chỉ xóa phiên WebView khi người dùng chủ động bấm `ĐỔI TÀI KHOẢN`.
+- Phân loại 403, 429, 500, 502, 503, 504, timeout và HTML challenge khi IslePilot/CDN quá tải là lỗi tạm thời; giữ vault và tiếp tục polling để tự phục hồi.
+
 # Isle Live Map 1.7.15
 
 - Không còn tự xóa tài khoản Steam đã lưu khi một endpoint IslePilot hoặc WebSocket tạm trả 401/403; credential chỉ bị xóa khi người dùng bấm `XÓA TÀI KHOẢN`.

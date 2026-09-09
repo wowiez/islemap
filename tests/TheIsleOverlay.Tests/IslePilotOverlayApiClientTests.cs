@@ -181,10 +181,17 @@ public sealed class IslePilotOverlayApiClientTests
         Assert.DoesNotContain(Token, exception.ToString(), StringComparison.Ordinal);
     }
 
-    [Fact]
-    public async Task Forbidden_DoesNotClassifyTheSavedCredentialAsExpired()
+    [Theory]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.TooManyRequests)]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    [InlineData(HttpStatusCode.BadGateway)]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    [InlineData(HttpStatusCode.GatewayTimeout)]
+    public async Task ServerAndDdosFailures_DoNotClassifyTheSavedCredentialAsExpired(
+        HttpStatusCode statusCode)
     {
-        using var handler = new RecordingHandler(HttpStatusCode.Forbidden, "forbidden");
+        using var handler = new RecordingHandler(statusCode, "temporarily unavailable");
         using var httpClient = new HttpClient(handler);
         var client = CreateClient(httpClient);
 

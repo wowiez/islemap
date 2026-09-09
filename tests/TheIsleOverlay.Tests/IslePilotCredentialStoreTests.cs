@@ -114,6 +114,28 @@ public sealed class IslePilotCredentialStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task MigrateLegacy_RecoversNeutralV3VaultFromTheFormerInstallerRoot()
+    {
+        var installerPath = Path.Combine(_directory, "installer-root", "islepilot-overlay.credential");
+        var currentPath = Path.Combine(_directory, "safe-data", "islepilot-overlay.credential");
+        const string steamId = "76561198000000004";
+        const string token = "installer-root-token";
+        await WriteLegacyVaultAsync(
+            installerPath,
+            "IsleLiveMap.IslePilotOverlay.v3",
+            steamId,
+            token);
+
+        var store = new IslePilotCredentialStore(currentPath);
+
+        Assert.True(await store.MigrateLegacyAsync(installerPath));
+        Assert.Equal(
+            new IslePilotOverlayAuthResult(steamId, token, "Legacy"),
+            await store.LoadAsync());
+        Assert.True(File.Exists(installerPath));
+    }
+
+    [Fact]
     public async Task MigrateLegacy_MergesOlderAccountsWithoutReplacingCurrentSelection()
     {
         var olderPath = Path.Combine(_directory, "older", "islepilot.credential");

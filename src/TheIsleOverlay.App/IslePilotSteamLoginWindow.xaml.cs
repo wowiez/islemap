@@ -38,7 +38,6 @@ public partial class IslePilotSteamLoginWindow : Window
             LoginBrowser.CoreWebView2.NavigationStarting += Browser_NavigationStarting;
             LoginBrowser.CoreWebView2.NavigationCompleted += Browser_NavigationCompleted;
             LoginBrowser.CoreWebView2.NewWindowRequested += Browser_NewWindowRequested;
-            await ClearSteamSessionAsync();
             NavigateToLogin();
         }
         catch (Exception exception)

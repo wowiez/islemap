@@ -564,6 +564,32 @@ public sealed class IslePilotRealtimeSessionTests
     }
 
     [Fact]
+    public async Task DdosAndChallengeFailures_KeepPollingUntilMeRecovers()
+    {
+        var api = new FakeApiClient { Online = true };
+        api.MeFailures.Enqueue(new HttpRequestException(
+            "rate limited",
+            null,
+            System.Net.HttpStatusCode.TooManyRequests));
+        api.MeFailures.Enqueue(new HttpRequestException(
+            "bad gateway",
+            null,
+            System.Net.HttpStatusCode.BadGateway));
+        api.MeFailures.Enqueue(new System.Text.Json.JsonException("HTML challenge page"));
+        await using var session = new IslePilotRealtimeSession(
+            api,
+            Options() with { MeRefreshInterval = TimeSpan.FromMilliseconds(20) },
+            () => new FakeWebSocket([]));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        await using var snapshots = session.WatchAsync(timeout.Token).GetAsyncEnumerator();
+
+        var snapshot = await ReadUntilAsync(snapshots, value => value.PlayerOnline, timeout.Token);
+
+        Assert.NotEqual(TelemetrySessionState.AuthenticationRequired, snapshot.SessionState);
+        Assert.Equal(4, api.MeCalls);
+    }
+
+    [Fact]
     public async Task WebSocketAuthenticationFailure_KeepsRestSessionAliveAndReconnects()
     {
         var api = new FakeApiClient { Online = true };

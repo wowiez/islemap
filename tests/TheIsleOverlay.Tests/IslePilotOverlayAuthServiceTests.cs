@@ -68,11 +68,33 @@ public sealed class IslePilotOverlayAuthServiceTests
         Assert.Equal(IslePilotOverlayAuthValidationState.Invalid, state);
     }
 
-    [Fact]
-    public async Task ValidateAsync_TreatsForbiddenAsUnavailableWithoutInvalidatingCredentials()
+    [Theory]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.TooManyRequests)]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    [InlineData(HttpStatusCode.BadGateway)]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    [InlineData(HttpStatusCode.GatewayTimeout)]
+    public async Task ValidateAsync_TreatsServerAndDdosFailuresAsUnavailable(
+        HttpStatusCode statusCode)
     {
         using var httpClient = new HttpClient(new StubHandler(
-            new HttpResponseMessage(HttpStatusCode.Forbidden)));
+            new HttpResponseMessage(statusCode)));
+
+        var state = await IslePilotOverlayAuthService.ValidateAsync(
+            httpClient,
+            Credentials());
+
+        Assert.Equal(IslePilotOverlayAuthValidationState.Unavailable, state);
+    }
+
+    [Fact]
+    public async Task ValidateAsync_TreatsHtmlChallengePageAsUnavailable()
+    {
+        using var httpClient = new HttpClient(new StubHandler(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("<html>checking your browser</html>", Encoding.UTF8, "text/html")
+        }));
 
         var state = await IslePilotOverlayAuthService.ValidateAsync(
             httpClient,
