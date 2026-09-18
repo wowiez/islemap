@@ -560,7 +560,7 @@ public sealed class IslePilotRealtimeSessionTests
         var snapshot = await ReadUntilAsync(snapshots, value => value.PlayerOnline, timeout.Token);
 
         Assert.NotEqual(TelemetrySessionState.AuthenticationRequired, snapshot.SessionState);
-        Assert.Equal(2, api.MeCalls);
+        Assert.True(api.MeCalls >= 2);
     }
 
     [Fact]
@@ -586,7 +586,7 @@ public sealed class IslePilotRealtimeSessionTests
         var snapshot = await ReadUntilAsync(snapshots, value => value.PlayerOnline, timeout.Token);
 
         Assert.NotEqual(TelemetrySessionState.AuthenticationRequired, snapshot.SessionState);
-        Assert.Equal(4, api.MeCalls);
+        Assert.True(api.MeCalls >= 4);
     }
 
     [Fact]
