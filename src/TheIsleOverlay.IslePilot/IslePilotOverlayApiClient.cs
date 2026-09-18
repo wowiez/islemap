@@ -100,7 +100,7 @@ public sealed class IslePilotOverlayApiClient : IIslePilotOverlayApiClient
         return GetCookieOnlyAsync<IslePilotOverlaySkinDraftsDto>(uri, cancellationToken);
     }
 
-    public Task<IslePilotOverlaySkinDraftDto> SaveSkinDraftAsync(
+    public async Task<IslePilotOverlaySkinDraftDto> SaveSkinDraftAsync(
         string slug, string species, string name, IslePilotOverlayGaragePaletteDto palette, bool female = true,
         int theme = 0, int pattern = 0, int variation = 0,
         CancellationToken cancellationToken = default)
@@ -109,15 +109,40 @@ public sealed class IslePilotOverlayApiClient : IIslePilotOverlayApiClient
         ValidateIdentifier(species, nameof(species));
         ValidateIdentifier(name, nameof(name));
         ArgumentNullException.ThrowIfNull(palette);
-        return PostCookieOnlyAsync<IslePilotOverlaySkinDraftDto>(
+
+        // Fetch existing drafts so we don't overwrite them.
+        // The IslePilot API replaces the entire list on POST, so we must
+        // always send the full merged list.
+        IReadOnlyList<IslePilotOverlaySkinDraftDto> existing = [];
+        try
+        {
+            var current = await GetSkinDraftsAsync(slug, cancellationToken).ConfigureAwait(false);
+            existing = current.Drafts;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // If we can't fetch existing drafts (network error, auth, etc.),
+            // continue anyway — losing other drafts is bad, but blocking the
+            // save entirely is worse. The merge will just contain the new draft.
+        }
+
+        var newPayload = CreateWebDraftPayload(species, name, palette, female, theme, pattern, variation);
+        var newItem = new IslePilotOverlaySkinDraftSaveItem(name, species, newPayload);
+
+        // Merge: replace existing draft with the same name (case-insensitive), else append.
+        var merged = existing
+            .Where(d => !string.Equals(d.Name, name, StringComparison.OrdinalIgnoreCase))
+            .Select(d => new IslePilotOverlaySkinDraftSaveItem(
+                d.Name ?? string.Empty,
+                d.GetSpecies() ?? string.Empty,
+                d.Payload ?? new IslePilotOverlaySkinDraftPayloadDto()))
+            .Append(newItem)
+            .ToList();
+
+        return await PostCookieOnlyAsync<IslePilotOverlaySkinDraftDto>(
             SkinDraftsUri,
-            new IslePilotOverlaySkinDraftRequest(
-                slug,
-                [new IslePilotOverlaySkinDraftSaveItem(
-                    name,
-                    species,
-                    CreateWebDraftPayload(species, name, palette, female, theme, pattern, variation))]),
-            cancellationToken);
+            new IslePilotOverlaySkinDraftRequest(slug, merged),
+            cancellationToken).ConfigureAwait(false);
     }
 
     private static IslePilotOverlaySkinDraftPayloadDto CreateWebDraftPayload(

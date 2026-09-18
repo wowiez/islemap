@@ -528,9 +528,107 @@ public sealed class IslePilotOverlayApiClientTests
         Assert.Throws<ArgumentException>(() => new IslePilotOverlayApiClient(httpClient, options));
     }
 
+    [Fact]
+    public async Task SaveSkinDraftAsync_MergesWithExistingDrafts_AppendingNewDraft()
+    {
+        // Arrange: server has one existing draft; saving a new one should keep both.
+        var getResponse = """
+            {
+              "drafts": [
+                { "name": "OldDraft", "species": "Allosaurus", "payload": { "id": "aaa", "sex": "male", "name": "OldDraft", "species": "Allosaurus", "theme": 0, "pattern": 0, "variation": 0, "renderMode": "standard", "glitchLab": { "pi": 0, "sv": 0, "layers": {} }, "createdAt": "2025-01-01T00:00:00Z" } }
+              ]
+            }
+            """;
+        var postResponse = """{ "name": "NewDraft", "species": "Utahraptor" }""";
+        var responses = new Queue<(HttpStatusCode, string)>(
+        [
+            (HttpStatusCode.OK, getResponse),
+            (HttpStatusCode.OK, postResponse)
+        ]);
+        using var handler = new SequenceHandler(responses);
+        using var httpClient = new HttpClient(handler);
+        var client = CreateClient(httpClient);
+
+        var palette = new IslePilotOverlayGaragePaletteDto();
+        await client.SaveSkinDraftAsync("sbtcisland", "Utahraptor", "NewDraft", palette);
+
+        // The POST body should include both OldDraft and NewDraft.
+        Assert.Equal(2, handler.RequestCount);
+        var postBody = handler.LastRequestBody;
+        Assert.NotNull(postBody);
+        Assert.Contains("OldDraft", postBody, StringComparison.Ordinal);
+        Assert.Contains("NewDraft", postBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SaveSkinDraftAsync_ReplacesByName_NoDuplicateWhenNameMatches()
+    {
+        // Arrange: server already has a draft named "MySkin"; saving with same name replaces it.
+        var getResponse = """
+            {
+              "drafts": [
+                { "name": "MySkin", "species": "Ceratosaurus", "payload": { "id": "bbb", "sex": "female", "name": "MySkin", "species": "Ceratosaurus", "theme": 0, "pattern": 0, "variation": 0, "renderMode": "standard", "glitchLab": { "pi": 0, "sv": 0, "layers": {} }, "createdAt": "2025-01-01T00:00:00Z" } },
+                { "name": "Other", "species": "Allosaurus", "payload": { "id": "ccc", "sex": "male", "name": "Other", "species": "Allosaurus", "theme": 0, "pattern": 0, "variation": 0, "renderMode": "standard", "glitchLab": { "pi": 0, "sv": 0, "layers": {} }, "createdAt": "2025-01-01T00:00:00Z" } }
+              ]
+            }
+            """;
+        var postResponse = """{ "name": "MySkin", "species": "Allosaurus" }""";
+        var responses = new Queue<(HttpStatusCode, string)>(
+        [
+            (HttpStatusCode.OK, getResponse),
+            (HttpStatusCode.OK, postResponse)
+        ]);
+        using var handler = new SequenceHandler(responses);
+        using var httpClient = new HttpClient(handler);
+        var client = CreateClient(httpClient);
+
+        var palette = new IslePilotOverlayGaragePaletteDto();
+        await client.SaveSkinDraftAsync("sbtcisland", "Allosaurus", "MySkin", palette);
+
+        Assert.Equal(2, handler.RequestCount);
+        var postBody = handler.LastRequestBody;
+        Assert.NotNull(postBody);
+        // Parse the posted body to verify exactly one draft item is named "MySkin" and "Other" is preserved.
+        using var doc = JsonDocument.Parse(postBody!);
+        var drafts = doc.RootElement.GetProperty("drafts").EnumerateArray().ToList();
+        Assert.Equal(2, drafts.Count); // "MySkin" (replaced) + "Other" (kept)
+        Assert.Single(drafts, d => d.GetProperty("name").GetString() == "MySkin");
+        Assert.Single(drafts, d => d.GetProperty("name").GetString() == "Other");
+    }
+
+    private static int CountOccurrences(string text, string token)
+    {
+        int count = 0, index = 0;
+        while ((index = text.IndexOf(token, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += token.Length;
+        }
+        return count;
+    }
+
     private static IslePilotOverlayApiClient CreateClient(HttpClient httpClient) => new(
         httpClient,
         new IslePilotOverlayOptions { OverlayToken = Token });
+
+    private sealed class SequenceHandler(Queue<(HttpStatusCode Status, string Body)> responses) : HttpMessageHandler
+    {
+        private int _count;
+        public int RequestCount => _count;
+        public string? LastRequestBody { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _count);
+            LastRequestBody = request.Content?.ReadAsStringAsync(cancellationToken).GetAwaiter().GetResult();
+            var (status, body) = responses.Dequeue();
+            return Task.FromResult(new HttpResponseMessage(status)
+            {
+                Content = new StringContent(body, Encoding.UTF8, "application/json")
+            });
+        }
+    }
 
     private sealed class RecordingHandler(HttpStatusCode statusCode, string responseBody) : HttpMessageHandler
     {

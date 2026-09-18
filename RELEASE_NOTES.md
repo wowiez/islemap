@@ -1,3 +1,10 @@
+# Isle Live Map 1.8.4
+
+- Sửa lỗi nghiêm trọng: **lưu skin draft bị mất toàn bộ draft cũ**.
+  - Nguyên nhân: API IslePilot thay thế toàn bộ danh sách draft mỗi khi nhận POST — hub chỉ gửi 1 draft mới nên server xóa toàn bộ draft cũ.
+  - Cách sửa: trước khi lưu, hub tự động tải danh sách draft hiện có (GET), gộp draft mới vào (replace nếu trùng tên, append nếu khác tên), sau đó POST toàn bộ danh sách đầy đủ lên server.
+  - Nếu GET thất bại do lỗi mạng, hub vẫn tiếp tục lưu draft mới thay vì chặn hoàn toàn thao tác.
+
 # Isle Live Map 1.8.3
 
 - Sửa triệt để lỗi "The JSON value could not be converted to System.Int32" ở trường `glitchLab.layers.<layer>.x`:
