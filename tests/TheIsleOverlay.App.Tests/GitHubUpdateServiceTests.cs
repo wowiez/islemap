@@ -41,6 +41,39 @@ public class GitHubUpdateServiceTests
         Assert.False(service.ScheduleApplyAndRestart());
     }
 
+    [Theory]
+    [InlineData("1.7.16", "1.7.16")]
+    [InlineData("1.7.16", "v1.7.16")]
+    [InlineData("1.7.16.0", "1.7.16")]
+    [InlineData("1.7.16", "1.7.15")]
+    public async Task SameOrOlderFeedVersion_IsNeverOffered(
+        string currentVersion,
+        string feedVersion)
+    {
+        var backend = new FakeBackend
+        {
+            CurrentVersion = currentVersion,
+            Version = feedVersion
+        };
+        var service = Service(backend);
+
+        var result = await service.CheckForUpdateAsync();
+
+        Assert.Equal(UpdateCheckState.Current, result.State);
+        Assert.False(await service.DownloadPendingUpdateAsync());
+        Assert.Equal(0, backend.DownloadCalls);
+    }
+
+    [Fact]
+    public async Task InvalidFeedVersion_IsNotOffered()
+    {
+        var backend = new FakeBackend { Version = "latest" };
+        var service = Service(backend);
+
+        Assert.Equal(UpdateCheckState.Unavailable, (await service.CheckForUpdateAsync()).State);
+        Assert.False(await service.DownloadPendingUpdateAsync());
+    }
+
     [Fact]
     public async Task RepeatedAndConcurrentChecks_ShareOneBackendRequest()
     {
@@ -134,6 +167,7 @@ public class GitHubUpdateServiceTests
     private sealed class FakeBackend : IAppUpdateBackend
     {
         public bool CanUpdate { get; init; } = true;
+        public string? CurrentVersion { get; init; } = "1.7.7";
         public string? Version { get; init; }
         public Exception? CheckException { get; init; }
         public Exception? DownloadException { get; init; }

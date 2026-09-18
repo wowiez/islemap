@@ -234,7 +234,11 @@ public partial class HomeWindow
                 realtimeSession.GetGarageAsync,
                 realtimeSession.ParkGarageDinoAsync,
                 realtimeSession.RestoreGarageDinoAsync,
-                realtimeSession.GetGarageCommandStatusAsync);
+                realtimeSession.GetGarageCommandStatusAsync,
+                realtimeSession.GetSkinDraftsAsync,
+                realtimeSession.SaveSkinDraftAsync,
+                realtimeSession.ApplySkinPaletteAsync,
+                realtimeSession.ApplySkinDraftAsync);
             var overlay = new MainWindow(realtimeSession, "ISLEPILOT", garageApi);
             Application.Current.MainWindow = overlay;
             overlay.Show();

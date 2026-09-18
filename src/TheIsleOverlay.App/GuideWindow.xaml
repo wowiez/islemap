@@ -22,12 +22,131 @@
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="FontSize" Value="11" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#292B2F" />
+                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="#66696E" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#34363A" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45" />
+                            </Trigger>
+                            <EventTrigger RoutedEvent="MouseEnter">
+                                <BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="ButtonBorder" Storyboard.TargetProperty="Opacity" To="0.88" Duration="0:0:0.12" /></Storyboard></BeginStoryboard>
+                            </EventTrigger>
+                            <EventTrigger RoutedEvent="MouseLeave">
+                                <BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="ButtonBorder" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.12" /></Storyboard></BeginStoryboard>
+                            </EventTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource NavButton}">
+            <Setter Property="Foreground" Value="#0D1713" />
+            <Setter Property="Background" Value="#9FD8B5" />
+            <Setter Property="BorderBrush" Value="#BCE8CB" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="PrimaryBorder" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="PrimaryBorder" Property="Background" Value="#B9E8C9" />
+                                <Setter TargetName="PrimaryBorder" Property="BorderBrush" Value="#D7F4DF" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="PrimaryBorder" Property="Background" Value="#8FC7A5" /></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45" /></Trigger>
+                            <EventTrigger RoutedEvent="MouseEnter"><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="PrimaryBorder" Storyboard.TargetProperty="Opacity" To="0.9" Duration="0:0:0.12" /></Storyboard></BeginStoryboard></EventTrigger>
+                            <EventTrigger RoutedEvent="MouseLeave"><BeginStoryboard><Storyboard><DoubleAnimation Storyboard.TargetName="PrimaryBorder" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.12" /></Storyboard></BeginStoryboard></EventTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="HexInput" TargetType="TextBox">
+            <Setter Property="Foreground" Value="#F0F1F2" />
+            <Setter Property="Background" Value="#17191B" />
+            <Setter Property="BorderBrush" Value="#45484C" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="9,6" />
+            <Setter Property="FontFamily" Value="Consolas" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="CaretBrush" Value="#FFFFFF" />
+            <Setter Property="SelectionBrush" Value="#546B62" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="HexBorder" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ScrollViewer x:Name="PART_ContentHost" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="HexBorder" Property="BorderBrush" Value="#8FA99E" />
+                                <Setter TargetName="HexBorder" Property="Background" Value="#202326" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="ColorPickerButton" TargetType="Button" BasedOn="{StaticResource NavButton}">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="BorderBrush" Value="#606761" />
+            <Setter Property="Background" Value="#17191B" />
+            <Setter Property="ToolTip" Value="Chọn màu" />
         </Style>
         <Style x:Key="TrackButton" TargetType="Button" BasedOn="{StaticResource NavButton}">
             <Setter Property="Height" Value="66" />
             <Setter Property="Margin" Value="0,0,12,0" />
             <Setter Property="HorizontalContentAlignment" Value="Left" />
             <Setter Property="FontSize" Value="14" />
+        </Style>
+        <Style x:Key="SettingsActionButton" TargetType="Button" BasedOn="{StaticResource NavButton}">
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="MinWidth" Value="64" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="ShortcutBox" TargetType="Border">
+            <Setter Property="Background" Value="#17181A" />
+            <Setter Property="BorderBrush" Value="#45474C" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="5" />
+            <Setter Property="Padding" Value="12,7" />
+        </Style>
+        <Style x:Key="ShortcutBoxButton" TargetType="Button" BasedOn="{StaticResource NavButton}">
+            <Setter Property="Background" Value="#17181A" />
+            <Setter Property="BorderBrush" Value="#45474C" />
+            <Setter Property="Foreground" Value="#F2F3F4" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="FontFamily" Value="Consolas" />
+            <Setter Property="Margin" Value="0" />
         </Style>
         <Style x:Key="GuideProgress" TargetType="ProgressBar">
             <Setter Property="Height" Value="7" />
@@ -172,8 +291,17 @@
                     <Button x:Name="GarageNavButton" Style="{StaticResource NavButton}" Click="GarageNavButton_Click">
                         <StackPanel Orientation="Horizontal"><Path Data="M1,6 L8,1 L15,6 L15,15 L1,15 Z M4,15 L4,8 L12,8 L12,15 M6,11 L10,11" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.35" Width="14" Height="14" Stretch="Uniform" Margin="0,0,8,0" /><TextBlock Text="GARAGE" /></StackPanel>
                     </Button>
+                    <Button x:Name="SkinEditorNavButton" Style="{StaticResource NavButton}" Click="SkinEditorNavButton_Click">
+                        <StackPanel Orientation="Horizontal"><Path Data="M2,13 C4,7 5,3 8,2 C11,3 12,7 14,13 M5,9 L11,9" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.4" Width="14" Height="14" Stretch="Uniform" Margin="0,0,8,0" /><TextBlock Text="SKIN 3D" /></StackPanel>
+                    </Button>
+                    <Button x:Name="VoiceNavButton" Style="{StaticResource NavButton}" Click="VoiceNavButton_Click" Visibility="Collapsed">
+                        <StackPanel Orientation="Horizontal"><Path Data="M3,7 L3,10 C3,13 5,15 8,15 C11,15 13,13 13,10 L13,7 M8,15 L8,18 M5,18 L11,18 M5,2 C5,0 11,0 11,2 L11,9 C11,13 5,13 5,9 Z" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.35" Width="14" Height="14" Stretch="Uniform" Margin="0,0,8,0" /><TextBlock Text="VOICE" /></StackPanel>
+                    </Button>
                     <Button x:Name="MutationNavButton" Style="{StaticResource NavButton}" Click="MutationNavButton_Click">
                         <StackPanel Orientation="Horizontal"><Path Data="M8,1 C3,3 3,7 8,8 C13,9 13,13 8,15 M8,1 C13,3 13,7 8,8 C3,9 3,13 8,15 M4,4 L12,4 M4,12 L12,12" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.3" Width="14" Height="14" Stretch="Uniform" Margin="0,0,8,0" /><TextBlock Text="TIẾN HÓA MUTATION" /></StackPanel>
+                    </Button>
+                    <Button x:Name="SettingsNavButton" Style="{StaticResource NavButton}" Click="SettingsNavButton_Click">
+                        <StackPanel Orientation="Horizontal"><Path Data="M8,1 A7,7 0 1 1 7.9,1 M8,5 A3,3 0 1 1 7.9,5" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.35" Width="14" Height="14" Stretch="Uniform" Margin="0,0,8,0" /><TextBlock Text="CÀI ĐẶT" /></StackPanel>
                     </Button>
                 </StackPanel>
             </Border>
@@ -295,67 +423,13 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Width="322" MinHeight="438" Background="#E3141517"
+                                    <Border Width="490" MinHeight="438" Background="#E3141517"
                                             BorderBrush="#3A3C40" BorderThickness="1" CornerRadius="9"
                                             Margin="0,0,12,12" ClipToBounds="True">
                                         <Grid>
-                                            <Grid.RowDefinitions><RowDefinition Height="212" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                                            <Grid.RowDefinitions><RowDefinition Height="190" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                                             <Grid Background="#0D0E10" ClipToBounds="True">
-                                                <Grid>
-                                                    <Grid.Style>
-                                                        <Style TargetType="Grid">
-                                                            <Setter Property="Visibility" Value="Visible" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding HasPreview}" Value="False">
-                                                                    <Setter Property="Visibility" Value="Collapsed" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Grid.Style>
-                                                    <Image Source="{Binding PreviewUrl}" Stretch="Uniform" Margin="8,3,8,0"
-                                                           Opacity="1" RenderOptions.BitmapScalingMode="HighQuality">
-                                                        <Image.Effect><DropShadowEffect Color="#000000" BlurRadius="15" ShadowDepth="7" Opacity="0.6" /></Image.Effect>
-                                                    </Image>
-                                                    <Border Background="{Binding BodyColor}" Opacity="0.18" Margin="8,3,8,0">
-                                                        <Border.OpacityMask>
-                                                            <ImageBrush ImageSource="{Binding PreviewUrl}" Stretch="Uniform" />
-                                                        </Border.OpacityMask>
-                                                    </Border>
-                                                </Grid>
-                                                <Grid>
-                                                    <Grid.Style>
-                                                        <Style TargetType="Grid">
-                                                            <Setter Property="Visibility" Value="Collapsed" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding HasPreview}" Value="False">
-                                                                    <Setter Property="Visibility" Value="Visible" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Grid.Style>
-                                                    <Path Data="M12,75 C30,34 65,22 96,34 C123,14 170,18 199,48 C221,49 246,62 270,83 L270,112 L12,112 Z"
-                                                          Fill="{Binding AccentColor}" Opacity="0.08" Stretch="Fill" />
-                                                    <Path Data="M27,76 C54,54 79,48 107,52 C139,27 181,34 203,61 C225,63 246,73 270,90"
-                                                          Stroke="{Binding AccentColor}" StrokeThickness="1.5" Opacity="0.28"
-                                                          Stretch="Fill" Margin="17,18,17,13" />
-                                                    <TextBlock Text="{Binding SpeciesCode}" Foreground="#16FFFFFF"
-                                                               FontFamily="Bahnschrift SemiCondensed" FontSize="56"
-                                                               FontWeight="Bold" HorizontalAlignment="Right"
-                                                               VerticalAlignment="Center" Margin="0,0,18,0" />
-                                                </Grid>
                                                 <local:GarageModelControl VerticalAlignment="Top" />
-                                                <ItemsControl ItemsSource="{Binding PaletteColors}"
-                                                              VerticalAlignment="Bottom" Margin="18,0,18,13">
-                                                    <ItemsControl.ItemsPanel>
-                                                        <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
-                                                    </ItemsControl.ItemsPanel>
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <Border Width="18" Height="4" CornerRadius="2" Background="{Binding}"
-                                                                    Margin="0,0,4,0" />
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
                                             </Grid>
 
                                             <StackPanel Grid.Row="1" Margin="18,16,18,17">
@@ -448,6 +522,133 @@
                     </Border>
                 </Grid>
 
+                <ScrollViewer x:Name="SkinEditorPage" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="24,20,20,24">
+                        <Grid Margin="0,0,4,16">
+                            <StackPanel>
+                                <TextBlock Text="SKIN EDITOR" Foreground="{StaticResource AccentBrush}"
+                                           FontFamily="Bahnschrift SemiCondensed" FontWeight="SemiBold" FontSize="12" />
+                                <TextBlock Text="Skin Color" Foreground="#F2F3F4"
+                                           FontFamily="Bahnschrift SemiCondensed" FontSize="30" FontWeight="Bold" Margin="0,3,0,2" />
+                                <TextBlock Text="Nhập hoặc paste mã HEX; model cập nhật trực tiếp và có thể kéo để xoay, cuộn để zoom."
+                                           Foreground="#898C91" FontSize="12" />
+                            </StackPanel>
+                            <Button Content="TẢI LẠI MODEL" Style="{StaticResource NavButton}" Margin="0"
+                                    HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                    Click="SkinEditorRefreshButton_Click" />
+                        </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="3*" /><ColumnDefinition Width="16" /><ColumnDefinition Width="2*" /></Grid.ColumnDefinitions>
+                            <Border Background="#D90D1210" BorderBrush="#3A443E" BorderThickness="1"
+                                    CornerRadius="9" ClipToBounds="True" Height="510" VerticalAlignment="Top">
+                                <Grid>
+                                    <local:GarageModelControl x:Name="SkinEditorModel" Height="470" VerticalAlignment="Top" />
+                                    <Border VerticalAlignment="Bottom" Background="#E3171D19" Padding="13,9">
+                                        <TextBlock x:Name="SkinEditorModelLabel" Text="ĐANG CHỜ DINO HIỆN TẠI"
+                                                   Foreground="#A9B7AE" FontSize="11" />
+                                    </Border>
+                                </Grid>
+                            </Border>
+                            <Border Grid.Column="2" Background="#E3141715" BorderBrush="#3A443E"
+                                    BorderThickness="1" CornerRadius="9" Padding="14">
+                                <StackPanel>
+                                    <TextBlock Text="SKIN COLOR" Foreground="#E8EAE9" FontFamily="Bahnschrift SemiCondensed"
+                                               FontSize="15" FontWeight="SemiBold" Margin="0,0,0,8" />
+                                    <Grid Margin="0,0,0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="92"/><ColumnDefinition Width="*"/><ColumnDefinition Width="34"/></Grid.ColumnDefinitions><TextBlock Text="Thân" Foreground="#CFD4D1" VerticalAlignment="Center"/><TextBox x:Name="SkinBodyHex" Grid.Column="1" Tag="body" Style="{StaticResource HexInput}" TextChanged="SkinHexInput_TextChanged"/><Button x:Name="SkinBodySwatch" Grid.Column="2" Tag="body" Margin="7,2,0,2" Style="{StaticResource ColorPickerButton}" Click="SkinColorPickerButton_Click"/></Grid>
+                                    <Grid Margin="0,0,0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="92"/><ColumnDefinition Width="*"/><ColumnDefinition Width="34"/></Grid.ColumnDefinitions><TextBlock Text="Hoa văn" Foreground="#CFD4D1" VerticalAlignment="Center"/><TextBox x:Name="SkinMarkingsHex" Grid.Column="1" Tag="markings" Style="{StaticResource HexInput}" TextChanged="SkinHexInput_TextChanged"/><Button x:Name="SkinMarkingsSwatch" Grid.Column="2" Tag="markings" Margin="7,2,0,2" Style="{StaticResource ColorPickerButton}" Click="SkinColorPickerButton_Click"/></Grid>
+                                    <Grid Margin="0,0,0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="92"/><ColumnDefinition Width="*"/><ColumnDefinition Width="34"/></Grid.ColumnDefinitions><TextBlock Text="Mạn sườn" Foreground="#CFD4D1" VerticalAlignment="Center"/><TextBox x:Name="SkinFlankHex" Grid.Column="1" Tag="flank" Style="{StaticResource HexInput}" TextChanged="SkinHexInput_TextChanged"/><Button x:Name="SkinFlankSwatch" Grid.Column="2" Tag="flank" Margin="7,2,0,2" Style="{StaticResource ColorPickerButton}" Click="SkinColorPickerButton_Click"/></Grid>
+                                    <Grid Margin="0,0,0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="92"/><ColumnDefinition Width="*"/><ColumnDefinition Width="34"/></Grid.ColumnDefinitions><TextBlock Text="Bụng" Foreground="#CFD4D1" VerticalAlignment="Center"/><TextBox x:Name="SkinUnderbellyHex" Grid.Column="1" Tag="underbelly" Style="{StaticResource HexInput}" TextChanged="SkinHexInput_TextChanged"/><Button x:Name="SkinUnderbellySwatch" Grid.Column="2" Tag="underbelly" Margin="7,2,0,2" Style="{StaticResource ColorPickerButton}" Click="SkinColorPickerButton_Click"/></Grid>
+                                    <Grid Margin="0,0,0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="92"/><ColumnDefinition Width="*"/><ColumnDefinition Width="34"/></Grid.ColumnDefinitions><TextBlock Text="Chi tiết" Foreground="#CFD4D1" VerticalAlignment="Center"/><TextBox x:Name="SkinDetailHex" Grid.Column="1" Tag="detail" Style="{StaticResource HexInput}" TextChanged="SkinHexInput_TextChanged"/><Button x:Name="SkinDetailSwatch" Grid.Column="2" Tag="detail" Margin="7,2,0,2" Style="{StaticResource ColorPickerButton}" Click="SkinColorPickerButton_Click"/></Grid>
+                                    <Grid Margin="0,0,0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="92"/><ColumnDefinition Width="*"/><ColumnDefinition Width="34"/></Grid.ColumnDefinitions><TextBlock Text="Điểm nhấn" Foreground="#CFD4D1" VerticalAlignment="Center"/><TextBox x:Name="SkinDisplayHex" Grid.Column="1" Tag="display" Style="{StaticResource HexInput}" TextChanged="SkinHexInput_TextChanged"/><Button x:Name="SkinDisplaySwatch" Grid.Column="2" Tag="display" Margin="7,2,0,2" Style="{StaticResource ColorPickerButton}" Click="SkinColorPickerButton_Click"/></Grid>
+                                    <Grid Margin="0,0,0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="92"/><ColumnDefinition Width="*"/><ColumnDefinition Width="34"/></Grid.ColumnDefinitions><TextBlock Text="Mắt" Foreground="#CFD4D1" VerticalAlignment="Center"/><TextBox x:Name="SkinEyesHex" Grid.Column="1" Tag="eyes" Style="{StaticResource HexInput}" TextChanged="SkinHexInput_TextChanged"/><Button x:Name="SkinEyesSwatch" Grid.Column="2" Tag="eyes" Margin="7,2,0,2" Style="{StaticResource ColorPickerButton}" Click="SkinColorPickerButton_Click"/></Grid>
+                                    <Grid Margin="0,0,0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="92"/><ColumnDefinition Width="*"/><ColumnDefinition Width="34"/></Grid.ColumnDefinitions><TextBlock Text="Răng" Foreground="#CFD4D1" VerticalAlignment="Center"/><TextBox x:Name="SkinTeethHex" Grid.Column="1" Tag="teeth" Style="{StaticResource HexInput}" TextChanged="SkinHexInput_TextChanged"/><Button x:Name="SkinTeethSwatch" Grid.Column="2" Tag="teeth" Margin="7,2,0,2" Style="{StaticResource ColorPickerButton}" Click="SkinColorPickerButton_Click"/></Grid>
+                                    <Grid Margin="0,0,0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="92"/><ColumnDefinition Width="*"/><ColumnDefinition Width="34"/></Grid.ColumnDefinitions><TextBlock Text="Miệng" Foreground="#CFD4D1" VerticalAlignment="Center"/><TextBox x:Name="SkinMouthHex" Grid.Column="1" Tag="mouth" Style="{StaticResource HexInput}" TextChanged="SkinHexInput_TextChanged"/><Button x:Name="SkinMouthSwatch" Grid.Column="2" Tag="mouth" Margin="7,2,0,2" Style="{StaticResource ColorPickerButton}" Click="SkinColorPickerButton_Click"/></Grid>
+                                    <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="92"/><ColumnDefinition Width="*"/><ColumnDefinition Width="34"/></Grid.ColumnDefinitions><TextBlock Text="Móng" Foreground="#CFD4D1" VerticalAlignment="Center"/><TextBox x:Name="SkinClawsHex" Grid.Column="1" Tag="claws" Style="{StaticResource HexInput}" TextChanged="SkinHexInput_TextChanged"/><Button x:Name="SkinClawsSwatch" Grid.Column="2" Tag="claws" Margin="7,2,0,2" Style="{StaticResource ColorPickerButton}" Click="SkinColorPickerButton_Click"/></Grid>
+                                    <Button Content="ÁP DỤNG" Style="{StaticResource PrimaryButton}" Padding="12,9" Margin="0,2,0,7" Click="SkinApplyButton_Click" />
+                                    <Button Content="LƯU DRAFT" Style="{StaticResource PrimaryButton}" Padding="12,9" Margin="0,0,0,12" Click="SkinSaveButton_Click" />
+                                    <UniformGrid Columns="2" Margin="0,0,0,2">
+                                        <Button Content="MẶC ĐỊNH" Style="{StaticResource NavButton}" Padding="9,7" Margin="0,0,6,6" Click="SkinDefaultButton_Click" />
+                                        <Button Content="NGẪU NHIÊN" Style="{StaticResource NavButton}" Padding="9,7" Margin="0,0,0,6" Click="SkinRandomButton_Click" />
+                                        <Button Content="COPY JSON" Style="{StaticResource NavButton}" Padding="9,7" Margin="0,0,6,0" Click="SkinCopyJsonButton_Click" />
+                                        <Button Content="PASTE JSON" Style="{StaticResource NavButton}" Padding="9,7" Margin="0" Click="SkinPasteJsonButton_Click" />
+                                    </UniformGrid>
+                                    <TextBlock Text="SKIN-DRAFTS ĐÃ LƯU" Foreground="#E8EAE9" FontWeight="SemiBold" Margin="0,14,0,5" />
+                                    <Button x:Name="SkinShowAllDraftsButton" Content="SHOW ALL DRAFT" Style="{StaticResource NavButton}" Padding="8,5" HorizontalAlignment="Left" Click="SkinShowAllDraftsButton_Click" />
+                                    <ListBox x:Name="SkinDraftsList" Background="Transparent" BorderThickness="0" MaxHeight="120">
+                                        <ListBox.ItemContainerStyle>
+                                            <Style TargetType="ListBoxItem">
+                                                <Setter Property="Padding" Value="4,3" />
+                                                <Setter Property="Margin" Value="0,2,0,2" />
+                                                <Setter Property="Background" Value="Transparent" />
+                                                <Setter Property="BorderBrush" Value="Transparent" />
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="ListBoxItem">
+                                                            <Border x:Name="DraftBorder" Background="{TemplateBinding Background}"
+                                                                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                                                                    CornerRadius="7" Padding="{TemplateBinding Padding}">
+                                                                <ContentPresenter />
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="DraftBorder" Property="Background" Value="#1D4935" />
+                                                                    <Setter TargetName="DraftBorder" Property="BorderBrush" Value="#4B8E69" />
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </ListBox.ItemContainerStyle>
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="2,1,2,1">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <ItemsControl ItemsSource="{Binding Colors}">
+                                                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                                            <ItemsControl.ItemTemplate><DataTemplate><Border Width="15" Height="15" CornerRadius="3" Background="{Binding}" Margin="0,0,3,0"/></DataTemplate></ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                        <TextBlock Text="{Binding Name}" Foreground="#B9C1BB" FontSize="10" VerticalAlignment="Center" Margin="5,0,0,0" />
+                                                    </StackPanel>
+                                                    <Button Grid.Column="1" Content="ÁP DỤNG" Tag="{Binding}" Style="{StaticResource NavButton}" Padding="9,5" Margin="14,2,2,2" Cursor="Hand" Click="SkinDraftApplyButton_Click" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                    <TextBlock x:Name="SkinEditorStatusLabel" Text="Mã hợp lệ có dạng #RRGGBB"
+                                               Foreground="#7F8C84" FontSize="10" Margin="0,9,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <Grid x:Name="VoicePage" Visibility="Collapsed" Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="12" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid>
+                        <StackPanel>
+                            <TextBlock Text="SBTC VOICE CHAT" Foreground="{StaticResource AccentBrush}"
+                                       FontFamily="Bahnschrift SemiCondensed" FontWeight="SemiBold" FontSize="12" />
+                            <TextBlock Text="Proximity voice" Foreground="#F2F3F4"
+                                       FontFamily="Bahnschrift SemiCondensed" FontSize="27" FontWeight="Bold" Margin="0,3,0,1" />
+                            <TextBlock Text="Connect/Disconnect và âm thanh được xử lý trực tiếp bởi IslePilot. Lần đầu kết nối, hãy cho phép islepilot.eu sử dụng micro."
+                                       Foreground="#898C91" FontSize="11" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <Button Content="TẢI LẠI" Style="{StaticResource SettingsActionButton}"
+                                HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                Click="VoiceRetryButton_Click" />
+                    </Grid>
+                    <Border Grid.Row="2" Background="#0D0F10" BorderBrush="#343A38" BorderThickness="1"
+                            CornerRadius="9" ClipToBounds="True">
+                        <local:SbtcVoiceControl x:Name="VoiceControl" />
+                    </Border>
+                </Grid>
+
                 <ScrollViewer x:Name="MutationPage" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="20">
                         <Grid>
@@ -534,6 +735,95 @@
                         </Border>
                         <TextBlock Text="Nguồn tham khảo: theisle.info · dữ liệu Mutation 28/05/2026"
                                    Foreground="#66696E" FontSize="10" Margin="0,10,0,0" />
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="SettingsPage" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="24">
+                        <TextBlock Text="CÀI ĐẶT" Foreground="{StaticResource AccentBrush}"
+                                   FontFamily="Bahnschrift SemiCondensed" FontSize="12" FontWeight="SemiBold" />
+                        <TextBlock Text="Nguồn vị trí &amp; phím tắt" Foreground="#F1F2F3"
+                                   FontFamily="Bahnschrift SemiCondensed" FontSize="30" FontWeight="Bold" Margin="0,4,0,4" />
+                        <TextBlock Text="Nguồn nhanh được ưu tiên khi hoạt động; WS/REST vẫn tự động dự phòng khi dữ liệu chậm hoặc mất."
+                                   Foreground="#95989D" FontSize="13" TextWrapping="Wrap" />
+
+                        <TextBlock Text="VỊ TRÍ CỦA BẠN TRÊN BẢN ĐỒ" Foreground="#D5D7DA"
+                                   FontFamily="Bahnschrift SemiCondensed" FontWeight="SemiBold" FontSize="13" Margin="0,24,0,10" />
+                        <Border Background="{StaticResource PanelBrush}" BorderBrush="#3E4045" BorderThickness="1"
+                                CornerRadius="8" Padding="18">
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Bắt gói tin từ game (Npcap)" Foreground="#F0F1F2"
+                                                   FontFamily="Bahnschrift SemiCondensed" FontWeight="SemiBold" FontSize="16" />
+                                        <TextBlock Text="Đọc luồng UDP của game để lấy vị trí nhanh; không đọc bộ nhớ và không can thiệp game."
+                                                   Foreground="#8F9297" Margin="0,4,16,0" TextWrapping="Wrap" />
+                                        <TextBlock x:Name="NpcapStatusLabel" Text="Đang kiểm tra Npcap…"
+                                                   Foreground="#E7B74E" Margin="0,7,16,0" FontWeight="SemiBold" />
+                                    </StackPanel>
+                                    <Button x:Name="NpcapToggleButton" Grid.Column="1" Content="BẬT"
+                                            Style="{StaticResource SettingsActionButton}" Margin="0,0,8,0"
+                                            Click="NpcapToggleButton_Click" />
+                                    <Button x:Name="NpcapActionButton" Grid.Column="2" Content="MỞ LẠI"
+                                            Style="{StaticResource SettingsActionButton}"
+                                            Click="NpcapActionButton_Click" />
+                                </Grid>
+                                <Border BorderBrush="#303236" BorderThickness="0,1,0,0" Margin="0,16,0,0" Padding="0,14,0,0">
+                                    <Grid>
+                                        <StackPanel>
+                                            <TextBlock Text="IslePilot Realtime + REST" Foreground="#E1E2E4" FontWeight="SemiBold" />
+                                            <TextBlock Text="Luôn giữ làm nguồn dự phòng; tự nhận dữ liệu khi Npcap không có hoặc bị stale."
+                                                       Foreground="#85888D" Margin="0,3,0,0" />
+                                        </StackPanel>
+                                        <TextBlock Text="TỰ ĐỘNG" Foreground="#37D4C6" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold" />
+                                    </Grid>
+                                </Border>
+                                <Border BorderBrush="#303236" BorderThickness="0,1,0,0" Margin="0,14,0,0" Padding="0,14,0,0">
+                                    <Grid>
+                                        <StackPanel>
+                                            <TextBlock Text="Copy Asset Location" Foreground="#E1E2E4" FontWeight="SemiBold" />
+                                            <TextBlock Text="Luôn theo dõi clipboard và nhận tọa độ từ lệnh Copy Asset trong game."
+                                                       Foreground="#85888D" Margin="0,3,0,0" />
+                                        </StackPanel>
+                                        <TextBlock Text="TỰ ĐỘNG" Foreground="#37D4C6" HorizontalAlignment="Right"
+                                                   VerticalAlignment="Center" FontWeight="SemiBold" />
+                                    </Grid>
+                                </Border>
+                                <Border BorderBrush="#303236" BorderThickness="0,1,0,0" Margin="0,14,0,0" Padding="0,14,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="Tự ẩn khi Alt+Tab" Foreground="#E1E2E4" FontWeight="SemiBold" />
+                                            <TextBlock Text="Chỉ ẩn overlay khỏi màn hình khi ra ngoài game; app vẫn nằm trên taskbar."
+                                                       Foreground="#85888D" Margin="0,3,16,0" />
+                                        </StackPanel>
+                                        <Button x:Name="AutoHideOutsideGameButton" Grid.Column="1" Content="BẬT"
+                                                Style="{StaticResource SettingsActionButton}"
+                                                Click="AutoHideOutsideGameButton_Click" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Text="PHÍM TẮT" Foreground="#D5D7DA" FontFamily="Bahnschrift SemiCondensed"
+                                   FontWeight="SemiBold" FontSize="13" Margin="0,24,0,10" />
+                        <Border Background="{StaticResource PanelBrush}" BorderBrush="#3E4045" BorderThickness="1"
+                                CornerRadius="8" Padding="18">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="250" /></Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                <TextBlock Text="Mở / đóng cẩm nang" Foreground="#D9DBDE" VerticalAlignment="Center" Margin="0,0,0,9" />
+                                <Button x:Name="GuideHotkeyButton" Grid.Column="1" Tag="guide" Content="F8" Style="{StaticResource ShortcutBoxButton}" Margin="0,0,0,9" Click="HotkeyButton_Click" />
+                                <TextBlock Grid.Row="1" Text="Mở / đóng bản đồ lớn" Foreground="#D9DBDE" VerticalAlignment="Center" Margin="0,0,0,9" />
+                                <Button x:Name="LargeMapHotkeyButton" Grid.Row="1" Grid.Column="1" Tag="large-map" Content="Alt + M" Style="{StaticResource ShortcutBoxButton}" Margin="0,0,0,9" Click="HotkeyButton_Click" />
+                                <TextBlock Grid.Row="2" Text="Mở setting overlay" Foreground="#D9DBDE" VerticalAlignment="Center" Margin="0,0,0,9" />
+                                <Button x:Name="SettingsHotkeyButton" Grid.Row="2" Grid.Column="1" Tag="settings" Content="Ctrl + Shift + O" Style="{StaticResource ShortcutBoxButton}" Margin="0,0,0,9" Click="HotkeyButton_Click" />
+                                <TextBlock Grid.Row="3" Text="Phóng to / thu nhỏ minimap" Foreground="#D9DBDE" VerticalAlignment="Center" />
+                                <Button x:Name="ZoomHotkeyButton" Grid.Row="3" Grid.Column="1" Tag="zoom" Content="Alt +  /  Alt −" Style="{StaticResource ShortcutBoxButton}" Click="HotkeyButton_Click" />
+                                <Button Grid.Row="4" Grid.ColumnSpan="2" Content="RESET PHÍM TẮT" Style="{StaticResource NavButton}" Margin="0,12,0,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="ResetHotkeysButton_Click" />
+                            </Grid>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </Grid>

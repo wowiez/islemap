@@ -19,7 +19,7 @@ public partial class LargeMapWindow : Window
     private const double MapWidth = 1112d;
     private const double MapHeight = 1116d;
     private const double MinimumZoom = 1d;
-    private const double MaximumZoom = 4d;
+    internal const double MaximumZoom = 8d;
     private const double ZoomStep = 0.25d;
     private static readonly Duration ZoomAnimationDuration = new(TimeSpan.FromMilliseconds(180));
 
@@ -548,19 +548,27 @@ public partial class LargeMapWindow : Window
 
     private void MapViewport_MouseWheel(object sender, MouseWheelEventArgs e)
     {
+        var oldZoom = _zoom;
         var target = Math.Clamp(
-            _zoom + (e.Delta > 0 ? ZoomStep : -ZoomStep),
+            oldZoom + (e.Delta > 0 ? ZoomStep : -ZoomStep),
             MinimumZoom,
             MaximumZoom);
-        if (Math.Abs(target - _zoom) < 0.001d)
+        if (Math.Abs(target - oldZoom) < 0.001d)
         {
             return;
         }
 
+        var cursor = e.GetPosition(MapViewport);
+        var center = new Point(MapViewport.ActualWidth / 2d, MapViewport.ActualHeight / 2d);
+        var cursorOffset = cursor - center;
+        var pan = new Vector(ZoomPanTransform.X, ZoomPanTransform.Y);
+        var anchorPan = new Vector(
+            cursorOffset.X - (target / oldZoom) * (cursorOffset.X - pan.X),
+            cursorOffset.Y - (target / oldZoom) * (cursorOffset.Y - pan.Y));
         _zoom = target;
         AnimateValue(ZoomScaleTransform, ScaleTransform.ScaleXProperty, target);
         AnimateValue(ZoomScaleTransform, ScaleTransform.ScaleYProperty, target);
-        SetPan(ZoomPanTransform.X, ZoomPanTransform.Y, animate: true);
+        SetPan(anchorPan.X, anchorPan.Y, animate: true);
         e.Handled = true;
     }
 

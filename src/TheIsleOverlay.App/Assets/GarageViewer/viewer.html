@@ -1,7 +1,7 @@
 <!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://isle-model.local; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' https://isle-model.local blob: data:; connect-src 'self' https://isle-model.local;">
-<style>html,body{margin:0;height:100%;overflow:hidden;background:#0c1418;color:#a8bdc4;font:11px 'Segoe UI',sans-serif}canvas{display:block;touch-action:none;cursor:grab}canvas:active{cursor:grabbing}#hint{position:absolute;bottom:7px;width:100%;text-align:center;pointer-events:none}#state{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}</style>
+<style>html,body{margin:0;height:100%;overflow:hidden;color:#e2ece4;font:11px 'Segoe UI',sans-serif}body{background:linear-gradient(180deg,rgba(4,12,9,.10),rgba(4,12,9,.28)),url('./forest-waterfall.png') center 54%/cover no-repeat}canvas{position:relative;z-index:1;display:block;touch-action:none;cursor:grab}canvas:active{cursor:grabbing}#hint,#state{z-index:2;text-shadow:0 1px 3px #000,0 0 8px rgba(0,0,0,.7)}#hint{position:absolute;bottom:7px;width:100%;text-align:center;pointer-events:none}#state{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;font-weight:600;letter-spacing:.05em}</style>
 <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
 </head><body><div id="state">Đang tải model 3D…</div><div id="hint">Kéo để xoay · Cuộn để zoom</div>
 <script type="module" src="./viewer.js"></script></body></html>

@@ -1,3 +1,26 @@
+# Isle Live Map 1.8.1
+
+- Sửa lỗi áp dụng bảng màu Skin: chuyển đổi chính xác chuẩn Linear RGB (IEC 61966-2-1), loại bỏ hiện tượng bạc màu/nhạt màu và khớp 100% độ đậm và chi tiết như web IslePilot.
+- Chuẩn hóa tên Blueprint Class của khủng long theo chuẩn PascalCase của Unreal Engine (ví dụ: `BP_Tyrannosaurus_C`), khắc phục lỗi server The Isle không nhận màu khi gửi từ Hub.
+- Đồng bộ cấu trúc payload gửi màu với web: chỉ gửi các trường hợp lệ, loại bỏ các trường thừa (`display`, `female_display`).
+- Sửa lỗi telemetry định kỳ ghi đè giới tính và thông số biến thể khi nạp Skin Draft.
+- Cải tiến danh sách Skin Drafts: bấm nút áp dụng ở draft sẽ nạp mã màu và thông số vào form xem trước 3D mà không gửi vội tới server; chỉ gửi tới game khi người dùng bấm nút Áp dụng chính.
+- Tự động nhận diện server ID cho các máy chủ SBTC Island.
+
+# Isle Live Map 1.8.0
+
+- Tạm ẩn hoàn toàn SBTC Voice Chat trong F8 cho tới khi trải nghiệm overlay đạt yêu cầu; phần runtime được giữ lại nhưng không thể tự bật theo server.
+- Sửa màu Garage/Skin 3D bằng texture pattern và mask thật của từng loài: tách đúng thân, hoa văn, mạn sườn, bụng, chi tiết, display, mắt, răng, miệng và móng thay vì phủ một màu lên toàn model.
+- Cache và kiểm tra chữ ký PNG/WebP cho asset màu 3D, tránh lưu nhầm trang lỗi Cloudflare/CDN thành texture.
+- Sửa Npcap mắc ở `CONNECTING`: chủ động phát hiện driver chưa chạy, nút `MỞ LẠI` khởi động driver qua UAC và capture đúng cả hai chiều UDP trên cổng game.
+- Sửa Npcap dùng nhầm calibration Gateway cũ khiến vị trí West Rail bị chiếu sang Highlands; tọa độ và hướng camera nay dùng calibration động từ IslePilot map.
+- Cập nhật decoder cho packet-handler thay đổi theo từng phiên của SBTC; tọa độ và hướng camera đạt khoảng 5 mẫu/giây trong phép đo dài, không còn swap X/Y khiến North Jungle bị đặt sang Mud Flats.
+- Sửa Garage/Skin 3D không tải được model khi CDN chậm: thêm browser headers, timeout hai phút, ba lần retry, cache nguyên tử và kiểm tra đầy đủ GLB v2; cache hỏng tự bị xóa để tải lại.
+- Sửa Garage/Skin 3D khởi tạo WebView khi chưa gắn vào cửa sổ và dùng chung WebView environment ổn định.
+- Khi Npcap live, các nguồn REST/clipboard cũ không còn giành quyền khiến marker nhảy sai vị trí.
+- Làm mới Garage/Skin 3D, nền waterfall local, cài đặt F8, zoom map và thêm nút bật/tắt tự ẩn overlay khi Alt+Tab; Copy Asset luôn bật và Npcap tự fallback về WS/REST khi không khả dụng.
+- Sửa so sánh phiên bản update và thay phiên app cũ khi mở phiên mới, đồng thời tiếp tục giữ dữ liệu đăng nhập trong vùng dữ liệu người dùng.
+
 # Isle Live Map 1.7.16
 
 - Khôi phục đúng vault v3 của các bản 1.7.10–1.7.12 từ thư mục cài đặt cũ; trước đây migration chỉ thử khóa v1/v2 nên một số máy hiển thị mất toàn bộ tài khoản sau update.

@@ -5,7 +5,7 @@ namespace TheIsleOverlay.App;
 
 public sealed record OverlayLayoutSettings
 {
-    public int Version { get; init; } = 8;
+    public int Version { get; init; } = 10;
     public double Scale { get; init; } = OverlayLayoutRules.DefaultScale;
     public double MapZoom { get; init; } = OverlayLayoutRules.DefaultMapZoom;
     public string MapStyle { get; init; } = OverlayLayoutRules.DefaultMapStyle;
@@ -14,6 +14,9 @@ public sealed record OverlayLayoutSettings
     public bool RotateMap { get; init; }
     public bool AutoDetectLiveMap { get; init; } = true;
     public bool ShowPrimeTasks { get; init; }
+    public bool NpcapEnabled { get; init; } = true;
+    public bool CopyAssetEnabled { get; init; } = true;
+    public bool AutoHideOutsideGame { get; init; } = true;
     public double? Left { get; init; }
     public double? Top { get; init; }
 }
@@ -27,7 +30,7 @@ public static class OverlayLayoutRules
     public const double ButtonStep = 0.1d;
     public const double DefaultMapZoom = 2.25d;
     public const double MinimumMapZoom = 1d;
-    public const double MaximumMapZoom = 6d;
+    public const double MaximumMapZoom = 10d;
     public const string DefaultMapStyle = "circle";
     public const string SquareMapStyle = "square";
 
@@ -36,7 +39,7 @@ public static class OverlayLayoutRules
         settings ??= new OverlayLayoutSettings();
         return settings with
         {
-            Version = 8,
+            Version = 10,
             Scale = NormalizeScale(settings.Scale),
             MapZoom = NormalizeMapZoom(settings.MapZoom),
             MapStyle = NormalizeMapStyle(settings.MapStyle),
@@ -45,6 +48,11 @@ public static class OverlayLayoutRules
             RotateMap = settings.RotateMap,
             AutoDetectLiveMap = settings.AutoDetectLiveMap,
             ShowPrimeTasks = settings.ShowPrimeTasks,
+            NpcapEnabled = settings.NpcapEnabled,
+            // Copy Asset is a permanent fallback. Older settings that disabled it
+            // are intentionally migrated back to enabled.
+            CopyAssetEnabled = true,
+            AutoHideOutsideGame = settings.AutoHideOutsideGame,
             Left = FiniteOrNull(settings.Left),
             Top = FiniteOrNull(settings.Top)
         };

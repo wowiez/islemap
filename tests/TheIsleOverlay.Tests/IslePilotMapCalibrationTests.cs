@@ -45,6 +45,32 @@ public sealed class IslePilotMapCalibrationTests
         Assert.Throws<InvalidDataException>(() => new IslePilotMapCalibration(dto));
     }
 
+    [Fact]
+    public void ExportedProjection_PlacesCurrentWestRailCoordinatesCorrectly()
+    {
+        var calibration = Calibration(
+            new IslePilotMapCalibrationPointDto
+            {
+                WorldX = 534057.9, WorldY = -267245.9, U = 0.932096, V = 0.305304
+            },
+            new IslePilotMapCalibrationPointDto
+            {
+                WorldX = 87931.2, WorldY = -104086.2, U = 0.535622, V = 0.449611
+            });
+
+        var point = calibration.Projection.Project(new TheIsleOverlay.Core.WorldLocation
+        {
+            X = -245623,
+            Y = -26211
+        });
+
+        Assert.InRange(point.Left, 0.23, 0.25);
+        Assert.InRange(point.Top, 0.51, 0.53);
+        Assert.Equal(
+            calibration.Project(-245623, -26211),
+            point);
+    }
+
     private static IslePilotMapCalibration Calibration(
         IslePilotMapCalibrationPointDto a,
         IslePilotMapCalibrationPointDto b) => new(new IslePilotMapCalibrationDto { A = a, B = b });

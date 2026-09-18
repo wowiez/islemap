@@ -338,6 +338,40 @@ public sealed class IslePilotRealtimeSession : ITelemetrySession
         return _apiClient.GetGarageAsync(cancellationToken);
     }
 
+    public Task<IslePilotOverlaySkinDraftsDto> GetSkinDraftsAsync(
+        string slug, CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        return _apiClient.GetSkinDraftsAsync(slug, cancellationToken);
+    }
+
+    public Task<IslePilotOverlaySkinDraftDto> SaveSkinDraftAsync(
+        string slug, string species, string name, IslePilotOverlayGaragePaletteDto palette, bool female = true,
+        int theme = 0, int pattern = 0, int variation = 0,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        return _apiClient.SaveSkinDraftAsync(slug, species, name, palette, female, theme, pattern, variation, cancellationToken);
+    }
+
+    public Task<IslePilotOverlaySkinApplyDto> ApplySkinPaletteAsync(
+        string serverId,
+        string species, IslePilotOverlayGaragePaletteDto palette, bool female = true,
+        int theme = 0, int pattern = 0, int variation = 0,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        return _apiClient.ApplySkinPaletteAsync(serverId, species, palette, female, theme, pattern, variation, cancellationToken);
+    }
+
+    public Task<IslePilotOverlaySkinApplyDto> ApplySkinDraftAsync(
+        string serverId, string species, IslePilotOverlaySkinDraftPayloadDto payload, bool female = true,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        return _apiClient.ApplySkinDraftAsync(serverId, species, payload, female, cancellationToken);
+    }
+
     public Task<IslePilotOverlayGarageCommandDto> ParkGarageDinoAsync(
         string step,
         CancellationToken cancellationToken = default)

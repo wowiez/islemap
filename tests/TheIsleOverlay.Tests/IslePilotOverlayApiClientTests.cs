@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using TheIsleOverlay.Core;
 using TheIsleOverlay.IslePilot;
 
@@ -169,6 +170,152 @@ public sealed class IslePilotOverlayApiClientTests
     }
 
     [Fact]
+    public async Task SkinDrafts_UsesPlayerCookieWithoutDuplicatingCookieName()
+    {
+        var handler = new RecordingHandler(HttpStatusCode.OK, "{\"drafts\":[]}");
+        var httpClient = new HttpClient(handler);
+        var client = new IslePilotOverlayApiClient(httpClient,
+            new IslePilotOverlayOptions { OverlayToken = "islepilot_player=" + Token });
+
+        await client.GetSkinDraftsAsync("sbtcisland");
+
+        Assert.Equal("islepilot_player=" + Token, handler.Cookie);
+        Assert.EndsWith("/api/player/skin-drafts?slug=sbtcisland", handler.RequestUri!.AbsoluteUri, StringComparison.Ordinal);
+        Assert.Null(handler.AuthorizationScheme);
+        Assert.Equal("https://islepilot.eu", handler.Origin);
+    }
+
+    [Fact]
+    public async Task ApplySkinPalette_PostsToLiveGameEndpointWithCookieOnly()
+    {
+        using var handler = new RecordingHandler(HttpStatusCode.OK, "{\"ok\":true}");
+        using var httpClient = new HttpClient(handler);
+        var client = CreateClient(httpClient);
+
+        var result = await client.ApplySkinPaletteAsync("cmsxo6wv70nl7o101w2ae292k", "BP_Allosaurus_C", new IslePilotOverlayGaragePaletteDto
+        {
+            Body = "#112233",
+            Display = "#AABBCC",
+            Claws = "#0A0B0C"
+        });
+
+        Assert.True(result.Accepted);
+        Assert.Equal(HttpMethod.Post, handler.Method);
+        Assert.Equal(new Uri("https://islepilot.eu/api/skin/set"), handler.RequestUri);
+        Assert.Null(handler.AuthorizationScheme);
+        Assert.Equal($"islepilot_player={Token}", handler.Cookie);
+        Assert.Contains("\"serverId\":\"cmsxo6wv70nl7o101w2ae292k\"", handler.RequestBody, StringComparison.Ordinal);
+        Assert.Contains("\"payload\":{", handler.RequestBody, StringComparison.Ordinal);
+        Assert.Contains("\"class\":\"BP_Allosaurus_C\"", handler.RequestBody, StringComparison.Ordinal);
+        Assert.Contains("\"female\":true", handler.RequestBody, StringComparison.Ordinal);
+        Assert.Contains("\"body\":[0.005605,0.015996,0.033105,1]", handler.RequestBody, StringComparison.Ordinal);
+        Assert.Contains("\"male_display\":[0.401978,0.496933,0.603827,1]", handler.RequestBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SrgbToLinear_MatchesIslePilotWebColorFormula()
+    {
+        var palette = new IslePilotOverlayGaragePaletteDto
+        {
+            Body = "#0a1208",
+            Claws = "#124913",
+            Detail = "#1c3527",
+            Eyes = "#27451c",
+            Flank = "#0b2806",
+            Display = "#27451c",
+            Markings = "#223404",
+            Mouth = "#10450d",
+            Teeth = "#143d1b",
+            Underbelly = "#0b2806"
+        };
+
+        var payload = IslePilotOverlaySkinSetPayloadDto.FromPalette("BP_Tyrannosaurus_C", palette, female: true, theme: 1);
+
+        Assert.Equal("BP_Tyrannosaurus_C", payload.Class);
+        Assert.Equal([0.003035, 0.006049, 0.002428, 1], payload.Body);
+        Assert.Equal([0.006049, 0.066626, 0.006512, 1], payload.Claws);
+        Assert.Equal([0.011612, 0.035601, 0.020289, 1], payload.Detail1);
+        Assert.Equal([0.020289, 0.059511, 0.011612, 1], payload.Eyes);
+        Assert.Equal([0.003347, 0.021219, 0.001821, 1], payload.Flank);
+        Assert.Equal([0.020289, 0.059511, 0.011612, 1], payload.MaleDisplay);
+        Assert.Equal([0.015996, 0.03434, 0.001214, 1], payload.Markings);
+        Assert.Equal([0.005182, 0.059511, 0.004025, 1], payload.Mouth);
+        Assert.Equal([0.006995, 0.046665, 0.01096, 1], payload.Teeth);
+        Assert.Equal([0.003347, 0.021219, 0.001821, 1], payload.Underbelly);
+        Assert.Equal(1, payload.Theme);
+        Assert.True(payload.Female);
+
+        var uppercasePayload = IslePilotOverlaySkinSetPayloadDto.FromPalette("TYRANNOSAURUS", palette, female: true, theme: 1);
+        Assert.Equal("BP_Tyrannosaurus_C", uppercasePayload.Class);
+
+        var json = JsonSerializer.Serialize(uppercasePayload, IslePilotOverlayJson.Options);
+        Assert.DoesNotContain("\"female_display\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"display\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"male_display\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"class\":\"BP_Tyrannosaurus_C\"", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SaveSkinDraft_UsesWebPostShapeWithoutQueryString()
+    {
+        using var handler = new RecordingHandler(HttpStatusCode.OK, "{\"id\":\"draft-1\",\"name\":\"test\"}");
+        using var httpClient = new HttpClient(handler);
+        var client = CreateClient(httpClient);
+
+        await client.SaveSkinDraftAsync("sbtcisland", "Tyrannosaurus", "test",
+            new IslePilotOverlayGaragePaletteDto { Body = "#112233" });
+
+        Assert.Equal(new Uri("https://islepilot.eu/api/player/skin-drafts"), handler.RequestUri);
+        Assert.Contains("\"slug\":\"sbtcisland\"", handler.RequestBody, StringComparison.Ordinal);
+        Assert.Contains("\"drafts\":[{\"name\":\"test\",\"species\":\"Tyrannosaurus\"", handler.RequestBody, StringComparison.Ordinal);
+        Assert.Contains("\"payload\":{", handler.RequestBody, StringComparison.Ordinal);
+        Assert.Contains("\"glitchLab\":{", handler.RequestBody, StringComparison.Ordinal);
+        Assert.Contains("\"renderMode\":\"standard\"", handler.RequestBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ApplySkinDraft_PreservesWebDraftVariantFields()
+    {
+        using var handler = new RecordingHandler(HttpStatusCode.OK, "{\"ok\":true}");
+        using var httpClient = new HttpClient(handler);
+        var client = CreateClient(httpClient);
+
+        var result = await client.ApplySkinDraftAsync("cmsxo6wv70nl7o101w2ae292k", "Tyrannosaurus",
+            new IslePilotOverlaySkinDraftPayloadDto
+            {
+                Sex = "female", Variation = 2, Pattern = 3, Theme = 4,
+                Palette = new IslePilotOverlayGaragePaletteDto { Body = "#112233" }
+            });
+
+        Assert.True(result.Accepted);
+        Assert.Contains("\"class\":\"BP_Tyrannosaurus_C\"", handler.RequestBody, StringComparison.Ordinal);
+        Assert.Contains("\"female\":true", handler.RequestBody, StringComparison.Ordinal);
+        Assert.Contains("\"variation\":2", handler.RequestBody, StringComparison.Ordinal);
+        Assert.Contains("\"pattern\":3", handler.RequestBody, StringComparison.Ordinal);
+        Assert.Contains("\"theme\":4", handler.RequestBody, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SkinDrafts_ReadsSavedColorsFromWebResponse()
+    {
+        using var handler = new RecordingHandler(HttpStatusCode.OK, """
+            { "drafts": [
+              { "id": "draft-1", "name": "hong nhat", "species": "Triceratops",
+                "payload": { "species": "Triceratops", "palette": { "body": "#112233", "display": "#AABBCC" } } }
+            ] }
+            """);
+        using var httpClient = new HttpClient(handler);
+        var client = CreateClient(httpClient);
+
+        var result = await client.GetSkinDraftsAsync("sbtcisland");
+        var draft = Assert.Single(result.Drafts);
+
+        Assert.Equal("hong nhat", draft.Name);
+        Assert.Equal("#112233", draft.GetPalette()?.Body);
+        Assert.Equal("#AABBCC", draft.GetPalette()?.Display);
+    }
+
+    [Fact]
     public async Task Unauthorized_RequiresLoginWithoutLeakingToken()
     {
         using var handler = new RecordingHandler(HttpStatusCode.Unauthorized, "unauthorized");
@@ -226,6 +373,8 @@ public sealed class IslePilotOverlayApiClientTests
         public bool NoCache { get; private set; }
         public bool NoStore { get; private set; }
         public string? RequestBody { get; private set; }
+        public string? Referrer { get; private set; }
+        public string? Origin { get; private set; }
 
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
@@ -247,6 +396,10 @@ public sealed class IslePilotOverlayApiClientTests
             RequestBody = request.Content?.ReadAsStringAsync(cancellationToken)
                 .GetAwaiter()
                 .GetResult();
+            Referrer = request.Headers.Referrer?.AbsoluteUri;
+            Origin = request.Headers.TryGetValues("Origin", out var origins)
+                ? origins.Single()
+                : null;
 
             return Task.FromResult(new HttpResponseMessage(statusCode)
             {

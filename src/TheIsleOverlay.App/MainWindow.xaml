@@ -330,7 +330,7 @@
                 <Grid Grid.Row="3" Margin="0,7,0,0">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /><ColumnDefinition Width="46" /></Grid.ColumnDefinitions>
                     <TextBlock Text="MAP CROP" Foreground="#D5DDD5" FontFamily="Bahnschrift SemiCondensed" FontSize="10" VerticalAlignment="Center" />
-                    <Slider x:Name="MapZoomSlider" Grid.Column="1" Minimum="100" Maximum="600" Value="225" SmallChange="10" LargeChange="35"
+                    <Slider x:Name="MapZoomSlider" Grid.Column="1" Minimum="100" Maximum="1000" Value="225" SmallChange="10" LargeChange="50"
                             Margin="7,0" VerticalAlignment="Center" ValueChanged="MapZoomSlider_ValueChanged" />
                     <TextBlock x:Name="MapZoomLabel" Grid.Column="2" Text="225%" Foreground="#31A9D7" FontFamily="Bahnschrift" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center" />
                 </Grid>

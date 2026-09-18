@@ -10,7 +10,7 @@ public static class Program
     {
         VelopackApp.Build().Run();
 
-        if (!SingleInstanceLease.TryAcquire(
+        if (!SingleInstanceLease.TryAcquireReplacingExisting(
                 @"Local\IsleLiveMap.SingleInstance",
                 out var instanceLease))
         {

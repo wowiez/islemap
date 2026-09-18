@@ -351,6 +351,7 @@ public sealed class IslePilotOverlayStateReducer
             Name = _me?.PersonaName ?? _me?.Name,
             Class = _me?.Species,
             Server = _me?.Server,
+            ServerId = _me?.ServerId,
             Female = _me?.Female,
             GrowthPercent = FractionToPercent(growth),
             HealthPercent = Percent(health, maxHealth),
@@ -399,6 +400,7 @@ public sealed class IslePilotOverlayStateReducer
         return new MapTelemetry
         {
             UpdatedAt = Latest(_lastMapAt, _lastMarkersAt),
+            Projection = _calibration?.Projection,
             Markers = CurrentMarkers().Select(ToMarker).ToArray(),
             PointsOfInterest = _map.Pois.Select(ToPointOfInterest).ToArray()
         };
@@ -587,6 +589,7 @@ public sealed class IslePilotOverlayStateReducer
             Name = current.Name ?? previous.Name,
             Species = current.Species ?? previous.Species,
             Server = current.Server ?? previous.Server,
+            ServerId = current.ServerId ?? previous.ServerId,
             Female = current.Female ?? previous.Female,
             Growth = current.Growth ?? previous.Growth,
             Health = current.Health ?? previous.Health,

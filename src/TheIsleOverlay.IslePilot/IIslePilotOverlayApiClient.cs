@@ -28,4 +28,25 @@ public interface IIslePilotOverlayApiClient
         string commandId,
         CancellationToken cancellationToken = default) =>
         Task.FromResult(new IslePilotOverlayGarageCommandStatusDto());
+
+    Task<IslePilotOverlaySkinDraftsDto> GetSkinDraftsAsync(
+        string slug, CancellationToken cancellationToken = default) =>
+        Task.FromResult(new IslePilotOverlaySkinDraftsDto());
+
+    Task<IslePilotOverlaySkinDraftDto> SaveSkinDraftAsync(
+        string slug, string species, string name, IslePilotOverlayGaragePaletteDto palette, bool female = true,
+        int theme = 0, int pattern = 0, int variation = 0,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(new IslePilotOverlaySkinDraftDto { Species = species, Colors = palette });
+
+    Task<IslePilotOverlaySkinApplyDto> ApplySkinPaletteAsync(
+        string serverId, string species, IslePilotOverlayGaragePaletteDto palette, bool female = true,
+        int theme = 0, int pattern = 0, int variation = 0,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(new IslePilotOverlaySkinApplyDto { Ok = true });
+
+    Task<IslePilotOverlaySkinApplyDto> ApplySkinDraftAsync(
+        string serverId, string species, IslePilotOverlaySkinDraftPayloadDto payload, bool female = true,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(new IslePilotOverlaySkinApplyDto { Ok = true });
 }

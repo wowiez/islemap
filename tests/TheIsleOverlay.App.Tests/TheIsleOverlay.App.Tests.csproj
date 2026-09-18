@@ -43,6 +43,15 @@
     <Content Include="..\..\src\TheIsleOverlay.App\Assets\GatewayZones.json"
              Link="TestAssets\GatewayZones.json"
              CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\TheIsleOverlay.App\Assets\GarageViewer\viewer.html"
+             Link="TestAssets\GarageViewer\viewer.html"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\TheIsleOverlay.App\Assets\GarageViewer\viewer.js"
+             Link="TestAssets\GarageViewer\viewer.js"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\src\TheIsleOverlay.App\Assets\GarageViewer\forest-waterfall.png"
+             Link="TestAssets\GarageViewer\forest-waterfall.png"
+             CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

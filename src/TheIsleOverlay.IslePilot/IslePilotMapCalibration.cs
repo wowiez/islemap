@@ -6,6 +6,7 @@ public sealed class IslePilotMapCalibration
 {
     private readonly IslePilotMapCalibrationPointDto _a;
     private readonly IslePilotMapCalibrationPointDto _b;
+    public MapProjectionTelemetry Projection { get; }
 
     public IslePilotMapCalibration(IslePilotMapCalibrationDto calibration)
     {
@@ -20,31 +21,20 @@ public sealed class IslePilotMapCalibration
         {
             throw new InvalidDataException("Map calibration is degenerate.");
         }
+
+        Projection = new MapProjectionTelemetry(
+            _a.WorldX, _a.WorldY, _a.U, _a.V,
+            _b.WorldX, _b.WorldY, _b.U, _b.V);
     }
 
     public MapPoint Project(double x, double y)
     {
-        var tx = (x - _a.WorldX) / (_b.WorldX - _a.WorldX);
-        var ty = (y - _a.WorldY) / (_b.WorldY - _a.WorldY);
-
-        var u = _a.U + tx * (_b.U - _a.U);
-        var v = _a.V + ty * (_b.V - _a.V);
-        return new MapPoint(u, v);
+        return Projection.Project(new WorldLocation { X = x, Y = y });
     }
 
     public double ProjectHeading(double x, double y, double yawDegrees)
     {
-        var yawRadians = yawDegrees * Math.PI / 180d;
-        var current = Project(x, y);
-        var ahead = Project(
-            x + 1000d * Math.Cos(yawRadians),
-            y + 1000d * Math.Sin(yawRadians));
-
-        var deltaLeft = ahead.Left - current.Left;
-        var deltaTop = ahead.Top - current.Top;
-
-        // DirectionNeedle points upward at 0 degrees and rotates clockwise.
-        return MapHeading.Normalize(Math.Atan2(deltaLeft, -deltaTop) * 180d / Math.PI);
+        return Projection.ProjectHeading(new WorldLocation { X = x, Y = y }, yawDegrees);
     }
 
     private static bool IsFinite(IslePilotMapCalibrationPointDto point) =>

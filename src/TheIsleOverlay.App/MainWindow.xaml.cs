@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -72,7 +73,12 @@ public partial class MainWindow : Window
     private readonly IReadOnlyList<SbtcZoneFeature> _bundledSbtcZones;
     private ITelemetrySession? _telemetrySession;
     private Task? _telemetryWatchTask;
+    private DispatcherTimer? _foregroundVisibilityTimer;
     private ClipboardCoordinateMonitor? _clipboardCoordinateMonitor;
+    private NpcapGamePositionSource? _npcapPositionSource;
+    private NpcapPositionSample? _npcapPosition;
+    private MapProjectionTelemetry? _islePilotMapProjection;
+    private NpcapSourceState _npcapState = new(NpcapSourceStatus.Unavailable, "Chưa cài Npcap");
     private OverlayLayoutSettings _layoutSettings = new();
     private string _configuredSource = "ERA";
     private WorldLocation? _location;
@@ -123,6 +129,9 @@ public partial class MainWindow : Window
     private GuidePlayerOverview? _guidePlayerOverview;
     private long _lastLargeMapToggleTick;
     private string? _activeSpeciesName;
+    private bool _hiddenForExternalForeground;
+    private bool _restoreGuideAfterForeground;
+    private bool _restoreLargeMapAfterForeground;
 
     public MainWindow() : this(null, null, null, null, null)
     {
@@ -213,6 +222,13 @@ public partial class MainWindow : Window
         }
 
         RestoreOverlayPosition();
+        _foregroundVisibilityTimer = new DispatcherTimer(
+            TimeSpan.FromMilliseconds(200),
+            DispatcherPriority.Background,
+            (_, _) => RefreshForegroundVisibility(),
+            Dispatcher);
+        _foregroundVisibilityTimer.Start();
+        RefreshForegroundVisibility();
 
         if (!TryConfigureTelemetrySession())
         {
@@ -223,6 +239,7 @@ public partial class MainWindow : Window
         }
 
         LoadMap();
+        StartNpcapPositionSource();
         _telemetryWatchTask = WatchTelemetryAsync();
     }
 
@@ -325,12 +342,19 @@ public partial class MainWindow : Window
         catch (Exception)
         {
             await Dispatcher.InvokeAsync(() =>
-                ShowTelemetryUnavailable("MẤT KẾT NỐI", "Telemetry session đã dừng"));
+                ShowTelemetryUnavailable(
+                    "MẤT KẾT NỐI",
+                    "Telemetry session đã dừng",
+                    IsNpcapOwnPositionAuthoritative));
         }
     }
 
     private void RenderSnapshot(TelemetrySnapshot snapshot)
     {
+        if (snapshot.Map?.Projection is { } projection)
+        {
+            _islePilotMapProjection = projection;
+        }
         var activityStatus = MapOverlayPresentation.RequestStatus(
             snapshot.SessionState,
             snapshot.RequestStatus);
@@ -343,8 +367,11 @@ public partial class MainWindow : Window
 
             if (snapshot.SessionState == TelemetrySessionState.AuthenticationRequired)
             {
-                ShowTelemetryUnavailable("PHIÊN CẦN XÁC THỰC LẠI", "Tài khoản đã lưu vẫn được giữ; mở lại Home để xác thực");
-                RequestStatusLabel.Text = activityStatus;
+                ShowTelemetryUnavailable(
+                    "PHIÊN CẦN XÁC THỰC LẠI",
+                    "Tài khoản đã lưu vẫn được giữ; mở lại Home để xác thực",
+                    IsNpcapOwnPositionAuthoritative);
+                RequestStatusLabel.Text = PositionSourceStatus(activityStatus);
                 return;
             }
 
@@ -352,15 +379,19 @@ public partial class MainWindow : Window
             {
                 ShowNoActiveDinosaur(
                     snapshot.StatusMessage ?? "ISLEPILOT · CHƯA VÀO SERVER HỖ TRỢ",
-                    "Server hiện tại chưa cài IslePilot");
-                RequestStatusLabel.Text = activityStatus;
+                    "Server hiện tại chưa cài IslePilot",
+                    IsNpcapOwnPositionAuthoritative);
+                RequestStatusLabel.Text = PositionSourceStatus(activityStatus);
                 return;
             }
 
             if (!snapshot.Success || !snapshot.ServerOnline)
             {
-                ShowTelemetryUnavailable("SERVER OFFLINE", "Nguồn telemetry đang ngoại tuyến");
-                RequestStatusLabel.Text = activityStatus;
+                ShowTelemetryUnavailable(
+                    "SERVER OFFLINE",
+                    "Nguồn telemetry đang ngoại tuyến",
+                    IsNpcapOwnPositionAuthoritative);
+                RequestStatusLabel.Text = PositionSourceStatus(activityStatus);
                 return;
             }
 
@@ -374,12 +405,12 @@ public partial class MainWindow : Window
                     TelemetrySessionState.Stale => "Dữ liệu realtime đã quá hạn",
                     _ => $"Join server {_configuredSource} để nhận telemetry"
                 };
-                ShowNoActiveDinosaur(state, detail);
-                RequestStatusLabel.Text = activityStatus;
+                ShowNoActiveDinosaur(state, detail, IsNpcapOwnPositionAuthoritative);
+                RequestStatusLabel.Text = PositionSourceStatus(activityStatus);
                 return;
             }
 
-            var player = snapshot.Player;
+            var player = ApplyFreshNpcapPosition(snapshot.Player);
             _activeSpeciesName = player.Class;
             var exact = player.ExactVitals;
 
@@ -399,7 +430,7 @@ public partial class MainWindow : Window
             RenderVital(WaterBar, WaterValue, exact?.Thirst, exact?.MaxThirst, player.ThirstPercent);
 
             UpdatedLabel.Text = $"SYNC {(snapshot.UpdatedAt ?? DateTimeOffset.Now).ToLocalTime():HH:mm:ss}";
-            RequestStatusLabel.Text = activityStatus;
+            RequestStatusLabel.Text = PositionSourceStatus(activityStatus);
             _guidePlayerOverview = new GuidePlayerOverview(
                 FriendlySpecies(player.Class),
                 player.Name ?? "ACTIVE PLAYER",
@@ -409,14 +440,26 @@ public partial class MainWindow : Window
                 VitalPercent(exact?.Stamina, exact?.MaxStamina, player.StaminaPercent),
                 VitalPercent(exact?.Hunger ?? exact?.FoodValue, exact?.MaxHunger ?? exact?.MaxFoodValue, player.HungerPercent),
                 VitalPercent(exact?.Thirst, exact?.MaxThirst, player.ThirstPercent),
-                snapshot.UpdatedAt ?? DateTimeOffset.Now);
+                snapshot.UpdatedAt ?? DateTimeOffset.Now,
+                player.ServerId,
+                player.Female);
             _guideWindow?.UpdatePlayerOverview(_guidePlayerOverview);
 
-            var effectiveLocation = ResolveEffectiveLocation(
-                player.Location,
-                player.MapLocation,
-                snapshot.Map?.UpdatedAt ?? snapshot.UpdatedAt,
-                out var effectiveMapLocation);
+            WorldLocation? effectiveLocation;
+            MapPoint? effectiveMapLocation;
+            if (IsNpcapOwnPositionAuthoritative && _npcapPosition is { } npcapSample)
+            {
+                effectiveLocation = npcapSample.Location;
+                effectiveMapLocation = ProjectNpcapLocation(npcapSample.Location);
+            }
+            else
+            {
+                effectiveLocation = ResolveEffectiveLocation(
+                    player.Location,
+                    player.MapLocation,
+                    snapshot.Map?.UpdatedAt ?? snapshot.UpdatedAt,
+                    out effectiveMapLocation);
+            }
             UpdateHeading(player with
             {
                 Location = effectiveLocation,
@@ -456,6 +499,110 @@ public partial class MainWindow : Window
 
         UpdateMovementHeading(player.Location);
     }
+
+    private void StartNpcapPositionSource()
+    {
+        if (!_usesIslePilotMap || !_layoutSettings.NpcapEnabled || _npcapPositionSource is not null) return;
+        var source = new NpcapGamePositionSource();
+        _npcapPositionSource = source;
+        _npcapState = source.State;
+        source.StateChanged += state => Dispatcher.BeginInvoke(() =>
+        {
+            if (!ReferenceEquals(_npcapPositionSource, source)) return;
+            _npcapState = state;
+            _guideWindow?.UpdateNpcapState(state);
+            RequestStatusLabel.Text = PositionSourceStatus(RequestStatusLabel.Text);
+        }, DispatcherPriority.Background);
+        if (!source.IsSupported)
+        {
+            _guideWindow?.UpdateNpcapState(_npcapState);
+            return;
+        }
+
+        source.PositionReceived += sample => Dispatcher.BeginInvoke(() =>
+        {
+            if (ReferenceEquals(_npcapPositionSource, source)) ApplyNpcapPosition(sample);
+        }, DispatcherPriority.Render);
+        source.Start();
+    }
+
+    private async Task StopNpcapPositionSourceAsync(bool clearPosition = true)
+    {
+        var source = _npcapPositionSource;
+        _npcapPositionSource = null;
+        if (clearPosition) _npcapPosition = null;
+        if (source is null) return;
+        await source.DisposeAsync();
+    }
+
+    private async Task RestartNpcapPositionSourceAsync()
+    {
+        await StopNpcapPositionSourceAsync(clearPosition: false);
+        StartNpcapPositionSource();
+        _guideWindow?.UpdateNpcapState(_npcapState);
+    }
+
+    private NpcapSourceStatus CurrentNpcapStatus =>
+        _npcapPositionSource?.State.Status ?? _npcapState.Status;
+
+    private bool IsNpcapOwnPositionAuthoritative =>
+        NpcapSourcePresentation.IsOwnPositionAuthoritative(
+            _layoutSettings.NpcapEnabled,
+            CurrentNpcapStatus,
+            _npcapPosition is not null);
+
+    private string PositionSourceStatus(string fallback) =>
+        !_usesIslePilotMap
+            ? fallback
+            : NpcapSourcePresentation.PositionStatusOrFallback(
+                _layoutSettings.NpcapEnabled,
+                CurrentNpcapStatus,
+                fallback);
+
+    private PlayerTelemetry ApplyFreshNpcapPosition(PlayerTelemetry player)
+    {
+        if (!IsNpcapOwnPositionAuthoritative || _npcapPosition is not { } sample)
+        {
+            return player;
+        }
+
+        return player with
+        {
+            Location = sample.Location,
+            MapLocation = ProjectNpcapLocation(sample.Location),
+            ExactMapHeadingDegrees = ProjectNpcapHeading(sample)
+        };
+    }
+
+    private void ApplyNpcapPosition(NpcapPositionSample sample)
+    {
+        if (_npcapPosition is { } current && sample.CapturedAt <= current.CapturedAt) return;
+        _npcapPosition = sample;
+        var location = sample.Location;
+        var mapLocation = ProjectNpcapLocation(location);
+        UpdateHeading(new PlayerTelemetry
+        {
+            Location = location,
+            MapLocation = mapLocation,
+            ExactMapHeadingDegrees = ProjectNpcapHeading(sample)
+        });
+        var changed = HasMapPositionChanged(_location, _mapLocation, location, mapLocation);
+        _location = location;
+        _mapLocation = mapLocation;
+        var altitude = location.Z is null ? "—" : $"{location.Z.Value / 1000d:0.0}";
+        CoordinateLabel.Text = $"X {location.X / 1000d:0.0}  Y {location.Y / 1000d:0.0}  Z {altitude}";
+        RequestStatusLabel.Text = "NPCAP · LIVE";
+        PlayerMarker.Visibility = Visibility.Visible;
+        if (changed) PositionMap();
+    }
+
+    private MapPoint ProjectNpcapLocation(WorldLocation location) =>
+        _islePilotMapProjection?.Project(location) ?? GatewayMapProjection.Project(location);
+
+    private double? ProjectNpcapHeading(NpcapPositionSample sample) =>
+        sample.WorldYawDegrees is not { } yaw
+            ? null
+            : _islePilotMapProjection?.ProjectHeading(sample.Location, yaw) ?? MapHeading.FromUnrealYaw(yaw);
 
     private WorldLocation? ResolveEffectiveLocation(
         WorldLocation? networkLocation,
@@ -507,6 +654,14 @@ public partial class MainWindow : Window
 
     private bool ApplyClipboardLocation(WorldLocation location)
     {
+        // Npcap is the sole source for the local player's position while live.
+        // Consume copied coordinates so an old clipboard value cannot jump the
+        // marker now or immediately after another telemetry frame arrives.
+        if (IsNpcapOwnPositionAuthoritative)
+        {
+            return true;
+        }
+
         // While an interactive map is open, coordinate clipboard data belongs to
         // Ctrl+V route selection. Do not let the background Copy Asset monitor move
         // the player marker to the destination before the paste command is handled.
@@ -543,6 +698,7 @@ public partial class MainWindow : Window
         _mapLocation = projectedLocation;
         var altitude = location.Z is null ? "—" : $"{location.Z.Value / 1000d:0.0}";
         CoordinateLabel.Text = $"X {location.X / 1000d:0.0}  Y {location.Y / 1000d:0.0}  Z {altitude}";
+        RequestStatusLabel.Text = PositionSourceStatus(RequestStatusLabel.Text);
         PlayerMarker.Visibility = Visibility.Visible;
         if (mapPositionChanged)
         {
@@ -750,36 +906,59 @@ public partial class MainWindow : Window
         RequestStatusLabel.Text = string.Empty;
     }
 
-    private void ShowTelemetryUnavailable(string connectionState, string detail)
+    private void ShowTelemetryUnavailable(
+        string connectionState,
+        string detail,
+        bool preserveNpcapPosition = false)
     {
         _guidePlayerOverview = null;
         _guideWindow?.UpdatePlayerOverview(null);
         SetConnectionState(connectionState, ErrorBrush);
         SpeciesLabel.Text = "TELEMETRY UNAVAILABLE";
         PlayerNameLabel.Text = detail;
-        _location = null;
-        _mapLocation = null;
-        _previousLocation = null;
-        _hasMovementHeading = false;
-        PlayerMarker.Visibility = Visibility.Collapsed;
-        HeadingModeLabel.Text = "CHƯA RÕ HƯỚNG";
+        if (!preserveNpcapPosition)
+        {
+            _location = null;
+            _mapLocation = null;
+            _previousLocation = null;
+            _hasMovementHeading = false;
+            PlayerMarker.Visibility = Visibility.Collapsed;
+            HeadingModeLabel.Text = "CHƯA RÕ HƯỚNG";
+        }
         ClearVitals();
+        RestoreNpcapCoordinateText(preserveNpcapPosition);
     }
 
-    private void ShowNoActiveDinosaur(string connectionState, string detail)
+    private void ShowNoActiveDinosaur(
+        string connectionState,
+        string detail,
+        bool preserveNpcapPosition = false)
     {
         _guidePlayerOverview = null;
         _guideWindow?.UpdatePlayerOverview(null);
         SetConnectionState(connectionState, WaitingBrush);
         SpeciesLabel.Text = "NO ACTIVE DINOSAUR";
         PlayerNameLabel.Text = detail;
-        _location = null;
-        _mapLocation = null;
-        _previousLocation = null;
-        _hasMovementHeading = false;
-        PlayerMarker.Visibility = Visibility.Collapsed;
-        HeadingModeLabel.Text = "CHƯA RÕ HƯỚNG";
+        if (!preserveNpcapPosition)
+        {
+            _location = null;
+            _mapLocation = null;
+            _previousLocation = null;
+            _hasMovementHeading = false;
+            PlayerMarker.Visibility = Visibility.Collapsed;
+            HeadingModeLabel.Text = "CHƯA RÕ HƯỚNG";
+        }
         ClearVitals();
+        RestoreNpcapCoordinateText(preserveNpcapPosition);
+    }
+
+    private void RestoreNpcapCoordinateText(bool preserveNpcapPosition)
+    {
+        if (!preserveNpcapPosition || _location is not { } location) return;
+        var altitude = location.Z is null ? "—" : $"{location.Z.Value / 1000d:0.0}";
+        CoordinateLabel.Text = $"X {location.X / 1000d:0.0}  Y {location.Y / 1000d:0.0}  Z {altitude}";
+        RequestStatusLabel.Text = PositionSourceStatus(RequestStatusLabel.Text);
+        PlayerMarker.Visibility = Visibility.Visible;
     }
 
     private string ConnectionText(TelemetrySessionState state) => state switch
@@ -1108,7 +1287,15 @@ public partial class MainWindow : Window
     {
         if (_guideWindow is not null)
         {
-            _guideWindow.Close();
+            if (_guideWindow.IsVisible)
+            {
+                _guideWindow.Hide();
+            }
+            else
+            {
+                _guideWindow.Show();
+                _guideWindow.Activate();
+            }
             return;
         }
 
@@ -1120,9 +1307,17 @@ public partial class MainWindow : Window
             _sbtcZoneFeatures,
             _sbtcPlayerMarkers,
             _guidePlayerOverview,
-            _garageApi)
+            _garageApi,
+            _layoutSettings.NpcapEnabled,
+            true,
+            _npcapState,
+            _layoutSettings.AutoHideOutsideGame)
         { Owner = this };
         guideWindow.DestinationChanged += GuideWindow_DestinationChanged;
+        guideWindow.NpcapEnabledChanged += GuideWindow_NpcapEnabledChanged;
+        guideWindow.AutoHideOutsideGameChanged += GuideWindow_AutoHideOutsideGameChanged;
+        guideWindow.RetryNpcapRequested += GuideWindow_RetryNpcapRequested;
+        guideWindow.DownloadNpcapRequested += GuideWindow_DownloadNpcapRequested;
         guideWindow.Closed += GuideWindow_Closed;
         _guideWindow = guideWindow;
         guideWindow.Show();
@@ -1134,8 +1329,58 @@ public partial class MainWindow : Window
         if (_guideWindow is not null)
         {
             _guideWindow.DestinationChanged -= GuideWindow_DestinationChanged;
+            _guideWindow.NpcapEnabledChanged -= GuideWindow_NpcapEnabledChanged;
+            _guideWindow.AutoHideOutsideGameChanged -= GuideWindow_AutoHideOutsideGameChanged;
+            _guideWindow.RetryNpcapRequested -= GuideWindow_RetryNpcapRequested;
+            _guideWindow.DownloadNpcapRequested -= GuideWindow_DownloadNpcapRequested;
             _guideWindow.Closed -= GuideWindow_Closed;
             _guideWindow = null;
+        }
+    }
+
+
+    private async void GuideWindow_NpcapEnabledChanged(bool enabled)
+    {
+        _layoutSettings = _layoutSettings with { NpcapEnabled = enabled };
+        SaveOverlayLayout();
+        if (enabled)
+        {
+            await RestartNpcapPositionSourceAsync();
+        }
+        else
+        {
+            await StopNpcapPositionSourceAsync();
+            _npcapState = new NpcapSourceState(NpcapSourceStatus.Stopped, "Đã tắt · đang dùng WS/REST dự phòng");
+            _guideWindow?.UpdateNpcapState(_npcapState);
+        }
+    }
+
+    private void GuideWindow_AutoHideOutsideGameChanged(bool enabled)
+    {
+        _layoutSettings = _layoutSettings with { AutoHideOutsideGame = enabled };
+        SaveOverlayLayout();
+        RefreshForegroundVisibility();
+    }
+
+    private async void GuideWindow_RetryNpcapRequested()
+    {
+        await NpcapGamePositionSource.TryStartDriverElevatedAsync();
+        await RestartNpcapPositionSourceAsync();
+    }
+
+    private static void GuideWindow_DownloadNpcapRequested()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://npcap.com/#download",
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            // A missing browser association must not take down the overlay.
         }
     }
 
@@ -1684,11 +1929,6 @@ public partial class MainWindow : Window
 
     private void ActivityVisibilityButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_showActivity && !_showMap)
-        {
-            return;
-        }
-
         _showActivity = !_showActivity;
         ApplyPanelVisibility(persist: true);
     }
@@ -2112,7 +2352,11 @@ public partial class MainWindow : Window
             return new IntPtr(HtTransparent);
         }
 
-        if (message == WmHotkey && wParam.ToInt32() == SettingsHotkeyId)
+        if (message == WmHotkey && _layoutSettings.AutoHideOutsideGame && !ForegroundAppVisibility.ShouldShowOverlay())
+        {
+            handled = true;
+        }
+        else if (message == WmHotkey && wParam.ToInt32() == SettingsHotkeyId)
         {
             ToggleSettings();
             handled = true;
@@ -2141,15 +2385,42 @@ public partial class MainWindow : Window
         return IntPtr.Zero;
     }
 
+    private void RefreshForegroundVisibility()
+    {
+        var shouldShow = !_layoutSettings.AutoHideOutsideGame || ForegroundAppVisibility.ShouldShowOverlay();
+        if (!shouldShow && !_hiddenForExternalForeground)
+        {
+            _restoreGuideAfterForeground = _guideWindow?.IsVisible == true;
+            _restoreLargeMapAfterForeground = _largeMapWindow?.IsVisible == true;
+            _guideWindow?.Hide();
+            _largeMapWindow?.Hide();
+            _hiddenForExternalForeground = true;
+            // Keep the main taskbar entry available so the user can restore or
+            // close the app while overlays are hidden outside the game.
+            WindowState = WindowState.Minimized;
+        }
+        else if (shouldShow && _hiddenForExternalForeground)
+        {
+            _hiddenForExternalForeground = false;
+            WindowState = WindowState.Normal;
+            if (_restoreGuideAfterForeground) _guideWindow?.Show();
+            if (_restoreLargeMapAfterForeground) _largeMapWindow?.ShowCentered();
+            _restoreGuideAfterForeground = false;
+            _restoreLargeMapAfterForeground = false;
+        }
+    }
+
     private void MinimizeButton_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
 
     private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
 
     private async void Window_Closed(object? sender, EventArgs e)
     {
+        _foregroundVisibilityTimer?.Stop();
         _largeMapWindow?.ClosePermanently();
         _guideWindow?.Close();
         _clipboardCoordinateMonitor?.Dispose();
+        await StopNpcapPositionSourceAsync();
         SaveOverlayLayout();
         _shutdown.Cancel();
         if (_telemetryWatchTask is not null)

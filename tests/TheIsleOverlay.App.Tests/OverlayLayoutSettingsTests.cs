@@ -46,7 +46,8 @@ public sealed class OverlayLayoutSettingsTests
     [InlineData(double.NaN, 2.25d)]
     [InlineData(0.2d, 1d)]
     [InlineData(2.347d, 2.35d)]
-    [InlineData(9d, 6d)]
+    [InlineData(9d, 9d)]
+    [InlineData(14d, 10d)]
     public void MapZoom_IsFiniteRoundedAndClamped(double input, double expected)
     {
         Assert.Equal(expected, OverlayLayoutRules.NormalizeMapZoom(input));
@@ -75,6 +76,9 @@ public sealed class OverlayLayoutSettingsTests
             Assert.Equal(new OverlayLayoutSettings(), store.Load());
             Assert.False(store.Load().RotateMap);
             Assert.False(store.Load().ShowPrimeTasks);
+            Assert.True(store.Load().NpcapEnabled);
+            Assert.True(store.Load().CopyAssetEnabled);
+            Assert.True(store.Load().AutoHideOutsideGame);
 
             store.Save(new OverlayLayoutSettings
             {
@@ -86,6 +90,9 @@ public sealed class OverlayLayoutSettingsTests
                 RotateMap = true,
                 AutoDetectLiveMap = false,
                 ShowPrimeTasks = false,
+                NpcapEnabled = false,
+                CopyAssetEnabled = false,
+                AutoHideOutsideGame = false,
                 Left = 120.5d,
                 Top = 80.25d
             });
@@ -98,6 +105,9 @@ public sealed class OverlayLayoutSettingsTests
             Assert.True(restored.RotateMap);
             Assert.False(restored.AutoDetectLiveMap);
             Assert.False(restored.ShowPrimeTasks);
+            Assert.False(restored.NpcapEnabled);
+            Assert.True(restored.CopyAssetEnabled);
+            Assert.False(restored.AutoHideOutsideGame);
             Assert.Equal(120.5d, restored.Left);
             Assert.Equal(80.25d, restored.Top);
 
@@ -155,6 +165,7 @@ public sealed class OverlayLayoutSettingsTests
         Assert.NotNull(Control("ActivityReadabilityScaleTransform"));
         Assert.NotNull(Control("OverlayScaleSlider"));
         Assert.NotNull(Control("MapZoomSlider"));
+        Assert.Equal("1000", (string?)Control("MapZoomSlider").Attribute("Maximum"));
         Assert.NotNull(Control("CircleStyleButton"));
         Assert.NotNull(Control("SquareStyleButton"));
         Assert.Equal("0", (string?)Control("CircularMapOuterFrame").Attribute("StrokeThickness"));

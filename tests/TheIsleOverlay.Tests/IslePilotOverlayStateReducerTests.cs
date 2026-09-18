@@ -62,6 +62,9 @@ public sealed class IslePilotOverlayStateReducerTests
         Assert.False(snapshot.PlayerOnline);
         Assert.Null(snapshot.Player);
         Assert.NotNull(snapshot.Map);
+        Assert.Equal(
+            new MapPoint(0.1, 0.2),
+            snapshot.Map!.Projection?.Project(new WorldLocation { X = 10, Y = 20 }));
     }
 
     [Fact]

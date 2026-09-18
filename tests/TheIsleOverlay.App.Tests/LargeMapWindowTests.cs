@@ -34,6 +34,7 @@ public sealed class LargeMapWindowTests
         Assert.Equal("MapViewport_MouseWheel", (string?)viewport.Attribute("MouseWheel"));
         Assert.Equal("ScaleTransform", Named(document, nameAttribute, "ZoomScaleTransform").Name.LocalName);
         Assert.Equal("TranslateTransform", Named(document, nameAttribute, "ZoomPanTransform").Name.LocalName);
+        Assert.Equal(8d, LargeMapWindow.MaximumZoom);
 
         AssertLayer(document, nameAttribute, "LargeMapImage", "0", false);
         AssertLayer(document, nameAttribute, "LargeZoneLayer", "1", true);

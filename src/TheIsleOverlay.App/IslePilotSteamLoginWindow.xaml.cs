@@ -1,4 +1,3 @@
-using System.IO;
 using System.Windows;
 using Microsoft.Web.WebView2.Core;
 using TheIsleOverlay.IslePilot;
@@ -7,10 +6,6 @@ namespace TheIsleOverlay.App;
 
 public partial class IslePilotSteamLoginWindow : Window
 {
-    private static readonly Lazy<Task<CoreWebView2Environment>> SharedEnvironment = new(
-        CreateSharedEnvironmentAsync,
-        LazyThreadSafetyMode.ExecutionAndPublication);
-
     private bool _completed;
     private bool _resettingAccount;
 
@@ -25,7 +20,7 @@ public partial class IslePilotSteamLoginWindow : Window
     {
         try
         {
-            var environment = await SharedEnvironment.Value;
+            var environment = await IslePilotWebViewEnvironment.GetAsync();
             await LoginBrowser.EnsureCoreWebView2Async(environment);
 
             LoginBrowser.CoreWebView2.Settings.AreDevToolsEnabled = false;
@@ -172,14 +167,6 @@ public partial class IslePilotSteamLoginWindow : Window
         LoginBrowser.CoreWebView2.CookieManager.DeleteAllCookies();
         await LoginBrowser.CoreWebView2.Profile.ClearBrowsingDataAsync(
             CoreWebView2BrowsingDataKinds.AllSite);
-    }
-
-    private static Task<CoreWebView2Environment> CreateSharedEnvironmentAsync()
-    {
-        Directory.CreateDirectory(AppPaths.IslePilotWebView2Profile);
-        return CoreWebView2Environment.CreateAsync(
-            browserExecutableFolder: null,
-            userDataFolder: AppPaths.IslePilotWebView2Profile);
     }
 
     private void CancelButton_Click(object sender, RoutedEventArgs e) => Close();

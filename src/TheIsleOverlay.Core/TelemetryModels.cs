@@ -21,6 +21,7 @@ public sealed record PlayerTelemetry
     public string? Name { get; init; }
     public string? Class { get; init; }
     public string? Server { get; init; }
+    public string? ServerId { get; init; }
     public bool? Female { get; init; }
     public double? GrowthPercent { get; init; }
     public double? HealthPercent { get; init; }

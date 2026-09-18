@@ -8,6 +8,8 @@ public interface IAppUpdateBackend
 {
     bool CanUpdate { get; }
 
+    string? CurrentVersion { get; }
+
     Task<string?> CheckForUpdateAsync(CancellationToken cancellationToken);
 
     Task DownloadUpdateAsync(Action<int>? progress, CancellationToken cancellationToken);
@@ -65,6 +67,19 @@ public sealed class GitHubUpdateService
             _availableVersion = await _backend.CheckForUpdateAsync(cancellationToken);
             if (string.IsNullOrWhiteSpace(_availableVersion))
             {
+                return UpdateCheckResult.Current;
+            }
+
+            if (!AppVersion.TryParse(_backend.CurrentVersion, out var currentVersion) ||
+                !AppVersion.TryParse(_availableVersion, out var availableVersion))
+            {
+                _availableVersion = null;
+                return UpdateCheckResult.Unavailable;
+            }
+
+            if (availableVersion <= currentVersion)
+            {
+                _availableVersion = null;
                 return UpdateCheckResult.Current;
             }
 
@@ -126,6 +141,12 @@ internal sealed class VelopackWebUpdateBackend : IAppUpdateBackend
 
     public bool CanUpdate => _manager.CurrentVersion is not null && !_manager.IsPortable;
 
+    // The executable version is authoritative after an update. Velopack's local
+    // package metadata can briefly lag behind on machines that have just applied
+    // a release, which previously caused the same release to be offered forever.
+    public string? CurrentVersion =>
+        typeof(VelopackWebUpdateBackend).Assembly.GetName().Version?.ToString();
+
     public async Task<string?> CheckForUpdateAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -157,6 +178,29 @@ internal sealed class VelopackWebUpdateBackend : IAppUpdateBackend
             restart: true,
             restartArgs: null);
         return true;
+    }
+}
+
+internal static class AppVersion
+{
+    public static bool TryParse(string? value, out Version version)
+    {
+        version = new Version();
+        if (string.IsNullOrWhiteSpace(value)) return false;
+
+        var normalized = value.Trim();
+        if (normalized.StartsWith('v') || normalized.StartsWith('V'))
+        {
+            normalized = normalized[1..];
+        }
+
+        var suffix = normalized.IndexOfAny(['-', '+']);
+        if (suffix >= 0)
+        {
+            normalized = normalized[..suffix];
+        }
+
+        return Version.TryParse(normalized, out version!);
     }
 }
 
