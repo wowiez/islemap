@@ -6,10 +6,22 @@ namespace TheIsleOverlay.IslePilot;
 
 public static class IslePilotOverlayJson
 {
-    public static JsonSerializerOptions Options { get; } = new(JsonSerializerDefaults.Web)
+    public static JsonSerializerOptions Options { get; } = CreateOptions();
+
+    private static JsonSerializerOptions CreateOptions()
     {
-        PropertyNameCaseInsensitive = true
-    };
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        {
+            PropertyNameCaseInsensitive = true,
+            NumberHandling = JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.AllowNamedFloatingPointLiterals,
+        };
+        options.Converters.Add(new FlexibleIntConverter());
+        options.Converters.Add(new FlexibleNullableIntConverter());
+        options.Converters.Add(new FlexibleDoubleConverter());
+        options.Converters.Add(new FlexibleNullableDoubleConverter());
+        options.Converters.Add(new FlexibleDateTimeOffsetConverter());
+        return options;
+    }
 }
 
 public sealed record IslePilotOverlayFrame
@@ -162,6 +174,7 @@ public sealed record IslePilotOverlayGaragePaletteDto
 
 public sealed record IslePilotOverlaySkinDraftsDto
 {
+    [JsonConverter(typeof(ResilientSkinDraftListConverter))]
     public IReadOnlyList<IslePilotOverlaySkinDraftDto> Drafts { get; init; } = [];
 }
 
@@ -359,20 +372,27 @@ public sealed record IslePilotOverlaySkinDraftPayloadDto
     public Dictionary<string, JsonElement>? ExtraFields { get; init; }
 }
 
+[JsonConverter(typeof(SafeGlitchLabConverter))]
 public sealed record IslePilotOverlaySkinGlitchLabDto
 {
-    public int Pi { get; init; }
-    public int Sv { get; init; }
-    public IReadOnlyDictionary<string, IslePilotOverlaySkinGlitchLayerDto> Layers { get; init; } =
+    public double? Pi { get; init; }
+    public double? Sv { get; init; }
+    public IReadOnlyDictionary<string, IslePilotOverlaySkinGlitchLayerDto>? Layers { get; init; } =
         new Dictionary<string, IslePilotOverlaySkinGlitchLayerDto>();
+
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? ExtraFields { get; init; }
 }
 
 public sealed record IslePilotOverlaySkinGlitchLayerDto
 {
-    public int? A { get; init; }
-    public int X { get; init; }
-    public int Y { get; init; }
-    public int Z { get; init; }
+    public double? A { get; init; }
+    public double? X { get; init; }
+    public double? Y { get; init; }
+    public double? Z { get; init; }
+
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? ExtraFields { get; init; }
 }
 
 internal sealed record IslePilotOverlaySkinDraftRequest(

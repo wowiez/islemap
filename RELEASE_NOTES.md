@@ -1,3 +1,11 @@
+# Isle Live Map 1.8.3
+
+- Sửa triệt để lỗi "The JSON value could not be converted to System.Int32" ở trường `glitchLab.layers.<layer>.x`:
+  - Hỗ trợ đầy đủ các giá trị số thực dạng dấu phẩy động (float/double) cho các kênh màu và tham số Glitch Lab (`x`, `y`, `z`, `a`, `pi`, `sv`).
+  - Thêm `SafeGlitchLabConverter` bảo vệ an toàn, không bao giờ ném ngoại lệ làm hỏng tiến trình nạp danh sách draft.
+  - Bổ sung cơ chế tự phục hồi `ResilientSkinDraftListConverter`: nếu một draft bất kỳ bị hỏng cấu trúc dữ liệu từ server, client sẽ tự động bỏ qua riêng draft đó và tiếp tục tải bình thường toàn bộ các draft hợp lệ khác.
+  - Thêm các bộ chuyển đổi linh hoạt (Flexible Converters) cho `int`, `double` và `DateTimeOffset`: tự động chuyển đổi an toàn giữa số nguyên, số thực, chuỗi số, dấu thời gian Unix và null.
+
 # Isle Live Map 1.8.2
 
 - Khắc phục lỗi crash ứng dụng (crash map) khi chuyển vào tab Skin 3D trên một số máy:

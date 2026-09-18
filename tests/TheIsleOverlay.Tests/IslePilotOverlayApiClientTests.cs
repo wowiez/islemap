@@ -371,6 +371,122 @@ public sealed class IslePilotOverlayApiClientTests
     }
 
     [Fact]
+    public async Task SkinDrafts_ParsesGlitchLabWithFloatCoordinatesWithoutThrowing()
+    {
+        using var handler = new RecordingHandler(HttpStatusCode.OK, """
+            {
+              "drafts": [
+                {
+                  "id": "draft-glitch",
+                  "name": "glitched-trex",
+                  "payload": {
+                    "species": "Tyrannosaurus",
+                    "palette": { "body": "#112233" },
+                    "glitchLab": {
+                      "pi": 0.5,
+                      "sv": 1.2,
+                      "layers": {
+                        "m": {
+                          "x": 0.003035,
+                          "y": 0.006049,
+                          "z": 0.002428,
+                          "a": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+            """);
+        using var httpClient = new HttpClient(handler);
+        var client = CreateClient(httpClient);
+
+        var result = await client.GetSkinDraftsAsync("sbtcisland");
+        var draft = Assert.Single(result.Drafts);
+
+        Assert.NotNull(draft.Payload?.GlitchLab);
+        Assert.Equal(0.5, draft.Payload.GlitchLab.Pi);
+        Assert.Equal(1.2, draft.Payload.GlitchLab.Sv);
+
+        Assert.NotNull(draft.Payload.GlitchLab.Layers);
+        Assert.True(draft.Payload.GlitchLab.Layers.TryGetValue("m", out var mLayer));
+        Assert.Equal(0.003035, mLayer.X);
+        Assert.Equal(0.006049, mLayer.Y);
+        Assert.Equal(0.002428, mLayer.Z);
+        Assert.Equal(1.0, mLayer.A);
+    }
+
+    [Fact]
+    public async Task SkinDrafts_FlexibleNumberParsing_HandlesStringsFloatsAndNulls()
+    {
+        using var handler = new RecordingHandler(HttpStatusCode.OK, """
+            {
+              "drafts": [
+                {
+                  "id": "draft-flexible",
+                  "name": "flex-dino",
+                  "payload": {
+                    "species": "Tyrannosaurus",
+                    "variation": 2.0,
+                    "pattern": "3",
+                    "theme": null,
+                    "createdAt": 1726712345000,
+                    "palette": { "body": "#AABBCC" }
+                  }
+                }
+              ]
+            }
+            """);
+        using var httpClient = new HttpClient(handler);
+        var client = CreateClient(httpClient);
+
+        var result = await client.GetSkinDraftsAsync("sbtcisland");
+        var draft = Assert.Single(result.Drafts);
+
+        Assert.NotNull(draft.Payload);
+        Assert.Equal(2, draft.Payload.Variation);
+        Assert.Equal(3, draft.Payload.Pattern);
+        Assert.Equal(0, draft.Payload.Theme);
+        Assert.NotNull(draft.Payload.CreatedAt);
+        Assert.Equal(DateTimeOffset.FromUnixTimeMilliseconds(1726712345000), draft.Payload.CreatedAt);
+    }
+
+    [Fact]
+    public async Task SkinDrafts_ResilientDraftList_SkipsCorruptedDraft()
+    {
+        using var handler = new RecordingHandler(HttpStatusCode.OK, """
+            {
+              "drafts": [
+                {
+                  "id": "draft-1",
+                  "name": "valid 1",
+                  "payload": { "species": "Carnotaurus", "palette": { "body": "#111111" } }
+                },
+                {
+                  "id": 12345,
+                  "name": "corrupt draft",
+                  "payload": "invalid-payload-structure"
+                },
+                {
+                  "id": "draft-3",
+                  "name": "valid 3",
+                  "payload": { "species": "Ceratosaurus", "palette": { "body": "#333333" } }
+                }
+              ]
+            }
+            """);
+        using var httpClient = new HttpClient(handler);
+        var client = CreateClient(httpClient);
+
+        var result = await client.GetSkinDraftsAsync("sbtcisland");
+        Assert.NotNull(result.Drafts);
+        Assert.Equal(2, result.Drafts.Count);
+        Assert.Equal("valid 1", result.Drafts[0].Name);
+        Assert.Equal("valid 3", result.Drafts[1].Name);
+    }
+
+    [Fact]
     public async Task Unauthorized_RequiresLoginWithoutLeakingToken()
     {
         using var handler = new RecordingHandler(HttpStatusCode.Unauthorized, "unauthorized");

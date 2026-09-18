@@ -124,7 +124,7 @@ public sealed class IslePilotOverlayApiClient : IIslePilotOverlayApiClient
         string species, string name, IslePilotOverlayGaragePaletteDto palette, bool female,
         int theme = 0, int pattern = 0, int variation = 0)
     {
-        static IslePilotOverlaySkinGlitchLayerDto Layer(int x, int y, int z, int? a = null) =>
+        static IslePilotOverlaySkinGlitchLayerDto Layer(double x, double y, double z, double? a = null) =>
             new() { A = a, X = x, Y = y, Z = z };
 
         return new IslePilotOverlaySkinDraftPayloadDto
