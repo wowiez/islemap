@@ -1,3 +1,17 @@
+# Isle Live Map 1.8.2
+
+- Khắc phục lỗi crash ứng dụng (crash map) khi chuyển vào tab Skin 3D trên một số máy:
+  - Bọc an toàn toàn bộ quá trình khởi tạo WebView2 và DirectComposition trong `try-catch`; hiển thị thông báo thay vì đóng ứng dụng khi thiết bị không hỗ trợ DirectComposition hoặc thiếu WebView2 Runtime.
+  - Xử lý bất đồng bộ sự kiện `ProcessFailed` khi GPU process của WebView2 gặp sự cố, tránh lỗi COM re-entrant gây sập tiến trình.
+  - Thêm cờ `--disable-gpu-process-crash-limit --enable-webgl` tăng độ ổn định của tiến trình đồ họa 3D.
+  - Thiết lập `e.Handled = true` trên DispatcherUnhandledException để bảo vệ overlay map không bị thoát đột ngột khi xảy ra lỗi giao diện.
+- Sửa lỗi tính năng Show All Skin Drafts không hiển thị draft:
+  - Hỗ trợ giải mã màu sắc dạng mảng số thực Linear RGB (`[r, g, b, 1]`) từ web IslePilot sang sRGB hex chuẩn (`#RRGGBB`).
+  - Đọc chính xác loài khủng long từ trường `class` (`BP_Tyrannosaurus_C`) trong payload draft của IslePilot.
+  - Cho phép tải và xem danh sách toàn bộ skin draft ngay cả khi chưa vào game hoặc chưa có khủng long hiện tại.
+  - Hiển thị tên loài đi kèm khi bật chế độ "SHOW ALL DRAFT" (ví dụ: `trexcano (Tyrannosaurus)`).
+  - Bắt lỗi xác thực IslePilot (`IslePilotOverlayAuthenticationException`) an toàn khi mở tab Skin 3D, hiển thị thông báo "CHƯA ĐĂNG NHẬP ISLEPILOT HOẶC PHIÊN ĐÃ HẾT HẠN" thay vì gây lỗi unhandled.
+
 # Isle Live Map 1.8.1
 
 - Sửa lỗi áp dụng bảng màu Skin: chuyển đổi chính xác chuẩn Linear RGB (IEC 61966-2-1), loại bỏ hiện tượng bạc màu/nhạt màu và khớp 100% độ đậm và chi tiết như web IslePilot.

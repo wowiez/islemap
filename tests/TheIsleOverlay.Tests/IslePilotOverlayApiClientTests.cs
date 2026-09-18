@@ -316,6 +316,61 @@ public sealed class IslePilotOverlayApiClientTests
     }
 
     [Fact]
+    public async Task SkinDrafts_ParsesWebDraftPayloadWithLinearRgbaArraysAndClass()
+    {
+        using var handler = new RecordingHandler(HttpStatusCode.OK, """
+            {
+              "drafts": [
+                {
+                  "id": "draft-trex",
+                  "name": "trexcano",
+                  "payload": {
+                    "class": "BP_Tyrannosaurus_C",
+                    "body": [0.003035, 0.006049, 0.002428, 1],
+                    "claws": [0.006049, 0.066626, 0.006512, 1],
+                    "detail1": [0.011612, 0.035601, 0.020289, 1],
+                    "eyes": [0.020289, 0.059511, 0.011612, 1],
+                    "female": true,
+                    "flank": [0.003347, 0.021219, 0.001821, 1],
+                    "male_display": [0.020289, 0.059511, 0.011612, 1],
+                    "markings": [0.015996, 0.03434, 0.001214, 1],
+                    "mouth": [0.005182, 0.059511, 0.004025, 1],
+                    "pattern": 0,
+                    "teeth": [0.006995, 0.046665, 0.01096, 1],
+                    "theme": 1,
+                    "underbelly": [0.003347, 0.021219, 0.001821, 1]
+                  }
+                }
+              ]
+            }
+            """);
+        using var httpClient = new HttpClient(handler);
+        var client = CreateClient(httpClient);
+
+        var result = await client.GetSkinDraftsAsync("sbtcisland");
+        var draft = Assert.Single(result.Drafts);
+
+        Assert.Equal("trexcano", draft.Name);
+        Assert.Equal("BP_Tyrannosaurus_C", draft.GetSpecies());
+
+        var palette = draft.GetPalette();
+        Assert.NotNull(palette);
+        Assert.Equal(IslePilotOverlaySkinDraftDto.LinearRgbaToHex(0.003035, 0.006049, 0.002428), palette.Body);
+        Assert.Equal("#0A1208", palette.Body);
+        Assert.Equal(IslePilotOverlaySkinDraftDto.LinearRgbaToHex(0.006049, 0.066626, 0.006512), palette.Claws);
+        Assert.Equal(IslePilotOverlaySkinDraftDto.LinearRgbaToHex(0.011612, 0.035601, 0.020289), palette.Detail);
+        Assert.Equal(IslePilotOverlaySkinDraftDto.LinearRgbaToHex(0.020289, 0.059511, 0.011612), palette.Display);
+        Assert.Equal(IslePilotOverlaySkinDraftDto.LinearRgbaToHex(0.003347, 0.021219, 0.001821), palette.Flank);
+        Assert.Equal(IslePilotOverlaySkinDraftDto.LinearRgbaToHex(0.015996, 0.03434, 0.001214), palette.Markings);
+
+        var payload = draft.GetPayload();
+        Assert.NotNull(payload);
+        Assert.Equal("BP_Tyrannosaurus_C", payload.Species);
+        Assert.True(payload.Female);
+        Assert.Equal(1, payload.Theme);
+    }
+
+    [Fact]
     public async Task Unauthorized_RequiresLoginWithoutLeakingToken()
     {
         using var handler = new RecordingHandler(HttpStatusCode.Unauthorized, "unauthorized");

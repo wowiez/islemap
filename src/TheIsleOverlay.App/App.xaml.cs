@@ -16,8 +16,11 @@ public partial class App : Application
 
     private static void App_DispatcherUnhandledException(
         object sender,
-        DispatcherUnhandledExceptionEventArgs e) =>
+        DispatcherUnhandledExceptionEventArgs e)
+    {
         CrashReporter.Write("WPF dispatcher", e.Exception);
+        e.Handled = true;
+    }
 
     private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
     {

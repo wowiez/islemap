@@ -119,17 +119,28 @@ public sealed class GarageModelControl : ContentControl
         var generation = ++_generation;
         var species = _requestedSpecies!;
         ShowMessage("ĐANG LẤY DỮ LIỆU 3D MODEL…");
-        var browser = new WebView2CompositionControl();
-        _browser = browser;
-        // WPF WebView2 must be connected to the visual tree before
-        // initialization. Initializing this detached child made both Garage
-        // and Skin 3D fail only inside the real F8 window.
-        Content = browser;
+        WebView2CompositionControl? browser = null;
+        try
+        {
+            browser = new WebView2CompositionControl();
+            _browser = browser;
+            Content = browser;
+        }
+        catch (Exception ex)
+        {
+            CrashReporter.Write("GarageModelControl.CreateBrowser", ex);
+            Stop();
+            ShowMessage("Thiết bị không hỗ trợ DirectComposition 3D. Hãy cập nhật driver đồ họa.");
+            return;
+        }
+
         try
         {
             var assets = await Downloads.GetOrAdd(species, DownloadAsync);
             if (generation != _generation) return;
-            await browser.EnsureCoreWebView2Async(await IslePilotWebViewEnvironment.GetAsync());
+            var environment = await IslePilotWebViewEnvironment.GetAsync();
+            if (generation != _generation) return;
+            await browser.EnsureCoreWebView2Async(environment);
             if (generation != _generation) return;
             browser.CoreWebView2.SetVirtualHostNameToFolderMapping("isle-viewer.local",
                 Path.Combine(AppContext.BaseDirectory, "Assets", "GarageViewer"), CoreWebView2HostResourceAccessKind.DenyCors);
@@ -147,34 +158,61 @@ public sealed class GarageModelControl : ContentControl
             browser.CoreWebView2.WebMessageReceived += (sender, e) =>
             {
                 if (generation != _generation || e.Source != "https://isle-viewer.local/viewer.html") return;
-                using var message = JsonDocument.Parse(e.WebMessageAsJson);
-                if (message.RootElement.TryGetProperty("initialized", out var initialized))
+                try
                 {
-                    _viewerReady = true;
-                    browser.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new
+                    using var message = JsonDocument.Parse(e.WebMessageAsJson);
+                    if (message.RootElement.TryGetProperty("initialized", out _))
                     {
-                        model = AssetUrl(assets.Model),
-                        pattern = AssetUrl(assets.Pattern),
-                        normal = AssetUrl(assets.Normal),
-                        tmc = AssetUrl(assets.Tmc),
-                        rac = AssetUrl(assets.Rac),
-                        palette = _requestedPalette
-                    }, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+                        _viewerReady = true;
+                        browser.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new
+                        {
+                            model = AssetUrl(assets.Model),
+                            pattern = AssetUrl(assets.Pattern),
+                            normal = AssetUrl(assets.Normal),
+                            tmc = AssetUrl(assets.Tmc),
+                            rac = AssetUrl(assets.Rac),
+                            palette = _requestedPalette
+                        }, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+                    }
+                    else if (message.RootElement.TryGetProperty("error", out _))
+                    {
+                        Downloads.TryRemove(species, out _);
+                        Stop();
+                        ShowMessage("Model 3D bị lỗi. Bấm Làm mới để tải lại.");
+                    }
                 }
-                else if (message.RootElement.TryGetProperty("error", out _))
+                catch (Exception jsonEx)
                 {
-                    Downloads.TryRemove(species, out _);
-                    Stop();
-                    ShowMessage("Model 3D bị lỗi. Bấm Làm mới để tải lại.");
+                    CrashReporter.Write("GarageModelControl.WebMessage", jsonEx);
                 }
             };
-            browser.CoreWebView2.ProcessFailed += (_, _) => { Stop(); ShowMessage("3D đã tạm dừng. Mở lại Garage để thử lại."); };
+            browser.CoreWebView2.ProcessFailed += (_, _) =>
+            {
+                Dispatcher.InvokeAsync(() =>
+                {
+                    try
+                    {
+                        Stop();
+                        ShowMessage("Tiến trình 3D đã tạm dừng (GPU crash). Bấm Làm mới để thử lại.");
+                    }
+                    catch { }
+                });
+            };
             browser.CoreWebView2.Navigate("https://isle-viewer.local/viewer.html");
         }
-        catch (Exception) when (generation == _generation)
+        catch (WebView2RuntimeNotFoundException ex)
         {
+            CrashReporter.Write("GarageModelControl.WebView2RuntimeNotFound", ex);
             Downloads.TryRemove(species, out _);
-            Stop(); ShowMessage("Không tải được model 3D. Kiểm tra mạng rồi mở lại Garage.");
+            Stop();
+            ShowMessage("Máy chưa cài đặt Microsoft Edge WebView2 Runtime để xem 3D.");
+        }
+        catch (Exception ex) when (generation == _generation)
+        {
+            CrashReporter.Write("GarageModelControl.Start", ex);
+            Downloads.TryRemove(species, out _);
+            Stop();
+            ShowMessage("Không thể khởi động 3D model trên thiết bị này. Bấm Làm mới để thử lại.");
         }
         catch (Exception) when (generation != _generation) { }
     }
@@ -378,6 +416,18 @@ public sealed class GarageModelControl : ContentControl
     {
         ++_generation;
         _viewerReady = false;
-        _browser?.Dispose(); _browser = null; Content = null;
+        try
+        {
+            _browser?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            CrashReporter.Write("GarageModelControl.Stop", ex);
+        }
+        finally
+        {
+            _browser = null;
+            Content = null;
+        }
     }
 }

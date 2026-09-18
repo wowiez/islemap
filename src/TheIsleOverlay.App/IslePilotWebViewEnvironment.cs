@@ -14,8 +14,13 @@ internal static class IslePilotWebViewEnvironment
     private static Task<CoreWebView2Environment> CreateAsync()
     {
         Directory.CreateDirectory(AppPaths.IslePilotWebView2Profile);
+        var options = new CoreWebView2EnvironmentOptions
+        {
+            AdditionalBrowserArguments = "--disable-gpu-process-crash-limit --enable-webgl"
+        };
         return CoreWebView2Environment.CreateAsync(
             browserExecutableFolder: null,
-            userDataFolder: AppPaths.IslePilotWebView2Profile);
+            userDataFolder: AppPaths.IslePilotWebView2Profile,
+            options: options);
     }
 }

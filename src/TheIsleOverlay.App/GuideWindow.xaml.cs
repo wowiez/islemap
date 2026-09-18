@@ -398,9 +398,16 @@ public partial class GuideWindow : Window
 
     private async void SkinEditorNavButton_Click(object sender, RoutedEventArgs e)
     {
-        ShowPage(SkinEditorPage, SkinEditorNavButton);
-        RefreshSkinEditorModel();
-        await LoadSkinDraftsAsync();
+        try
+        {
+            ShowPage(SkinEditorPage, SkinEditorNavButton);
+            RefreshSkinEditorModel();
+            await LoadSkinDraftsAsync();
+        }
+        catch (Exception exception)
+        {
+            CrashReporter.Write("GuideWindow.SkinEditorNav", exception);
+        }
     }
 
     private void VoiceNavButton_Click(object sender, RoutedEventArgs e)
@@ -550,7 +557,12 @@ public partial class GuideWindow : Window
             SkinEditorStatusLabel.Foreground = BrushFrom("#D2726F");
             return;
         }
-        if (_garageApi is null || string.IsNullOrWhiteSpace(_skinEditorSpecies)) return;
+        if (_garageApi is null || string.IsNullOrWhiteSpace(_skinEditorSpecies))
+        {
+            SkinEditorStatusLabel.Text = "CHƯA CÓ DINO ĐỂ LƯU DRAFT";
+            SkinEditorStatusLabel.Foreground = BrushFrom("#D2726F");
+            return;
+        }
         var name = PromptDraftName();
         if (name is null) return;
         try
@@ -560,9 +572,16 @@ public partial class GuideWindow : Window
             SkinEditorStatusLabel.Foreground = BrushFrom("#8FC7A5");
             await LoadSkinDraftsAsync();
         }
-        catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidDataException or JsonException or OperationCanceledException or TelemetryAuthenticationException)
+        catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidDataException or JsonException or OperationCanceledException or TelemetryAuthenticationException or IslePilotOverlayAuthenticationException)
         {
-            SkinEditorStatusLabel.Text = "KHÔNG LƯU ĐƯỢC SKIN-DRAFTS · KIỂM TRA KẾT NỐI";
+            SkinEditorStatusLabel.Text = exception is IslePilotOverlayAuthenticationException or TelemetryAuthenticationException
+                ? "CHƯA ĐĂNG NHẬP ISLEPILOT HOẶC PHIÊN ĐÃ HẾT HẠN"
+                : "KHÔNG LƯU ĐƯỢC SKIN-DRAFTS · KIỂM TRA KẾT NỐI";
+            SkinEditorStatusLabel.Foreground = BrushFrom("#D2726F");
+        }
+        catch (Exception exception)
+        {
+            SkinEditorStatusLabel.Text = $"LỖI LƯU DRAFT: {exception.Message}";
             SkinEditorStatusLabel.Foreground = BrushFrom("#D2726F");
         }
     }
@@ -635,11 +654,18 @@ public partial class GuideWindow : Window
                 : "ĐÃ GỬI MÀU TỚI GAME QUA ISLEPILOT";
             SkinEditorStatusLabel.Foreground = BrushFrom("#8FC7A5");
         }
-        catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidDataException or JsonException or OperationCanceledException or TelemetryAuthenticationException)
+        catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidDataException or JsonException or OperationCanceledException or TelemetryAuthenticationException or IslePilotOverlayAuthenticationException)
         {
-            SkinEditorStatusLabel.Text = string.IsNullOrWhiteSpace(exception.Message)
-                ? "KHÔNG GỬI ĐƯỢC MÀU TỚI ISLEPILOT"
-                : $"ISLEPILOT: {exception.Message}";
+            SkinEditorStatusLabel.Text = exception is IslePilotOverlayAuthenticationException or TelemetryAuthenticationException
+                ? "CHƯA ĐĂNG NHẬP ISLEPILOT HOẶC PHIÊN ĐÃ HẾT HẠN"
+                : string.IsNullOrWhiteSpace(exception.Message)
+                    ? "KHÔNG GỬI ĐƯỢC MÀU TỚI ISLEPILOT"
+                    : $"ISLEPILOT: {exception.Message}";
+            SkinEditorStatusLabel.Foreground = BrushFrom("#D2726F");
+        }
+        catch (Exception exception)
+        {
+            SkinEditorStatusLabel.Text = $"LỖI ÁP DỤNG: {exception.Message}";
             SkinEditorStatusLabel.Foreground = BrushFrom("#D2726F");
         }
     }
@@ -651,43 +677,72 @@ public partial class GuideWindow : Window
             return;
         }
 
-        ApplySkinPaletteToInputs(draft.Palette);
-        if (draft.Payload is not null)
+        try
         {
-            _skinEditorTheme = draft.Payload.Theme;
-            _skinEditorPattern = draft.Payload.Pattern;
-            _skinEditorVariation = draft.Payload.Variation;
-            if (!string.IsNullOrWhiteSpace(draft.Payload.Sex))
+            ApplySkinPaletteToInputs(draft.Palette);
+            if (draft.Payload is not null)
             {
-                _skinEditorFemale = string.Equals(draft.Payload.Sex, "female", StringComparison.OrdinalIgnoreCase);
+                _skinEditorTheme = draft.Payload.Theme;
+                _skinEditorPattern = draft.Payload.Pattern;
+                _skinEditorVariation = draft.Payload.Variation;
+                if (draft.Payload.Female.HasValue)
+                {
+                    _skinEditorFemale = draft.Payload.Female.Value;
+                }
+                else if (!string.IsNullOrWhiteSpace(draft.Payload.Sex))
+                {
+                    _skinEditorFemale = string.Equals(draft.Payload.Sex, "female", StringComparison.OrdinalIgnoreCase);
+                }
             }
+            SkinEditorStatusLabel.Text = $"ĐÃ NẠP DRAFT {draft.Name.ToUpperInvariant()} · BẤM ÁP DỤNG ĐỂ GỬI TỚI GAME";
+            SkinEditorStatusLabel.Foreground = BrushFrom("#8FC7A5");
         }
-        SkinEditorStatusLabel.Text = $"ĐÃ NẠP DRAFT {draft.Name.ToUpperInvariant()} · BẤM ÁP DỤNG ĐỂ GỬI TỚI GAME";
-        SkinEditorStatusLabel.Foreground = BrushFrom("#8FC7A5");
+        catch (Exception exception)
+        {
+            SkinEditorStatusLabel.Text = $"LỖI NẠP DRAFT: {exception.Message}";
+            SkinEditorStatusLabel.Foreground = BrushFrom("#D2726F");
+        }
     }
-
 
     private async Task LoadSkinDraftsAsync()
     {
-        if (_garageApi is null || string.IsNullOrWhiteSpace(_skinEditorSpecies) || _skinDraftLoading) return;
+        if (_garageApi is null || _skinDraftLoading) return;
         _skinDraftLoading = true;
         try
         {
             var result = await _garageApi.LoadSkinDrafts(_skinEditorServerSlug, _garageCancellation.Token);
-            var species = SpeciesKey(_skinEditorSpecies);
+            var currentSpecies = SpeciesKey(_skinEditorSpecies);
             SkinDraftsList.ItemsSource = result.Drafts
-                .Where(draft => _showAllSkinDrafts || string.Equals(SpeciesKey(draft.Species), species, StringComparison.OrdinalIgnoreCase))
-                .Select(draft => (Draft: draft, Palette: draft.GetPalette()))
+                .Where(draft => _showAllSkinDrafts || (currentSpecies.Length > 0 && string.Equals(SpeciesKey(draft.GetSpecies()), currentSpecies, StringComparison.OrdinalIgnoreCase)))
+                .Select(draft => (Draft: draft, Palette: draft.GetPalette(), Species: draft.GetSpecies()))
                 .Where(item => item.Palette is not null)
-                .Select(draft => new SkinDraftPresentation(
-                    string.IsNullOrWhiteSpace(draft.Draft.Name) ? "Skin draft" : draft.Draft.Name!,
-                    draft.Palette!, PaletteColors(draft.Palette!), draft.Draft.GetPayload()))
+                .Select(draft =>
+                {
+                    var draftName = string.IsNullOrWhiteSpace(draft.Draft.Name) ? "Skin draft" : draft.Draft.Name!;
+                    var speciesLabel = string.IsNullOrWhiteSpace(draft.Species) ? string.Empty : SpeciesKey(draft.Species);
+                    var displayName = _showAllSkinDrafts && !string.IsNullOrWhiteSpace(speciesLabel)
+                        ? $"{draftName} ({speciesLabel})"
+                        : draftName;
+                    return new SkinDraftPresentation(
+                        displayName,
+                        draft.Palette!,
+                        PaletteColors(draft.Palette!),
+                        draft.Draft.GetPayload());
+                })
                 .ToArray();
         }
-        catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidDataException or OperationCanceledException or TelemetryAuthenticationException)
+        catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidDataException or OperationCanceledException or TelemetryAuthenticationException or IslePilotOverlayAuthenticationException)
         {
             SkinDraftsList.ItemsSource = Array.Empty<SkinDraftPresentation>();
-            SkinEditorStatusLabel.Text = "KHÔNG TẢI ĐƯỢC SKIN-DRAFTS TỪ ISLEPILOT";
+            SkinEditorStatusLabel.Text = exception is IslePilotOverlayAuthenticationException or TelemetryAuthenticationException
+                ? "CHƯA ĐĂNG NHẬP ISLEPILOT HOẶC PHIÊN ĐÃ HẾT HẠN"
+                : "KHÔNG TẢI ĐƯỢC SKIN-DRAFTS TỪ ISLEPILOT";
+            SkinEditorStatusLabel.Foreground = BrushFrom("#D2726F");
+        }
+        catch (Exception exception)
+        {
+            SkinDraftsList.ItemsSource = Array.Empty<SkinDraftPresentation>();
+            SkinEditorStatusLabel.Text = $"LỖI TẢI DRAFT: {exception.Message}";
             SkinEditorStatusLabel.Foreground = BrushFrom("#D2726F");
         }
         finally { _skinDraftLoading = false; }

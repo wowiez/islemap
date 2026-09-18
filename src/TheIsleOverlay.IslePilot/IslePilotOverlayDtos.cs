@@ -195,15 +195,38 @@ public sealed record IslePilotOverlaySkinDraftDto
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? ExtraFields { get; init; }
 
+    public string? GetSpecies() =>
+        Species
+        ?? Payload?.Species
+        ?? Payload?.Class
+        ?? TryGetString(ExtraFields, "species")
+        ?? TryGetString(ExtraFields, "class")
+        ?? TryGetString(Payload?.ExtraFields, "species")
+        ?? TryGetString(Payload?.ExtraFields, "class");
+
+    private static string? TryGetString(Dictionary<string, JsonElement>? dict, string key) =>
+        dict is not null && dict.TryGetValue(key, out var val) && val.ValueKind == JsonValueKind.String
+            ? val.GetString()
+            : null;
+
     public IslePilotOverlaySkinDraftPayloadDto? GetPayload()
     {
-        if (Payload is not null) return Payload;
+        if (Payload is not null)
+        {
+            var pPalette = Payload.Palette ?? GetPalette();
+            var pSpecies = Payload.Species ?? Payload.Class ?? GetSpecies();
+            return Payload with
+            {
+                Species = pSpecies,
+                Palette = pPalette
+            };
+        }
         var palette = GetPalette();
         if (palette is null && Sex is null && Variation is null && Pattern is null && Theme is null && RenderMode is null)
             return null;
         return new IslePilotOverlaySkinDraftPayloadDto
         {
-            Species = Species,
+            Species = GetSpecies(),
             Sex = Sex,
             Variation = Variation ?? 0,
             Pattern = Pattern ?? 0,
@@ -213,39 +236,116 @@ public sealed record IslePilotOverlaySkinDraftDto
         };
     }
 
+    public static double LinearToSrgb(double c) =>
+        c <= 0.0031308
+            ? c * 12.92
+            : 1.055 * Math.Pow(Math.Max(0, c), 1.0 / 2.4) - 0.055;
+
+    public static string LinearRgbaToHex(double r, double g, double b)
+    {
+        var red = (int)Math.Clamp(Math.Round(LinearToSrgb(r) * 255.0), 0, 255);
+        var green = (int)Math.Clamp(Math.Round(LinearToSrgb(g) * 255.0), 0, 255);
+        var blue = (int)Math.Clamp(Math.Round(LinearToSrgb(b) * 255.0), 0, 255);
+        return $"#{red:X2}{green:X2}{blue:X2}";
+    }
+
+    public static string? TryExtractHexColor(object? source)
+    {
+        if (source is null) return null;
+        if (source is string str) return NormalizeHex(str);
+        if (source is JsonElement element)
+        {
+            if (element.ValueKind == JsonValueKind.String)
+                return NormalizeHex(element.GetString());
+            if (element.ValueKind == JsonValueKind.Array)
+            {
+                var values = new List<double>(4);
+                foreach (var item in element.EnumerateArray())
+                {
+                    if (item.TryGetDouble(out var d))
+                        values.Add(d);
+                }
+                if (values.Count >= 3)
+                    return LinearRgbaToHex(values[0], values[1], values[2]);
+            }
+        }
+        return null;
+    }
+
     public IslePilotOverlayGaragePaletteDto? GetPalette()
     {
-        var palette = Payload?.Palette ?? Palette ?? Colors ?? Color ?? Skin ?? (Body is null && Markings is null && Flank is null &&
-            Underbelly is null && Detail is null && Display is null && Eyes is null &&
-            Teeth is null && Mouth is null && Claws is null
-            ? null
-            : new IslePilotOverlayGaragePaletteDto
-            {
-                Body = Body, Markings = Markings, Flank = Flank, Underbelly = Underbelly,
-                Detail = Detail, Display = Display, Eyes = Eyes, Teeth = Teeth,
-                Mouth = Mouth, Claws = Claws
-            });
-        return palette is null ? null : palette with
+        string? FindColor(params string[] candidateKeys)
         {
-            Body = NormalizeHex(palette.Body), Markings = NormalizeHex(palette.Markings),
-            Flank = NormalizeHex(palette.Flank), Underbelly = NormalizeHex(palette.Underbelly),
-            Detail = NormalizeHex(palette.Detail), Display = NormalizeHex(palette.Display),
-            Eyes = NormalizeHex(palette.Eyes), Teeth = NormalizeHex(palette.Teeth),
-            Mouth = NormalizeHex(palette.Mouth), Claws = NormalizeHex(palette.Claws)
+            foreach (var key in candidateKeys)
+            {
+                if (Payload?.ExtraFields is not null && Payload.ExtraFields.TryGetValue(key, out var pe))
+                {
+                    var hex = TryExtractHexColor(pe);
+                    if (hex is not null) return hex;
+                }
+                if (ExtraFields is not null && ExtraFields.TryGetValue(key, out var ee))
+                {
+                    var hex = TryExtractHexColor(ee);
+                    if (hex is not null) return hex;
+                }
+            }
+            return null;
+        }
+
+        var basePalette = Payload?.Palette ?? Palette ?? Colors ?? Color ?? Skin;
+        var body = NormalizeHex(basePalette?.Body) ?? NormalizeHex(Body) ?? FindColor("body");
+        var markings = NormalizeHex(basePalette?.Markings) ?? NormalizeHex(Markings) ?? FindColor("markings");
+        var flank = NormalizeHex(basePalette?.Flank) ?? NormalizeHex(Flank) ?? FindColor("flank");
+        var underbelly = NormalizeHex(basePalette?.Underbelly) ?? NormalizeHex(Underbelly) ?? FindColor("underbelly");
+        var detail = NormalizeHex(basePalette?.Detail) ?? NormalizeHex(Detail) ?? FindColor("detail1", "detail");
+        var display = NormalizeHex(basePalette?.Display) ?? NormalizeHex(Display) ?? FindColor("male_display", "display");
+        var eyes = NormalizeHex(basePalette?.Eyes) ?? NormalizeHex(Eyes) ?? FindColor("eyes");
+        var teeth = NormalizeHex(basePalette?.Teeth) ?? NormalizeHex(Teeth) ?? FindColor("teeth");
+        var mouth = NormalizeHex(basePalette?.Mouth) ?? NormalizeHex(Mouth) ?? FindColor("mouth");
+        var claws = NormalizeHex(basePalette?.Claws) ?? NormalizeHex(Claws) ?? FindColor("claws");
+
+        if (body is null && markings is null && flank is null && underbelly is null &&
+            detail is null && display is null && eyes is null && teeth is null &&
+            mouth is null && claws is null)
+        {
+            return null;
+        }
+
+        return new IslePilotOverlayGaragePaletteDto
+        {
+            Body = body,
+            Markings = markings,
+            Flank = flank,
+            Underbelly = underbelly,
+            Detail = detail,
+            Display = display,
+            Eyes = eyes,
+            Teeth = teeth,
+            Mouth = mouth,
+            Claws = claws
         };
     }
 
-    private static string? NormalizeHex(string? value) =>
-        value is not null && System.Text.RegularExpressions.Regex.IsMatch(value.Trim(), "^[0-9a-fA-F]{6}$")
-            ? $"#{value.Trim().ToUpperInvariant()}"
-            : value;
+    public static string? NormalizeHex(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var trimmed = value.Trim();
+        var raw = trimmed.StartsWith("#", StringComparison.Ordinal) ? trimmed[1..] : trimmed;
+        return System.Text.RegularExpressions.Regex.IsMatch(raw, "^[0-9a-fA-F]{6}$")
+            ? $"#{raw.ToUpperInvariant()}"
+            : (trimmed.StartsWith("#", StringComparison.Ordinal) && trimmed.Length == 7 ? trimmed.ToUpperInvariant() : null);
+    }
 }
 
 public sealed record IslePilotOverlaySkinDraftPayloadDto
 {
     public string? Id { get; init; }
     public string? Species { get; init; }
+    [JsonPropertyName("class")]
+    public string? Class { get; init; }
     public string? Sex { get; init; }
+    [JsonPropertyName("female")]
+    public bool? Female { get; init; }
     public string? Name { get; init; }
     public int Variation { get; init; }
     public int Pattern { get; init; }
