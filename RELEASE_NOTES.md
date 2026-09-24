@@ -1,3 +1,12 @@
+# Isle Live Map 1.8.8
+
+- Sửa lỗi **trạng thái không cập nhật khi phiên IslePilot đã bị thu hồi** (web vẫn cập nhật bình thường):
+  - Token overlay bị xoay mỗi lần đăng nhập: token cũ bị chính host phát hành trả **410 Gone**, còn host khác trả 401. App cũ coi 410 là lỗi mạng nên vẫn mở overlay bằng token đã chết, cứ thử lại mãi mà không hiện chỉ số dino.
+  - Nay 401 và 410 được xử lý là phiên hết hạn: ở Home app báo cần xác thực lại và mở cửa sổ đăng nhập Steam; trong phiên overlay, HUD báo `PHIÊN CẦN XÁC THỰC LẠI` thay vì đứng im. (403 vẫn là lỗi tạm thời vì Cloudflare trả 403 khi chặn bot — không được coi là hết phiên.)
+- Vệt đường đi (Path Trail) không còn bị xoá sạch sau 3 tiếng:
+  - Trước đây cửa sổ 3 tiếng tính theo đồng hồ thực, nên chỉ cần mở app sau một giờ nghỉ là toàn bộ đường đi cũ biến mất — nhìn như "đúng 3 tiếng xoá hết một lần".
+  - Nay cửa sổ cuốn theo chính vệt đường: chỉ những đoạn cũ hơn 3 tiếng tính từ điểm mới nhất mới bị bỏ, nên đường đi vẫn còn khi bạn quay lại, và chỉ ngắn dần khi bạn tiếp tục di chuyển. Vẫn xoá được bằng nút xoá trail, hoặc tự reset khi đổi server/chủng loài.
+
 # Isle Live Map 1.8.6
 
 - Sửa lỗi phiên IslePilot bị coi là hết hạn sau khi đăng nhập cho server dùng tên miền riêng:

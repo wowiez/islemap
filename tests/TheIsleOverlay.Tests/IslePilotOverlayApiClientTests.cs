@@ -37,6 +37,21 @@ public sealed class IslePilotOverlayApiClientTests
         Assert.True(handler.NoStore);
     }
 
+    [Theory]
+    [InlineData(HttpStatusCode.Unauthorized)]
+    [InlineData(HttpStatusCode.Gone)]
+    public async Task RevokedOrUnknownToken_IsReportedAsAnAuthenticationFailure(HttpStatusCode statusCode)
+    {
+        // 410 Gone is what IslePilot answers once a token existed and was replaced;
+        // treating it as a transport error left the overlay polling with a dead
+        // session instead of asking for a new Steam login.
+        using var handler = new RecordingHandler(statusCode, "{}");
+        using var httpClient = new HttpClient(handler);
+        var client = CreateClient(httpClient);
+
+        await Assert.ThrowsAsync<IslePilotOverlayAuthenticationException>(() => client.GetMeAsync());
+    }
+
     [Fact]
     public async Task HostedServer_UsesItsOwnDomainForOverlayRequests()
     {

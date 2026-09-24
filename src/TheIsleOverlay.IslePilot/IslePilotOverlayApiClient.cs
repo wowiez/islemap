@@ -235,7 +235,7 @@ public sealed class IslePilotOverlayApiClient : IIslePilotOverlayApiClient
             request,
             HttpCompletionOption.ResponseHeadersRead,
             cancellationToken);
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        if (IsAuthenticationFailure(response.StatusCode))
         {
             throw new IslePilotOverlayAuthenticationException(
                 "Phiên IslePilot đã hết hạn hoặc chưa đăng nhập.");
@@ -272,7 +272,7 @@ public sealed class IslePilotOverlayApiClient : IIslePilotOverlayApiClient
             HttpCompletionOption.ResponseHeadersRead,
             cancellationToken);
 
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        if (IsAuthenticationFailure(response.StatusCode))
         {
             throw new IslePilotOverlayAuthenticationException(
                 "Phiên IslePilot đã hết hạn hoặc chưa đăng nhập.");
@@ -296,7 +296,7 @@ public sealed class IslePilotOverlayApiClient : IIslePilotOverlayApiClient
             request,
             HttpCompletionOption.ResponseHeadersRead,
             cancellationToken);
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        if (IsAuthenticationFailure(response.StatusCode))
         {
             throw new IslePilotOverlayAuthenticationException(
                 "IslePilot từ chối phiên cookie khi tải skin-drafts.");
@@ -325,7 +325,7 @@ public sealed class IslePilotOverlayApiClient : IIslePilotOverlayApiClient
             HttpCompletionOption.ResponseHeadersRead,
             cancellationToken);
         var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        if (IsAuthenticationFailure(response.StatusCode))
         {
             throw new IslePilotOverlayAuthenticationException(
                 "IslePilot từ chối phiên cookie khi áp dụng skin.");
@@ -372,7 +372,7 @@ public sealed class IslePilotOverlayApiClient : IIslePilotOverlayApiClient
             request,
             HttpCompletionOption.ResponseHeadersRead,
             cancellationToken);
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        if (IsAuthenticationFailure(response.StatusCode))
         {
             throw new IslePilotOverlayAuthenticationException(
                 "Phiên IslePilot đã hết hạn hoặc chưa đăng nhập.");
@@ -390,6 +390,14 @@ public sealed class IslePilotOverlayApiClient : IIslePilotOverlayApiClient
 
         return result;
     }
+
+    // 401 means the token is unknown to this host and 410 that it existed and was
+    // replaced by a newer sign-in. Reporting both as an authentication failure lets
+    // the overlay ask for a fresh Steam login instead of polling forever with a
+    // revoked token. 403 stays a transport problem because Cloudflare answers it
+    // for bot/DDoS challenges, which must never log the user out.
+    private static bool IsAuthenticationFailure(HttpStatusCode statusCode) =>
+        statusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Gone;
 
     private static void ValidateIdentifier(string value, string parameterName)
     {

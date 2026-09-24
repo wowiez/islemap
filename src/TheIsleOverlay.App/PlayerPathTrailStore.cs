@@ -48,7 +48,7 @@ public sealed class PlayerPathTrailStore
         var now = timestamp ?? DateTimeOffset.UtcNow;
         lock (_lock)
         {
-            PruneInternal(now);
+            PruneInternal();
 
             if (_points.Count > 0)
             {
@@ -80,7 +80,7 @@ public sealed class PlayerPathTrailStore
     {
         lock (_lock)
         {
-            PruneInternal(now ?? DateTimeOffset.UtcNow);
+            PruneInternal();
             return _points.ToArray();
         }
     }
@@ -95,9 +95,17 @@ public sealed class PlayerPathTrailStore
         }
     }
 
-    private void PruneInternal(DateTimeOffset now)
+    // The window rolls with the trail itself instead of the wall clock: only
+    // stretches older than MaxAge behind the newest recorded point are dropped, so
+    // reopening the app after a break keeps the path instead of wiping it whole.
+    private void PruneInternal()
     {
-        var cutoff = now - MaxAge;
+        if (_points.Count == 0)
+        {
+            return;
+        }
+
+        var cutoff = _points[^1].Timestamp - MaxAge;
         var removed = _points.RemoveAll(p => p.Timestamp < cutoff);
         if (removed > 0)
         {
@@ -124,7 +132,7 @@ public sealed class PlayerPathTrailStore
                 if (loaded is not null)
                 {
                     _points.AddRange(loaded);
-                    PruneInternal(DateTimeOffset.UtcNow);
+                    PruneInternal();
                 }
             }
             catch
