@@ -1,3 +1,4 @@
+using System.IO;
 using System.Net.Http;
 using System.Windows;
 using TheIsleOverlay.Core;
@@ -9,8 +10,8 @@ public partial class HomeWindow
 {
     private readonly IslePilotCredentialStore _islePilotCredentialStore = new(
         AppPaths.IslePilotCredential);
-    private readonly Dictionary<string, IslePilotCredentialStore> _hostedCredentialStores = [];
     private TelemetrySourceDefinition? _islePilotSelectedSource;
+    private bool _hostedCredentialsImported;
     private IslePilotOverlayAuthResult? _islePilotCredentials;
     private bool _islePilotConnecting;
     private bool _updatingSteamAccountSelector;
@@ -23,7 +24,9 @@ public partial class HomeWindow
             if (_islePilotCredentials is { } credentials &&
                 string.IsNullOrWhiteSpace(credentials.PersonaName))
             {
-                var validation = await ValidateIslePilotCredentialsAsync(credentials);
+                var validation = await ValidateIslePilotCredentialsAsync(
+                    credentials,
+                    _islePilotSelectedSource?.BaseUri);
                 if (validation.State == IslePilotOverlayAuthValidationState.Valid)
                 {
                     await _islePilotCredentialStore.SaveAsync(validation.Credentials, _shutdown.Token);
@@ -114,8 +117,7 @@ public partial class HomeWindow
         }
 
         var removedName = AccountDisplayName(_islePilotCredentials);
-        await CredentialStoreFor(_islePilotSelectedSource)
-            .RemoveAsync(_islePilotCredentials.SteamId, _shutdown.Token);
+        await _islePilotCredentialStore.RemoveAsync(_islePilotCredentials.SteamId, _shutdown.Token);
         _islePilotSelectedSource = null;
         await ReloadSteamAccountsAsync();
         SourceStatusLabel.Text = $"Đã xóa {removedName} khỏi danh sách tài khoản đã lưu.";
@@ -168,51 +170,84 @@ public partial class HomeWindow
         ApplySteamLoginState(_islePilotCredentials);
         try
         {
-            await CredentialStoreFor(choice.Source).SelectAsync(choice.Credentials.SteamId, _shutdown.Token);
+            await _islePilotCredentialStore.SelectAsync(choice.Credentials.SteamId, _shutdown.Token);
         }
         catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
         {
         }
     }
 
-    private IslePilotCredentialStore CredentialStoreFor(TelemetrySourceDefinition? source) =>
-        source is { Kind: TelemetrySourceKind.IslePilotHosted }
-            ? HostedCredentialStore(source.Id)
-            : _islePilotCredentialStore;
-
-    private IslePilotCredentialStore HostedCredentialStore(string sourceId)
+    // Older builds kept one vault per self-hosted server. The token is account-wide,
+    // so those files are folded back into the shared vault once and then removed,
+    // which keeps an already signed-in server working without a new Steam login.
+    private async Task ImportHostedCredentialsAsync()
     {
-        if (_hostedCredentialStores.TryGetValue(sourceId, out var store))
+        if (_hostedCredentialsImported)
         {
-            return store;
+            return;
         }
 
-        store = new IslePilotCredentialStore(AppPaths.IslePilotCredentialFor(sourceId));
-        _hostedCredentialStores[sourceId] = store;
-        return store;
+        _hostedCredentialsImported = true;
+        await ImportHostedCredentialsAsync(
+            TelemetrySourceDefinition.All
+                .Where(source => source.Kind == TelemetrySourceKind.IslePilotHosted)
+                .Select(source => AppPaths.IslePilotCredentialFor(source.Id)),
+            _islePilotCredentialStore,
+            _shutdown.Token);
+    }
+
+    internal static async Task ImportHostedCredentialsAsync(
+        IEnumerable<string> hostedVaultPaths,
+        IslePilotCredentialStore sharedStore,
+        CancellationToken cancellationToken)
+    {
+        foreach (var path in hostedVaultPaths)
+        {
+            if (!File.Exists(path))
+            {
+                continue;
+            }
+
+            var hostedStore = new IslePilotCredentialStore(path);
+            foreach (var account in await hostedStore.LoadAllAsync(cancellationToken))
+            {
+                await sharedStore.SaveAsync(account, cancellationToken);
+            }
+
+            try
+            {
+                hostedStore.Clear();
+            }
+            catch (IOException)
+            {
+                // The shared vault already holds the account, so a locked file is fine.
+            }
+        }
     }
 
     // Servers that host their own IslePilot instance (custom domain) sign in on
     // that host and keep their own overlay token, so they are reusable later
     // without touching the network session.
+    // The overlay token belongs to the Steam account, not to one host, so both the
+    // network and a self-hosted server reuse the same saved session. Only the base
+    // URI differs, which is why each host gets its own entry in the account list.
     private async Task ConnectHostedIslePilotAsync(TelemetrySourceDefinition source)
     {
         _islePilotSelectedSource = source;
-        var credentialStore = HostedCredentialStore(source.Id);
-        var credentials = await credentialStore.LoadAsync(_shutdown.Token);
+        var credentials = _islePilotCredentials ?? await _islePilotCredentialStore.LoadAsync(_shutdown.Token);
         if (credentials is not null)
         {
             SourceStatusLabel.Text = $"ĐANG XÁC MINH PHIÊN {source.ShortName}…";
             var validation = await ValidateIslePilotCredentialsAsync(credentials, source.BaseUri);
             if (validation.State == IslePilotOverlayAuthValidationState.Invalid)
             {
-                SourceStatusLabel.Text = $"Phiên {source.ShortName} hết hạn. Đăng nhập Steam lại cho {source.BaseUri.Host}.";
+                SourceStatusLabel.Text = $"Phiên đã hết hạn cho {source.BaseUri.Host}. Đăng nhập Steam lại là dùng được cho mọi server.";
                 credentials = null;
             }
             else if (validation.State == IslePilotOverlayAuthValidationState.Valid)
             {
                 credentials = validation.Credentials;
-                await credentialStore.SaveAsync(credentials, _shutdown.Token);
+                await _islePilotCredentialStore.SaveAsync(credentials, _shutdown.Token);
             }
         }
 
@@ -224,8 +259,6 @@ public partial class HomeWindow
                 SourceStatusLabel.Text = $"Chưa đăng nhập {source.BaseUri.Host}. Không có token nào được lưu.";
                 return;
             }
-
-            await credentialStore.SaveAsync(credentials, _shutdown.Token);
         }
 
         SourceStatusLabel.Text = $"ĐANG KHỞI TẠO {source.ShortName} REALTIME…";
@@ -255,7 +288,7 @@ public partial class HomeWindow
         }
 
         var credentials = validation.Credentials;
-        await CredentialStoreFor(source).SaveAsync(credentials, _shutdown.Token);
+        await _islePilotCredentialStore.SaveAsync(credentials, _shutdown.Token);
         _islePilotCredentials = credentials;
         if (source is not null)
         {
@@ -377,31 +410,15 @@ public partial class HomeWindow
 
     private async Task ReloadSteamAccountsAsync()
     {
-        var networkAccounts = await _islePilotCredentialStore.LoadAllAsync(_shutdown.Token);
-        if (_islePilotSelectedSource is null && _islePilotCredentials is null && networkAccounts.Count > 0)
+        await ImportHostedCredentialsAsync();
+
+        var accounts = await _islePilotCredentialStore.LoadAllAsync(_shutdown.Token);
+        if (_islePilotCredentials is null && accounts.Count > 0)
         {
             _islePilotCredentials = await _islePilotCredentialStore.LoadAsync(_shutdown.Token);
         }
 
-        var choices = new List<SteamAccountChoice>(
-            networkAccounts.Select(account => new SteamAccountChoice(account, null)));
-        foreach (var hosted in TelemetrySourceDefinition.All.Where(
-                     source => source.Kind == TelemetrySourceKind.IslePilotHosted))
-        {
-            var store = HostedCredentialStore(hosted.Id);
-            var hostedAccounts = await store.LoadAllAsync(_shutdown.Token);
-            choices.AddRange(hostedAccounts.Select(account => new SteamAccountChoice(account, hosted)));
-            if (_islePilotSelectedSource is null && _islePilotCredentials is null && hostedAccounts.Count > 0)
-            {
-                // Keep the account and the host it belongs to in step, otherwise the
-                // open-overlay button would sign in to the wrong server.
-                _islePilotCredentials = await store.LoadAsync(_shutdown.Token);
-                if (_islePilotCredentials is not null)
-                {
-                    _islePilotSelectedSource = hosted;
-                }
-            }
-        }
+        var choices = BuildAccountChoices(accounts);
 
         _updatingSteamAccountSelector = true;
         try
@@ -422,6 +439,24 @@ public partial class HomeWindow
         }
 
         ApplySteamLoginState(_islePilotCredentials);
+    }
+
+    // A saved account can reach the IslePilot network and every self-hosted server,
+    // so the list offers one entry per host and the label names it.
+    internal static IReadOnlyList<SteamAccountChoice> BuildAccountChoices(
+        IReadOnlyList<IslePilotOverlayAuthResult> accounts)
+    {
+        var hostedSources = TelemetrySourceDefinition.All
+            .Where(source => source.Kind == TelemetrySourceKind.IslePilotHosted)
+            .ToArray();
+        var choices = new List<SteamAccountChoice>(accounts.Count * (1 + hostedSources.Length));
+        foreach (var account in accounts)
+        {
+            choices.Add(new SteamAccountChoice(account, null));
+            choices.AddRange(hostedSources.Select(source => new SteamAccountChoice(account, source)));
+        }
+
+        return choices;
     }
 
     private static Uri WebSocketUriFor(Uri serviceBaseUri) => new UriBuilder(

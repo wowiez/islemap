@@ -57,6 +57,53 @@ public sealed class HomeSteamLoginTests
     }
 
     [Fact]
+    public void AccountList_OffersEveryHostForTheSameSavedSession()
+    {
+        var credentials = new TheIsleOverlay.IslePilot.IslePilotOverlayAuthResult(
+            "76561199264909938",
+            "overlay-token",
+            "waowi");
+
+        var choices = HomeWindow.BuildAccountChoices([credentials]);
+
+        Assert.Equal(2, choices.Count);
+        Assert.Equal("STEAM · ISLEPILOT", choices[0].Detail);
+        Assert.Null(choices[0].Source);
+        Assert.Equal("STEAM · SDVN #3", choices[1].Detail);
+        Assert.Equal("sdvn3", choices[1].Source?.Id);
+        Assert.All(choices, choice => Assert.Equal(credentials.OverlayToken, choice.Credentials.OverlayToken));
+    }
+
+    [Fact]
+    public async Task HostedVaultIsFoldedIntoTheSharedSessionAndRemoved()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "islemap-credential-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var hostedPath = Path.Combine(directory, "islepilot-overlay-sdvn3.credential");
+            var sharedPath = Path.Combine(directory, "islepilot-overlay.credential");
+            var credentials = new TheIsleOverlay.IslePilot.IslePilotOverlayAuthResult(
+                "76561199264909938",
+                "overlay-token",
+                "waowi");
+            await new TheIsleOverlay.IslePilot.IslePilotCredentialStore(hostedPath).SaveAsync(credentials);
+
+            var sharedStore = new TheIsleOverlay.IslePilot.IslePilotCredentialStore(sharedPath);
+            await HomeWindow.ImportHostedCredentialsAsync([hostedPath], sharedStore, CancellationToken.None);
+
+            var imported = Assert.Single(await sharedStore.LoadAllAsync());
+            Assert.Equal(credentials.SteamId, imported.SteamId);
+            Assert.Equal(credentials.OverlayToken, imported.OverlayToken);
+            Assert.False(File.Exists(hostedPath));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public void AccountEntries_NameTheServerTheyBelongTo()
     {
         var credentials = new TheIsleOverlay.IslePilot.IslePilotOverlayAuthResult(

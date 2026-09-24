@@ -1,3 +1,10 @@
+# Isle Live Map 1.8.6
+
+- Sửa lỗi phiên IslePilot bị coi là hết hạn sau khi đăng nhập cho server dùng tên miền riêng:
+  - Token overlay là phiên theo **tài khoản Steam**, không phải theo host. Bản 1.8.5 lưu mỗi host một vault riêng, nên đăng nhập cho SDVN #3 xoay token và mục IslePilot Network cũ bị server coi là hết hạn — app lại đòi đăng nhập Steam.
+  - Nay chỉ còn **một vault dùng chung**; host chỉ quyết định gọi API ở đâu. Danh sách tài khoản vẫn hiện đủ hai mục `STEAM · ISLEPILOT` và `STEAM · SDVN #3` cho cùng tài khoản, chọn mục nào thì kết nối host đó nhưng dùng chung một phiên — không phải đăng nhập lại lần nữa.
+  - Vault riêng theo host do 1.8.5 tạo được tự động gộp vào vault chung rồi xoá, nên tài khoản đã đăng nhập cho SDVN #3 vẫn dùng được ngay sau khi cập nhật.
+
 # Isle Live Map 1.8.5
 
 - Sửa lỗi hướng nhìn (heading) NPCAP luôn sai hoặc đứng yên một hướng:
