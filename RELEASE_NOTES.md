@@ -1,4 +1,4 @@
-# Isle Live Map 1.8.4
+# Isle Live Map 1.8.5
 
 - Sửa lỗi hướng nhìn (heading) NPCAP luôn sai hoặc đứng yên một hướng:
   - Gói `ServerMove` gửi rotator (`pitch`/`yaw`/`roll`) **ngay sau** vector vị trí, mỗi trục là 1 bit "có giá trị" + 16 bit độ (`FRotator::SerializeCompressedShort`). Decoder cũ bỏ qua 16 bit trước khi đọc nên lấy nhầm sang vùng bit khác và cho ra `yaw = 0` hoặc giá trị ngẫu nhiên.
@@ -22,6 +22,9 @@
   - Trang đăng nhập Steam chỉ cho phép điều hướng trong host của server đó và Steam.
 - Bản đồ sạch khi server không gửi dữ liệu vùng: các mốc/vùng màu tím và vàng chỉ hiện khi feed bản đồ của server thực sự trả về polygon vùng. Khi chỉ dùng NPCAP để xem vị trí (hoặc nguồn chỉ có marker), bản đồ chỉ còn ảnh bản đồ + marker của bạn kèm vệt đường đi, không còn hàng chục mốc vùng chồng lên nhau gây rối. Bộ zone Gateway đóng gói chỉ còn là phương án dự phòng cho lúc feed đang chạy mà thiếu polygon.
 - Giữ chỉ điểm người chơi luôn rõ: trước đây khi phiên telemetry (IslePilot) bị stale/reconnecting thì cả marker và kim hướng bị giảm opacity còn 70% nên nhìn bị mờ, dù vị trí đến từ nguồn NPCAP độc lập. Nay chỉ các chỉ số (máu/thể lực/đói/nước) mờ theo phiên telemetry, còn marker và kim hướng giữ nguyên độ rõ.
+
+# Isle Live Map 1.8.4
+
 - Tự động xóa và reset đường đi cũ (Path Trail) khi người chơi chuyển sang server khác hoặc đổi chủng loài khủng long (Dino).
 - Sửa lỗi lưu skin draft: trước khi lưu, hub tự động lấy danh sách draft hiện có để tránh bị server đè mất draft cũ.
 
