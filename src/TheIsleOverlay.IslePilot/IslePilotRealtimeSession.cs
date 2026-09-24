@@ -508,7 +508,7 @@ public sealed class IslePilotRealtimeSession : ITelemetrySession
                 connectCancellation.CancelAfter(_options.WebSocketConnectTimeout);
                 try
                 {
-                    await socket.ConnectAsync(_options.OverlayToken, connectCancellation.Token);
+                    await socket.ConnectAsync(_options.OverlayToken, _options.WebSocketUri, connectCancellation.Token);
                     await socket.SendHelloAsync(ReadPersonaName(), connectCancellation.Token);
                 }
                 catch (OperationCanceledException) when (

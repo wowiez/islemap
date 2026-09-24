@@ -65,10 +65,15 @@ public static partial class ClipboardCoordinateParser
             return false;
         }
 
+        // The game prints the north/south value first and the east/west value
+        // second ("Lat: .. Long: .. Alt: .." in the labelled variant). World
+        // Location keeps the east/west value on X, because that is the component
+        // the movement RPC fills and both map projections use for the horizontal
+        // image axis, so the first two clipboard numbers are swapped here.
         location = new WorldLocation
         {
-            X = values[0],
-            Y = values[1],
+            X = values[1],
+            Y = values[0],
             Z = values.Count > 2 ? values[2] : null
         };
         return true;

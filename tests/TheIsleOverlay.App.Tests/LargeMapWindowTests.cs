@@ -38,9 +38,10 @@ public sealed class LargeMapWindowTests
 
         AssertLayer(document, nameAttribute, "LargeMapImage", "0", false);
         AssertLayer(document, nameAttribute, "LargeZoneLayer", "1", true);
-        AssertLayer(document, nameAttribute, "LargePlayerLayer", "2", true);
-        AssertLayer(document, nameAttribute, "LargeRouteLayer", "3", true);
-        AssertLayer(document, nameAttribute, "LargeMarkerLayer", "4", true);
+        AssertLayer(document, nameAttribute, "LargePathTrailLayer", "2", true);
+        AssertLayer(document, nameAttribute, "LargePlayerLayer", "3", true);
+        AssertLayer(document, nameAttribute, "LargeRouteLayer", "4", true);
+        AssertLayer(document, nameAttribute, "LargeMarkerLayer", "5", true);
 
         Assert.DoesNotContain(document.Descendants(), element =>
             element.Name.LocalName is "Button" or "TextBlock");

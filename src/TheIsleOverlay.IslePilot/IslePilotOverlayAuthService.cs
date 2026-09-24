@@ -4,13 +4,16 @@ public static class IslePilotOverlayAuthService
 {
     public const string CallbackScheme = "isle-overlay";
 
-    public static Uri LoginUri { get; } = new(
-        IslePilotOverlayOptions.ServiceBaseUri,
+    public static Uri LoginUri => LoginUriFor(IslePilotOverlayOptions.DefaultServiceBaseUri);
+
+    public static Uri LoginUriFor(Uri serviceBaseUri) => new(
+        serviceBaseUri ?? IslePilotOverlayOptions.DefaultServiceBaseUri,
         "api/overlay/auth/steam");
 
     public static async Task<IslePilotOverlayAuthValidationState> ValidateAsync(
         HttpClient httpClient,
         IslePilotOverlayAuthResult credentials,
+        Uri? serviceBaseUri = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
@@ -24,7 +27,8 @@ public static class IslePilotOverlayAuthService
         {
             var options = new IslePilotOverlayOptions
             {
-                OverlayToken = credentials.OverlayToken
+                OverlayToken = credentials.OverlayToken,
+                ServiceBaseUri = serviceBaseUri ?? IslePilotOverlayOptions.DefaultServiceBaseUri
             };
             var apiClient = new IslePilotOverlayApiClient(httpClient, options);
             _ = await apiClient.GetMeAsync(cancellationToken);

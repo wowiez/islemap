@@ -4,7 +4,8 @@
 
 ## Nguồn telemetry
 
-- **IslePilot Network** — đăng nhập Steam một lần và tự nhận server hiện tại; hỗ trợ DinoVietNam, Premium, HoHo cùng các server đã cài plugin IslePilot.
+- **IslePilot Network** — đăng nhập Steam một lần và tự nhận server hiện tại; hỗ trợ mọi server nằm trên mạng IslePilot (DinoVietNam, Premium, HoHo…).
+- **SDVN #3** — server chạy bản IslePilot riêng trên tên miền `3.sdvn.org` nên có nút kết nối riêng: đăng nhập Steam một lần cho host đó, app dùng thẳng overlay API của host (chỉ số, marker, vùng) và lưu token riêng theo host, không ảnh hưởng phiên IslePilot Network.
 - **EraGaming** — kết nối trực tiếp bằng phiên đăng nhập tại `https://eragamingvn.net/live-map`.
 - **PANDORA** — kết nối trực tiếp bằng phiên đăng nhập tại `https://islapandora.eu/live-map`.
 
@@ -16,7 +17,7 @@ Texture Gateway dùng bản EraGaming/MyIsleMap đóng gói trong app. Đây ch�
 - Marker luôn giữ giữa viewport; bản đồ xoay theo hướng nhìn để phía trước của khủng long luôn hướng lên trên.
 - Tọa độ, yaw và status realtime từ WebSocket `/ows`; `/api/overlay/me` và `/api/overlay/map` làm baseline/fallback.
 - Growth, Health, Stamina, Hunger và Water khi nguồn cung cấp trường tương ứng.
-- Home có Steam Login cho IslePilot và hai nút riêng cho EraGaming/PANDORA, tránh dùng nhầm phiên giữa các website.
+- Home có Steam Login cho mạng IslePilot và nút riêng cho EraGaming, PANDORA, SDVN #3, tránh dùng nhầm phiên giữa các website.
 - Token overlay được mã hóa bằng Windows DPAPI cho tài khoản Windows hiện tại; không lưu plaintext.
 - Tab `GARAGE` trong F8 đọc danh sách Dino đã lưu cùng thumbnail dựng từ model IslePilot, Growth/Health/Food/Water/Stamina và palette từ `/api/overlay/garage`; có thể cất Dino hiện tại hoặc lấy/đổi Dino đã lưu sau bước xác nhận.
 - Tự reconnect với backoff, giữ snapshot cuối và báo `RECONNECTING`/`DATA STALE` khi mạng yếu.

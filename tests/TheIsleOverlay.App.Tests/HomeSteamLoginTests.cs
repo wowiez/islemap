@@ -48,10 +48,56 @@ public sealed class HomeSteamLoginTests
         Assert.Equal("era", (string?)Control("EraSourceButton").Attribute("Tag"));
         Assert.NotEqual("Collapsed", (string?)Control("PandoraSourceButton").Attribute("Visibility"));
         Assert.Equal("pandora", (string?)Control("PandoraSourceButton").Attribute("Tag"));
+        Assert.NotEqual("Collapsed", (string?)Control("SdvnSourceButton").Attribute("Visibility"));
+        Assert.Equal("sdvn3", (string?)Control("SdvnSourceButton").Attribute("Tag"));
         Assert.DoesNotContain(
             document.Descendants(),
             element => new[] { "DinoSourceButton", "PremiumSourceButton", "HoHoSourceButton" }
                 .Contains((string?)element.Attribute(nameAttribute), StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public void AccountEntries_NameTheServerTheyBelongTo()
+    {
+        var credentials = new TheIsleOverlay.IslePilot.IslePilotOverlayAuthResult(
+            "76561199264909938",
+            "overlay-token",
+            "waowi");
+
+        var network = new HomeWindow.SteamAccountChoice(credentials, null);
+        Assert.Equal("STEAM · ISLEPILOT", network.Detail);
+
+        var sdvn = new HomeWindow.SteamAccountChoice(credentials, TelemetrySourceDefinition.Sdvn3);
+        Assert.Equal("STEAM · SDVN #3", sdvn.Detail);
+        Assert.Equal("SDVN #3", TelemetrySourceDefinition.Sdvn3.AccountLabel);
+    }
+
+    [Fact]
+    public void SourceButtonClick_StaysAsynchronousSoTheUiThreadIsNeverBlocked()
+    {
+        // Blocking on the hosted login (GetAwaiter().GetResult()) deadlocked the
+        // whole overlay while the Steam window was closing, so the handler must
+        // stay an async method.
+        var handler = typeof(HomeWindow).GetMethod(
+            "SourceButton_Click",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+        Assert.NotNull(handler);
+        Assert.NotEmpty(handler!.GetCustomAttributes(
+            typeof(System.Runtime.CompilerServices.AsyncStateMachineAttribute),
+            inherit: false));
+    }
+
+    [Fact]
+    public void Sdvn3_ConnectsThroughItsOwnIslePilotDomain()
+    {
+        var source = TelemetrySourceDefinition.Sdvn3;
+
+        Assert.Equal(TelemetrySourceKind.IslePilotHosted, source.Kind);
+        Assert.Equal("3.sdvn.org", source.BaseUri.Host);
+        Assert.Equal("sdvn3123123123", source.ServerSlug);
+        Assert.Equal("https://3.sdvn.org/api/player/steam/login?redirect=%2Fp%2Fsdvn3123123123%2Fmap", source.LoginUri.AbsoluteUri);
+        Assert.Contains(TelemetrySourceDefinition.All, candidate => candidate.Id == "sdvn3");
     }
 
     [Fact]

@@ -14,7 +14,7 @@ public sealed class NpcapPositionStabilizerTests
 
         Assert.True(filter.TryStabilize(Sample(1_000, 0, startedAt.AddMilliseconds(200), 1.2f), out var result));
 
-        Assert.InRange(result.Location.X, 600, 800);
+        Assert.InRange(result.Location.X, 850, 950);
         Assert.Equal(1.2f, result.GameTimestamp);
     }
 
@@ -41,6 +41,9 @@ public sealed class NpcapPositionStabilizerTests
         var startedAt = DateTimeOffset.UtcNow;
         Assert.True(filter.TryStabilize(Sample(100_000, -200_000, startedAt, 1), out _));
 
+        var relockLocation = new WorldLocation { X = -300_000, Y = 400_000, Z = 100 };
+        filter.Seed(relockLocation);
+
         Assert.True(filter.TryStabilize(
             Sample(-300_000, 400_000, startedAt + NpcapPositionStabilizer.SourceHoldDuration + TimeSpan.FromSeconds(1), 10),
             out var result));
@@ -60,6 +63,20 @@ public sealed class NpcapPositionStabilizerTests
         Assert.True(filter.TryStabilize(
             Sample(100_100, -200_050, startedAt.AddMilliseconds(400), 1.4f), out var recovered));
         Assert.InRange(recovered.Location.X, 100_000, 100_100);
+    }
+
+    [Fact]
+    public void Seed_SnapsSmoothedLocationToExactAnchor()
+    {
+        var filter = new NpcapPositionStabilizer();
+        var startedAt = DateTimeOffset.UtcNow;
+        Assert.True(filter.TryStabilize(Sample(100_000, -200_000, startedAt, 1), out _));
+
+        filter.Seed(new WorldLocation { X = 120_000, Y = -210_000, Z = 100 });
+
+        Assert.True(filter.TryStabilize(Sample(120_100, -210_050, startedAt.AddMilliseconds(50), 1.1f), out var stabilized));
+        Assert.InRange(stabilized.Location.X, 120_000, 120_100);
+        Assert.InRange(stabilized.Location.Y, -210_050, -210_000);
     }
 
     private static NpcapPositionSample Sample(

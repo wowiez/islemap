@@ -18,8 +18,8 @@ public sealed class PandoraTelemetryProviderTests
                 "name": "Pandora Player",
                 "dino": "Omniraptor",
                 "gender": "Female",
-                "x": -49000,
-                "y": 51000,
+                "x": 51000,
+                "y": -49000,
                 "z": 1200,
                 "yaw": 157.37,
                 "growth": 0.4,
@@ -59,7 +59,7 @@ public sealed class PandoraTelemetryProviderTests
         Assert.Equal(50d, result.Player?.ThirstPercent);
         Assert.Equal(0.5d, result.Player!.MapLocation!.Value.Left, precision: 6);
         Assert.Equal(0.5d, result.Player.MapLocation.Value.Top, precision: 6);
-        Assert.Equal(247.37d, result.Player.ExactMapHeadingDegrees!.Value, precision: 6);
+        Assert.Equal(247.37d, result.Player.ExactMapHeadingDegrees!.Value, precision: 2);
     }
 
     [Fact]

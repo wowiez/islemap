@@ -78,6 +78,7 @@ public sealed class OverlayLayoutSettingsTests
             Assert.False(store.Load().ShowPrimeTasks);
             Assert.True(store.Load().NpcapEnabled);
             Assert.True(store.Load().CopyAssetEnabled);
+            Assert.True(store.Load().ShowPathTrail);
             Assert.True(store.Load().AutoHideOutsideGame);
 
             store.Save(new OverlayLayoutSettings
@@ -90,6 +91,7 @@ public sealed class OverlayLayoutSettingsTests
                 RotateMap = true,
                 AutoDetectLiveMap = false,
                 ShowPrimeTasks = false,
+                ShowPathTrail = false,
                 NpcapEnabled = false,
                 CopyAssetEnabled = false,
                 AutoHideOutsideGame = false,
@@ -105,6 +107,7 @@ public sealed class OverlayLayoutSettingsTests
             Assert.True(restored.RotateMap);
             Assert.False(restored.AutoDetectLiveMap);
             Assert.False(restored.ShowPrimeTasks);
+            Assert.False(restored.ShowPathTrail);
             Assert.False(restored.NpcapEnabled);
             Assert.True(restored.CopyAssetEnabled);
             Assert.False(restored.AutoHideOutsideGame);
@@ -176,6 +179,8 @@ public sealed class OverlayLayoutSettingsTests
         Assert.NotNull(Control("MapRotationButton"));
         Assert.NotNull(Control("AutoDetectLiveMapButton"));
         Assert.NotNull(Control("PrimeTasksVisibilityButton"));
+        Assert.NotNull(Control("PathTrailToggleButton"));
+        Assert.NotNull(Control("ClearPathTrailButton"));
         var primePanel = Control("PrimeTasksPanel");
         var activityPanel = Control("ActivityPanel");
         Assert.Equal((string?)activityPanel.Attribute("Width"), (string?)primePanel.Attribute("Width"));
@@ -253,6 +258,8 @@ public sealed class OverlayLayoutSettingsTests
             string.Equals((string?)element.Attribute(nameAttribute), "SbtcZoneLayer", StringComparison.Ordinal));
         var zoneDecorationLayer = Assert.Single(document.Descendants(), element =>
             string.Equals((string?)element.Attribute(nameAttribute), "SbtcZoneDecorationLayer", StringComparison.Ordinal));
+        var pathTrailLayer = Assert.Single(document.Descendants(), element =>
+            string.Equals((string?)element.Attribute(nameAttribute), "PathTrailLayer", StringComparison.Ordinal));
         var routeLayer = Assert.Single(document.Descendants(), element =>
             string.Equals((string?)element.Attribute(nameAttribute), "RouteLayer", StringComparison.Ordinal));
         var playerLayer = Assert.Single(document.Descendants(), element =>
@@ -274,6 +281,7 @@ public sealed class OverlayLayoutSettingsTests
                      "MapImagePanTransform",
                      "SbtcZonePanTransform",
                      "SbtcZoneDecorationPanTransform",
+                     "PathTrailPanTransform",
                      "RoutePanTransform",
                      "SbtcPlayerPanTransform"
                  })

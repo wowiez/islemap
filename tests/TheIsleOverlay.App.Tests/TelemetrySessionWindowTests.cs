@@ -18,13 +18,15 @@ public sealed class TelemetrySessionWindowTests
     }
 
     [Fact]
-    public void LiveServerHeading_AnimatesWithinOneFastVisualResponseWindow()
+    public void LiveServerHeading_FollowsWithinOneFastVisualResponseWindow()
     {
-        var durationField = typeof(MainWindow).GetField(
-            "LiveHeadingAnimationDuration",
+        // The live heading is followed on every rendered frame instead of by a
+        // queued one-shot animation, so the guarantee is the follow time constant.
+        var rateField = typeof(MainWindow).GetField(
+            "HeadingFollowRate",
             BindingFlags.Static | BindingFlags.NonPublic);
-        var duration = Assert.IsType<TimeSpan>(durationField?.GetValue(null));
+        var rate = Assert.IsType<double>(rateField?.GetValue(null));
 
-        Assert.InRange(duration.TotalMilliseconds, 1d, 80d);
+        Assert.InRange(1000d / rate, 1d, 80d);
     }
 }

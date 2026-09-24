@@ -24,7 +24,39 @@ public sealed class NpcapGamePacketDecoderTests
         Assert.Equal(333668.77, movement.Location.X, precision: 2);
         Assert.Equal(-412585.53, movement.Location.Y, precision: 2);
         Assert.Equal(41068.87, movement.Location.Z!.Value, precision: 2);
-        Assert.Equal(123.75, movement.ControlYawDegrees, precision: 2);
+        Assert.Equal(123.75, movement.ControlYawDegrees!.Value, precision: 2);
+    }
+
+    [Fact]
+    public void MovementPayload_DecodesZeroDegreeNorthRotation()
+    {
+        var writer = new TestBitWriter();
+        writer.Skip(171);
+        writer.WriteSingle(190.363f);
+        writer.WriteQuantizedVector(3639.1, -27.2, 0, 10);
+        writer.WriteQuantizedVector(333668.77, -412585.53, 41068.87, 100);
+        writer.WriteCompressedRotator(0, 180, 0); // 0 pitch, 180 yaw (North in UE), 0 roll
+        var bunch = new NpcapGamePacketDecoder.ParsedBunch(2, writer.Position, writer.ToArray());
+
+        var decoded = NpcapGamePacketDecoder.TryReadMovementAt(bunch, 171, out var movement);
+
+        Assert.True(decoded);
+        Assert.NotNull(movement.ControlYawDegrees);
+        Assert.Equal(180.0, movement.ControlYawDegrees.Value, precision: 2);
+    }
+
+    [Fact]
+    public void MovementPayload_RejectsRotationOutsidePlausibleRange()
+    {
+        var writer = new TestBitWriter();
+        writer.Skip(171);
+        writer.WriteSingle(190.363f);
+        writer.WriteQuantizedVector(0, 0, 0, 10);
+        writer.WriteQuantizedVector(333668.77, -412585.53, 41068.87, 100);
+        writer.WriteCompressedRotator(0, 123.75, 200); // 200 degrees of roll never happens on a pawn
+        var bunch = new NpcapGamePacketDecoder.ParsedBunch(2, writer.Position, writer.ToArray());
+
+        Assert.False(NpcapGamePacketDecoder.TryReadMovementAt(bunch, 171, out _));
     }
 
     [Fact]
@@ -42,6 +74,138 @@ public sealed class NpcapGamePacketDecoderTests
 
         Assert.False(decoder.TryProcessGamePayload(new byte[64], DateTimeOffset.UtcNow, out _));
         Assert.False(decoder.TryProcessGamePayload([0x15, 0, 0, 0, 0, 0, 0, 0, 0, 0], DateTimeOffset.UtcNow, out _));
+    }
+
+    [Fact]
+    public void CandidateScan_PrefersLayoutWhoseGameClockAdvances()
+    {
+        var decoder = new NpcapGamePacketDecoder();
+        var startedAt = DateTimeOffset.UtcNow;
+        NpcapPositionSample? accepted = null;
+
+        for (var frame = 0; frame < 4; frame++)
+        {
+            var writer = new TestBitWriter();
+            // A decoy movement sits at offset 0 with a frozen timestamp, which is
+            // exactly how a wrong bit offset looks in a real capture. The old scan
+            // locked it because repeated timestamps counted as "standing still".
+            WriteMovement(writer, 100f, -200_000, 300_000, 10_000, 180);
+            writer.Skip(171 - writer.Position);
+            WriteMovement(writer, 200f + frame * 0.2f, 120_000, -150_000, 30_000, 90);
+            var bunch = new NpcapGamePacketDecoder.ParsedBunch(2, writer.Position, writer.ToArray());
+
+            if (decoder.TryDecodeMovement(bunch, startedAt.AddMilliseconds(frame * 200), out var sample))
+            {
+                accepted = sample;
+            }
+        }
+
+        Assert.NotNull(accepted);
+        Assert.Equal(120_000, accepted!.Value.Location.X, precision: 0);
+        Assert.Equal(-150_000, accepted.Value.Location.Y, precision: 0);
+        Assert.Equal(90d, accepted.Value.WorldYawDegrees!.Value, precision: 2);
+    }
+
+    [Fact]
+    public void CandidateScan_IgnoresLayoutWithFrozenGameClock()
+    {
+        var decoder = new NpcapGamePacketDecoder();
+        var startedAt = DateTimeOffset.UtcNow;
+
+        for (var frame = 0; frame < 6; frame++)
+        {
+            var writer = new TestBitWriter();
+            writer.Skip(171);
+            WriteMovement(writer, 100f, -200_000, 300_000, 10_000, 180);
+            var bunch = new NpcapGamePacketDecoder.ParsedBunch(2, writer.Position, writer.ToArray());
+
+            Assert.False(decoder.TryDecodeMovement(bunch, startedAt.AddMilliseconds(frame * 200), out _));
+        }
+    }
+
+    [Fact]
+    public void LockedLayout_RelocksAfterTheRpcLayoutMoves()
+    {
+        var decoder = new NpcapGamePacketDecoder();
+        var startedAt = DateTimeOffset.UtcNow;
+        var accepted = 0;
+
+        for (var frame = 0; frame < 4; frame++)
+        {
+            var writer = new TestBitWriter();
+            writer.Skip(171);
+            WriteMovement(writer, 100f + frame * 0.2f, -200_000, 300_000, 10_000, 180);
+            var bunch = new NpcapGamePacketDecoder.ParsedBunch(2, writer.Position, writer.ToArray());
+            if (decoder.TryDecodeMovement(bunch, startedAt.AddMilliseconds(frame * 200), out _)) accepted++;
+        }
+
+        Assert.Equal(2, accepted);
+
+        // The server moved the move payload eight bits later; the decoder must not
+        // stay pinned to the dead offset for the rest of the session.
+        var resumedAt = startedAt.AddSeconds(4.2);
+        NpcapPositionSample? relocked = null;
+        for (var frame = 0; frame < 4; frame++)
+        {
+            var writer = new TestBitWriter();
+            writer.Skip(179);
+            WriteMovement(writer, 104.3f + frame * 0.2f, -200_100, 300_100, 10_000, 180);
+            var bunch = new NpcapGamePacketDecoder.ParsedBunch(2, writer.Position, writer.ToArray());
+            if (decoder.TryDecodeMovement(bunch, resumedAt.AddMilliseconds(frame * 200), out var sample))
+            {
+                relocked = sample;
+            }
+        }
+
+        Assert.NotNull(relocked);
+        Assert.Equal(-200_100, relocked!.Value.Location.X, precision: 0);
+    }
+
+    [Fact]
+    public void StandingPlayer_KeepsReportingWhileGameClockAdvances()
+    {
+        var decoder = new NpcapGamePacketDecoder();
+        var startedAt = DateTimeOffset.UtcNow;
+        var accepted = 0;
+        NpcapPositionSample? last = null;
+
+        for (var frame = 0; frame < 6; frame++)
+        {
+            var writer = new TestBitWriter();
+            writer.Skip(171);
+            WriteMovement(writer, 100f + frame * 0.2f, -200_000, 300_000, 10_000, 180);
+            var bunch = new NpcapGamePacketDecoder.ParsedBunch(2, writer.Position, writer.ToArray());
+            if (decoder.TryDecodeMovement(bunch, startedAt.AddMilliseconds(frame * 200), out var sample))
+            {
+                accepted++;
+                last = sample;
+            }
+        }
+
+        Assert.Equal(4, accepted);
+        Assert.Equal(-200_000, last!.Value.Location.X, precision: 0);
+    }
+
+    [Fact]
+    public void SeedLocation_AnchorsDecoderToPlayerRegion()
+    {
+        var decoder = new NpcapGamePacketDecoder();
+        var localLocation = new TheIsleOverlay.Core.WorldLocation { X = 348_816, Y = -203_171, Z = 22_484 };
+
+        decoder.SeedLocation(localLocation);
+
+        var writer = new TestBitWriter();
+        writer.Skip(171);
+        writer.WriteSingle(100f);
+        writer.WriteQuantizedVector(0, 0, 0, 10);
+        writer.WriteQuantizedVector(-200_000, 300_000, 10_000, 100);
+        writer.WriteCompressedRotator(0, 0, 0);
+        var bunch = new NpcapGamePacketDecoder.ParsedBunch(2, writer.Position, writer.ToArray());
+
+        var read = NpcapGamePacketDecoder.TryReadMovementAt(bunch, 171, out var movement);
+
+        Assert.True(read);
+        Assert.Equal(-200_000, movement.Location.X, precision: 0);
     }
 
     [Theory]
@@ -115,6 +279,20 @@ public sealed class NpcapGamePacketDecoderTests
         return frame;
     }
 
+    private static void WriteMovement(
+        TestBitWriter writer,
+        float timestamp,
+        double x,
+        double y,
+        double z,
+        double yaw)
+    {
+        writer.WriteSingle(timestamp);
+        writer.WriteQuantizedVector(0, 0, 0, 10);
+        writer.WriteQuantizedVector(x, y, z, 100);
+        writer.WriteCompressedRotator(0, yaw, 0);
+    }
+
     private sealed class TestBitWriter
     {
         private readonly List<bool> _bits = [];
@@ -143,6 +321,8 @@ public sealed class NpcapGamePacketDecoderTests
 
         public void WriteCompressedRotator(double pitch, double yaw, double roll)
         {
+            // FRotator::SerializeCompressedShort sits directly behind the location
+            // vector: one presence bit per axis followed by its 16-bit value.
             WriteCompressedAxis(pitch);
             WriteCompressedAxis(yaw);
             WriteCompressedAxis(roll);

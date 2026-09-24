@@ -9,10 +9,21 @@ internal sealed class NpcapGamePacketDecoder
     private const int StatelessPrefixBits = 6;
     private const int MaximumChannels = 16384;
     private const int MaximumBunchBits = 8192;
-    private static readonly TimeSpan CandidateExpiry = TimeSpan.FromSeconds(2);
+    private const int RequiredAdvancingFrames = 2;
+    private const float MinimumTimestampAdvance = 0.02f;
+    private const double MaximumFrameSeconds = 2.0d;
+    private static readonly TimeSpan CandidateExpiry = TimeSpan.FromSeconds(15);
+
+    // A locked layout keeps serving frames until it stays silent for this long.
+    // Without the deadline a session whose RPC layout shifted would keep the old
+    // offset locked and never look for the live one again.
+    private static readonly TimeSpan LockedCandidateTimeout = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan AnchorHoldDuration = TimeSpan.FromSeconds(15);
     private readonly Dictionary<(uint Channel, int Offset), MovementCandidate> _candidates = [];
     private (uint Channel, int Offset)? _lockedCandidate;
     private DateTimeOffset _lastLockedAt;
+    private WorldLocation? _verifiedPlayerAnchor;
+    private DateTimeOffset _anchorAt;
 
     public bool TryProcessEthernetFrame(
         ReadOnlySpan<byte> frame,
@@ -108,26 +119,34 @@ internal sealed class NpcapGamePacketDecoder
         }
     }
 
-    private bool TryDecodeMovement(
+    internal bool TryDecodeMovement(
         ParsedBunch bunch,
         DateTimeOffset capturedAt,
         out NpcapPositionSample sample)
     {
         sample = default;
-        if (_lockedCandidate is { } locked && capturedAt - _lastLockedAt <= CandidateExpiry)
+        if (_lockedCandidate is { } locked)
         {
-            if (locked.Channel == bunch.Channel &&
-                TryReadMovementAt(bunch, locked.Offset, out var lockedMove) &&
-                AcceptCandidate(locked, lockedMove, capturedAt, out sample, lockAfter: 1))
+            if (capturedAt - _lastLockedAt > LockedCandidateTimeout)
+            {
+                // The proven layout went quiet: fall through and scan again so a
+                // changed RPC layout can be re-locked instead of staying blind.
+                _lockedCandidate = null;
+            }
+            else if (locked.Channel == bunch.Channel &&
+                     TryReadMovementAt(bunch, locked.Offset, out var lockedMove) &&
+                     AcceptCandidate(locked, lockedMove, capturedAt, out sample, requireLockEvidence: false))
             {
                 _lastLockedAt = capturedAt;
                 return true;
             }
-
-            // Other RPCs share this actor channel. Keep the proven movement
-            // layout locked instead of allowing their bytes to create a false
-            // candidate while a real movement frame is briefly absent.
-            return false;
+            else
+            {
+                // Other RPCs share this actor channel. Keep the proven movement
+                // layout locked instead of allowing their bytes to create a false
+                // candidate while a real movement frame is briefly absent.
+                return false;
+            }
         }
 
         var maximumOffset = Math.Min(384, bunch.PayloadBits - 120);
@@ -135,7 +154,7 @@ internal sealed class NpcapGamePacketDecoder
         {
             if (!TryReadMovementAt(bunch, offset, out var move)) continue;
             var key = (bunch.Channel, offset);
-            if (AcceptCandidate(key, move, capturedAt, out sample, lockAfter: 3))
+            if (AcceptCandidate(key, move, capturedAt, out sample, requireLockEvidence: true))
             {
                 _lockedCandidate = key;
                 _lastLockedAt = capturedAt;
@@ -146,51 +165,138 @@ internal sealed class NpcapGamePacketDecoder
         return false;
     }
 
+    public void SeedLocation(WorldLocation location)
+    {
+        lock (_candidates)
+        {
+            _verifiedPlayerAnchor = location;
+            _anchorAt = DateTimeOffset.UtcNow;
+            (uint Channel, int Offset)? bestKey = null;
+            var minDistance = double.MaxValue;
+
+            foreach (var (key, candidate) in _candidates)
+            {
+                var distance = Math.Sqrt(
+                    Math.Pow(candidate.Location.X - location.X, 2) +
+                    Math.Pow(candidate.Location.Y - location.Y, 2));
+                if (distance < minDistance && distance <= 50_000d)
+                {
+                    minDistance = distance;
+                    bestKey = key;
+                }
+            }
+
+            if (bestKey is { } best)
+            {
+                _lockedCandidate = best;
+                _lastLockedAt = DateTimeOffset.UtcNow;
+            }
+            else
+            {
+                _lockedCandidate = null;
+            }
+        }
+    }
+
     private bool AcceptCandidate(
         (uint Channel, int Offset) key,
         DecodedMovement move,
         DateTimeOffset capturedAt,
         out NpcapPositionSample sample,
-        int lockAfter)
+        bool requireLockEvidence)
     {
         sample = default;
-        if (!_candidates.TryGetValue(key, out var previous) ||
-            capturedAt - previous.CapturedAt > CandidateExpiry)
+        lock (_candidates)
         {
-            _candidates[key] = new MovementCandidate(move.Timestamp, move.Location, capturedAt, 1);
-            return false;
-        }
+            // The clipboard seed only stays authoritative while frames keep
+            // confirming it: a respawn or teleport must be able to move the
+            // anchor instead of silencing the decoder for the whole session.
+            if (_verifiedPlayerAnchor is { } anchor &&
+                capturedAt - _anchorAt <= AnchorHoldDuration &&
+                PlanarDistance(move.Location, anchor) > 50_000d)
+            {
+                return false;
+            }
 
-        var wallDelta = (capturedAt - previous.CapturedAt).TotalSeconds;
-        var timestampReset = previous.Timestamp > 200 && move.Timestamp is >= 0 and < 5;
-        var gameDelta = timestampReset
-            ? move.Timestamp + 240f - previous.Timestamp
-            : move.Timestamp - previous.Timestamp;
-        if (gameDelta <= 0 || gameDelta > 1.5f)
-        {
-            _candidates[key] = new MovementCandidate(move.Timestamp, move.Location, capturedAt, 1);
-            return false;
-        }
-        var planarDistance = Math.Sqrt(
-            Math.Pow(move.Location.X - previous.Location.X, 2) +
-            Math.Pow(move.Location.Y - previous.Location.Y, 2));
-        var plausible = wallDelta is > 0 and <= 2 &&
-                        Math.Abs(gameDelta - wallDelta) <= Math.Max(0.25, wallDelta * 1.5) &&
-                        planarDistance <= Math.Max(50_000, wallDelta * 25_000);
-        var streak = plausible ? previous.Streak + 1 : 1;
-        _candidates[key] = new MovementCandidate(move.Timestamp, move.Location, capturedAt, streak);
-        if (streak < lockAfter)
-        {
-            return false;
-        }
+            if (!_candidates.TryGetValue(key, out var previous) ||
+                capturedAt - previous.CapturedAt > CandidateExpiry)
+            {
+                _candidates[key] = MovementCandidate.Start(move, capturedAt);
+                return false;
+            }
 
-        sample = new NpcapPositionSample(
-            move.Location,
-            capturedAt,
-            move.Timestamp,
-            move.ControlYawDegrees);
-        return true;
+            var wallDelta = (capturedAt - previous.CapturedAt).TotalSeconds;
+            var gameDelta = GameTimestampDelta(previous.Timestamp, move.Timestamp);
+            var planarDistance = PlanarDistance(move.Location, previous.Location);
+
+            if (gameDelta <= 0f)
+            {
+                // A duplicated datagram repeats the same timestamp within a few
+                // milliseconds; that must not break a running streak. Anything
+                // else with a frozen timestamp is a wrong bit offset, because the
+                // movement RPC always carries a fresh game clock value.
+                if (!(wallDelta is > 0 and <= 0.05 && planarDistance < 1d))
+                {
+                    _candidates[key] = MovementCandidate.Start(move, capturedAt);
+                }
+
+                return false;
+            }
+
+            var advancing = gameDelta >= MinimumTimestampAdvance &&
+                            wallDelta is > 0 &&
+                            Math.Abs(gameDelta - wallDelta) <= Math.Max(0.2d, wallDelta * 0.75d);
+            var plausible = advancing &&
+                            wallDelta <= MaximumFrameSeconds &&
+                            planarDistance <= Math.Max(50_000d, wallDelta * 25_000d);
+
+            var advancingStreak = plausible ? previous.AdvancingStreak + 1 : 0;
+            _candidates[key] = new MovementCandidate(
+                move.Timestamp,
+                move.Location,
+                capturedAt,
+                advancingStreak);
+
+            if (!plausible)
+            {
+                return false;
+            }
+
+            // Locking needs several frames whose game clock tracked the capture
+            // clock. A wrong offset can hold a constant or arbitrary float, so it
+            // never accumulates that evidence.
+            if (requireLockEvidence && advancingStreak < RequiredAdvancingFrames)
+            {
+                return false;
+            }
+
+            _verifiedPlayerAnchor = move.Location;
+            _anchorAt = capturedAt;
+            sample = new NpcapPositionSample(
+                move.Location,
+                capturedAt,
+                move.Timestamp,
+                move.ControlYawDegrees);
+            return true;
+        }
     }
+
+    // The client movement RPC carries the game clock, which advances in lockstep
+    // with real time. Movement timestamps wrap around 240 seconds.
+    private static float GameTimestampDelta(float previous, float current)
+    {
+        var timestampReset = previous > 200f && current is >= 0f and < 5f;
+        return timestampReset ? current + 240f - previous : current - previous;
+    }
+
+    private static bool IsPlausibleLocation(WorldLocation location) =>
+        double.IsFinite(location.X) && double.IsFinite(location.Y) &&
+        location.Z is { } z && double.IsFinite(z) &&
+        Math.Abs(location.X) <= 700_000d && Math.Abs(location.Y) <= 700_000d &&
+        z is >= -80_000d and <= 150_000d;
+
+    private static double PlanarDistance(WorldLocation first, WorldLocation second) =>
+        Math.Sqrt(Math.Pow(second.X - first.X, 2) + Math.Pow(second.Y - first.Y, 2));
 
     internal static bool TryReadMovementAt(
         ParsedBunch bunch,
@@ -205,15 +311,41 @@ internal sealed class NpcapGamePacketDecoder
             var timestamp = reader.ReadSingle();
             var acceleration = reader.ReadQuantizedVector(10);
             var location = reader.ReadQuantizedVector(100);
-            // FRotator::SerializeCompressedShort writes a presence bit followed
-            // by a 16-bit compressed value for each Pitch/Yaw/Roll axis.
-            _ = reader.ReadCompressedRotationAxisShort(); // Pitch is not used by the 2D map.
-            var controlYaw = reader.ReadCompressedRotationAxisShort();
-            _ = reader.ReadCompressedRotationAxisShort(); // Roll is not used by the 2D map.
+
+            // The move data serializes the control rotation directly after the
+            // location: FRotator::SerializeCompressedShort writes one presence bit
+            // per axis followed by that axis' 16-bit value (pitch, yaw, roll).
+            double? controlYaw = null;
+            double? pitch = null;
+            double? roll = null;
+            if (reader.Remaining >= 3)
+            {
+                pitch = reader.ReadCompressedRotationAxisShort();
+                controlYaw = reader.ReadCompressedRotationAxisShort();
+                roll = reader.ReadCompressedRotationAxisShort();
+            }
+
             if (!float.IsFinite(timestamp) || timestamp is < 1 or > 1_000_000 ||
                 !IsPlausibleVector(acceleration, 100_000, 100_000) ||
-                !IsPlausibleVector(location, 1_000_000, 500_000) ||
-                Math.Abs(location.X) + Math.Abs(location.Y) < 1_000)
+                !IsPlausibleLocation(location) ||
+                (Math.Abs(location.X) < 1_000d && Math.Abs(location.Y) < 1_000d))
+            {
+                return false;
+            }
+
+            // Yaw and pitch stay inside a single revolution and a dinosaur never
+            // banks; random bytes at a wrong offset fail these bounds constantly.
+            if (controlYaw is { } yaw && (yaw < 0d || yaw >= 360d))
+            {
+                return false;
+            }
+
+            if (pitch is { } pitchDegrees && Math.Abs(SignedAxis(pitchDegrees)) > 90d)
+            {
+                return false;
+            }
+
+            if (roll is { } rollDegrees && Math.Abs(SignedAxis(rollDegrees)) > 60d)
             {
                 return false;
             }
@@ -226,6 +358,8 @@ internal sealed class NpcapGamePacketDecoder
             return false;
         }
     }
+
+    private static double SignedAxis(double degrees) => degrees > 180d ? degrees - 360d : degrees;
 
     private static bool IsPlausibleVector(WorldLocation value, double xyLimit, double zLimit) =>
         double.IsFinite(value.X) && double.IsFinite(value.Y) &&
@@ -294,8 +428,16 @@ internal sealed class NpcapGamePacketDecoder
     internal readonly record struct DecodedMovement(
         float Timestamp,
         WorldLocation Location,
-        double ControlYawDegrees);
-    private readonly record struct MovementCandidate(float Timestamp, WorldLocation Location, DateTimeOffset CapturedAt, int Streak);
+        double? ControlYawDegrees);
+    private readonly record struct MovementCandidate(
+        float Timestamp,
+        WorldLocation Location,
+        DateTimeOffset CapturedAt,
+        int AdvancingStreak)
+    {
+        public static MovementCandidate Start(DecodedMovement move, DateTimeOffset capturedAt) =>
+            new(move.Timestamp, move.Location, capturedAt, 0);
+    }
 
     private sealed class UnrealBitReader(byte[] bytes, int limit)
     {

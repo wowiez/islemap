@@ -2,8 +2,13 @@ namespace TheIsleOverlay.IslePilot;
 
 public sealed record IslePilotOverlayOptions
 {
-    public static Uri ServiceBaseUri { get; } = new("https://islepilot.eu/");
-    public static Uri WebSocketUri { get; } = new("wss://islepilot.eu/ows");
+    public static Uri DefaultServiceBaseUri { get; } = new("https://islepilot.eu/");
+    public static Uri DefaultWebSocketUri { get; } = new("wss://islepilot.eu/ows");
+
+    // IslePilot runs on its own network host and on per-server custom domains that
+    // expose the same overlay API, so every request target is configurable.
+    public Uri ServiceBaseUri { get; init; } = DefaultServiceBaseUri;
+    public Uri WebSocketUri { get; init; } = DefaultWebSocketUri;
 
     public required string OverlayToken { get; init; }
     public string? PersonaName { get; init; }

@@ -18,9 +18,19 @@ public static class AppPaths
         Root,
         "islepilot-overlay.credential");
 
+    // Servers that run their own IslePilot instance (custom domain) keep their own
+    // overlay token, so every such source stores credentials in its own file.
+    public static string IslePilotCredentialFor(string sourceId) => Path.Combine(
+        Root,
+        $"islepilot-overlay-{sourceId}.credential");
+
     public static string OverlayLayoutSettings { get; } = Path.Combine(
         Root,
         "overlay-layout.json");
+
+    public static string PlayerPathTrail { get; } = Path.Combine(
+        Root,
+        "player-path-trail.json");
 
     public static string CrashLog { get; } = Path.Combine(Root, "crash.log");
 }

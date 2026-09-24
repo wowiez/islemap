@@ -74,6 +74,14 @@
                             </TransformGroup>
                         </Canvas.RenderTransform>
                     </Canvas>
+                    <Canvas x:Name="PathTrailLayer" Panel.ZIndex="3" Visibility="Collapsed" IsHitTestVisible="False">
+                        <Canvas.RenderTransform>
+                            <TransformGroup>
+                                <RotateTransform x:Name="PathTrailRotationTransform" Angle="0" CenterX="141" CenterY="141" />
+                                <TranslateTransform x:Name="PathTrailPanTransform" />
+                            </TransformGroup>
+                        </Canvas.RenderTransform>
+                    </Canvas>
                     <Canvas x:Name="RouteLayer" Panel.ZIndex="4" Visibility="Collapsed" IsHitTestVisible="False">
                         <Canvas.RenderTransform>
                             <TransformGroup>
@@ -305,6 +313,7 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <Grid>
@@ -367,7 +376,14 @@
                     <Button x:Name="PrimeTasksVisibilityButton" Grid.Column="1" Style="{StaticResource ChromeButton}" Content="PRIME · OFF" Padding="8,4" Click="PrimeTasksVisibilityButton_Click" ToolTip="Tự động lấy tiến độ Prime từ telemetry của server" />
                 </Grid>
 
-                <Grid Grid.Row="9" Margin="0,9,0,0">
+                <Grid Grid.Row="9" Margin="0,8,0,0">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /><ColumnDefinition Width="5" /><ColumnDefinition Width="60" /></Grid.ColumnDefinitions>
+                    <TextBlock Text="ĐƯỜNG ĐI" Foreground="#D5DDD5" FontFamily="Bahnschrift SemiCondensed" FontSize="10" VerticalAlignment="Center" />
+                    <Button x:Name="PathTrailToggleButton" Grid.Column="1" Style="{StaticResource ChromeButton}" Content="TRAIL · ON" Padding="8,4" Click="PathTrailToggleButton_Click" ToolTip="Bật/tắt hiển thị đường đi của bạn trên bản đồ" />
+                    <Button x:Name="ClearPathTrailButton" Grid.Column="3" Style="{StaticResource ChromeButton}" Content="XÓA" Padding="8,4" Click="ClearPathTrailButton_Click" ToolTip="Xóa lịch sử đường đi hiện tại" />
+                </Grid>
+
+                <Grid Grid.Row="10" Margin="0,9,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />

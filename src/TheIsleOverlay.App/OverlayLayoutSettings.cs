@@ -14,6 +14,7 @@ public sealed record OverlayLayoutSettings
     public bool RotateMap { get; init; }
     public bool AutoDetectLiveMap { get; init; } = true;
     public bool ShowPrimeTasks { get; init; }
+    public bool ShowPathTrail { get; init; } = true;
     public bool NpcapEnabled { get; init; } = true;
     public bool CopyAssetEnabled { get; init; } = true;
     public bool AutoHideOutsideGame { get; init; } = true;
@@ -48,6 +49,7 @@ public static class OverlayLayoutRules
             RotateMap = settings.RotateMap,
             AutoDetectLiveMap = settings.AutoDetectLiveMap,
             ShowPrimeTasks = settings.ShowPrimeTasks,
+            ShowPathTrail = settings.ShowPathTrail,
             NpcapEnabled = settings.NpcapEnabled,
             // Copy Asset is a permanent fallback. Older settings that disabled it
             // are intentionally migrated back to enabled.

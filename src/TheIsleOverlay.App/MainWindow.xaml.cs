@@ -27,11 +27,16 @@ public partial class MainWindow : Window
             ["/maps/icons/sanctuary.webp"] = new("Assets/SbtcSanctuary.png", UriKind.Relative),
             ["/maps/icons/migration.webp"] = new("Assets/SbtcMigration.png", UriKind.Relative)
         };
-    private static readonly TimeSpan LiveHeadingAnimationDuration = TimeSpan.FromMilliseconds(70);
-    private static readonly TimeSpan MovementHeadingAnimationDuration = TimeSpan.FromMilliseconds(220);
+    // The viewport keeps the marker centered and pans the map instead, and the
+    // heading turns with the camera. Packet samples arrive a few times per
+    // second, so both follow their newest target on every rendered frame:
+    // restarting a short easing animation per sample makes the map and the needle
+    // start and stop with the packet cadence.
+    private const double MapPanFollowRate = 11d;
+    private const double MapPanFollowEpsilon = 0.05d;
+    private const double HeadingFollowRate = 13d;
+    private const double HeadingFollowEpsilon = 0.02d;
     private const double MapZoomShortcutStep = 0.25d;
-    private static readonly TimeSpan MinimumMapPanDuration = TimeSpan.FromMilliseconds(110);
-    private static readonly TimeSpan MaximumMapPanDuration = TimeSpan.FromMilliseconds(360);
 
     private const int SettingsHotkeyId = 0x714;
     private const int ZoomInHotkeyId = 0x715;
@@ -65,6 +70,7 @@ public partial class MainWindow : Window
     private readonly ITelemetrySession? _providedSession;
     private readonly GuideGarageApi? _garageApi;
     private readonly OverlayLayoutSettingsStore _layoutSettingsStore = new();
+    private readonly PlayerPathTrailStore _pathTrailStore = new();
     private readonly Dictionary<string, ImageSource> _sbtcZoneIconSources = new(StringComparer.Ordinal);
     private readonly HashSet<string> _sbtcZoneIconLoads = new(StringComparer.Ordinal);
     private readonly List<RotateTransform> _sbtcZoneLabelRotations = [];
@@ -90,6 +96,8 @@ public partial class MainWindow : Window
     private WorldLocation? _autoDetectLocationAtClipboard;
     private DateTimeOffset? _lastAutoDetectedMapUpdatedAt;
     private DateTimeOffset? _autoDetectMapUpdatedAtClipboard;
+    private string? _lastActiveServer;
+    private string? _lastActiveSpecies;
     private HwndSource? _windowSource;
     private double _mapZoom = 2.25d;
     private string _mapStyle = OverlayLayoutRules.DefaultMapStyle;
@@ -123,6 +131,19 @@ public partial class MainWindow : Window
     private double? _lastMapWorldLeft;
     private double? _lastMapWorldTop;
     private MapPoint? _lastPositionedMapPoint;
+    private double _mapPanOffsetX;
+    private double _mapPanOffsetY;
+    private double _needleFollowAngle;
+    private double _needleFollowTarget;
+    private double _mapFollowAngle;
+    private double _mapFollowTarget;
+    private double? _lastAppliedNeedleAngle;
+    private double? _lastAppliedMapAngle;
+    private long _overlayFrameTick;
+    private bool _overlayFrameActive;
+    private bool _mapPanFollowing;
+    private bool _needleFollowing;
+    private bool _mapRotationFollowing;
     private MapPoint? _routeDestination;
     private LargeMapWindow? _largeMapWindow;
     private GuideWindow? _guideWindow;
@@ -171,9 +192,8 @@ public partial class MainWindow : Window
         _providedCookie = cookieValue;
         _providedSession = telemetrySession;
         _garageApi = garageApi;
-        _usesIslePilotMap = source?.Kind == TelemetrySourceKind.IslePilot ||
-                            telemetrySession is not null &&
-                            displayName?.Contains("ISLEPILOT", StringComparison.OrdinalIgnoreCase) == true;
+        _usesIslePilotMap = source?.Kind is TelemetrySourceKind.IslePilot or TelemetrySourceKind.IslePilotHosted ||
+                            telemetrySession is not null;
         if (!string.IsNullOrWhiteSpace(displayName))
         {
             _configuredSource = displayName;
@@ -195,6 +215,7 @@ public partial class MainWindow : Window
         ApplyMapRotationPreference(_rotateMap, persist: false);
         ApplyAutoDetectLiveMapPreference(_autoDetectLiveMap, persist: false);
         RenderPrimeTasks(null);
+        UpdatePathTrailButtonState();
         ApplyPanelVisibility(persist: false);
     }
 
@@ -287,7 +308,7 @@ public partial class MainWindow : Window
 
     private void ConfigureTelemetrySession(TelemetrySourceDefinition source, string cookieValue)
     {
-        _usesIslePilotMap = source.Kind == TelemetrySourceKind.IslePilot;
+        _usesIslePilotMap = source.Kind is TelemetrySourceKind.IslePilot or TelemetrySourceKind.IslePilotHosted;
         var provider = source.CreateProvider(_httpClient, cookieValue);
         _telemetrySession = new PollingTelemetrySession(
             provider,
@@ -361,7 +382,8 @@ public partial class MainWindow : Window
         var activeServer = snapshot.PlayerOnline ? snapshot.Player?.Server : null;
         UpdateSbtcZoneData(
             activeServer,
-            snapshot.Map?.PointsOfInterest);
+            snapshot.Map?.PointsOfInterest,
+            snapshot.Map?.PointsOfInterest is { Count: > 0 });
         UpdateSbtcPlayerData(activeServer, snapshot.Map?.Markers);
         RenderPrimeTasks(snapshot.PlayerOnline ? snapshot.Player?.Prime : null);
 
@@ -411,6 +433,15 @@ public partial class MainWindow : Window
             }
 
             var player = ApplyFreshNpcapPosition(snapshot.Player);
+            var currentServer = player.Server ?? snapshot.Source;
+            var currentSpecies = player.Class;
+            if ((_lastActiveServer is not null && !string.Equals(_lastActiveServer, currentServer, StringComparison.OrdinalIgnoreCase)) ||
+                (_lastActiveSpecies is not null && !string.Equals(_lastActiveSpecies, currentSpecies, StringComparison.OrdinalIgnoreCase)))
+            {
+                ClearPathTrail();
+            }
+            _lastActiveServer = currentServer;
+            _lastActiveSpecies = currentSpecies;
             _activeSpeciesName = player.Class;
             var exact = player.ExactVitals;
 
@@ -472,6 +503,10 @@ public partial class MainWindow : Window
                 effectiveMapLocation);
             _location = effectiveLocation;
             _mapLocation = effectiveMapLocation;
+            if (effectiveMapLocation is { } mapPoint)
+            {
+                RecordPathTrailPoint(mapPoint, effectiveLocation);
+            }
         if (_location is not null)
         {
             var altitude = _location.Z is null ? "—" : $"{_location.Z.Value / 1000d:0.0}";
@@ -488,8 +523,9 @@ public partial class MainWindow : Window
     {
         if (player.ExactMapHeadingDegrees is not null)
         {
-            _headingDegrees = MapHeading.Normalize(player.ExactMapHeadingDegrees.Value);
-            AnimateHeadingTo(_headingDegrees, LiveHeadingAnimationDuration);
+            var targetHeading = MapHeading.Normalize(player.ExactMapHeadingDegrees.Value);
+            _headingDegrees = targetHeading;
+            AnimateHeadingTo(_headingDegrees);
             _hasMovementHeading = true;
             DirectionNeedle.Opacity = 1d;
             HeadingModeLabel.Text = $"{_headingDegrees:000}°";
@@ -523,6 +559,10 @@ public partial class MainWindow : Window
         {
             if (ReferenceEquals(_npcapPositionSource, source)) ApplyNpcapPosition(sample);
         }, DispatcherPriority.Render);
+        source.ServerFlowChanged += () => Dispatcher.BeginInvoke(() =>
+        {
+            if (ReferenceEquals(_npcapPositionSource, source)) ClearPathTrail();
+        }, DispatcherPriority.Background);
         source.Start();
     }
 
@@ -589,6 +629,7 @@ public partial class MainWindow : Window
         var changed = HasMapPositionChanged(_location, _mapLocation, location, mapLocation);
         _location = location;
         _mapLocation = mapLocation;
+        RecordPathTrailPoint(mapLocation, location);
         var altitude = location.Z is null ? "—" : $"{location.Z.Value / 1000d:0.0}";
         CoordinateLabel.Text = $"X {location.X / 1000d:0.0}  Y {location.Y / 1000d:0.0}  Z {altitude}";
         RequestStatusLabel.Text = "NPCAP · LIVE";
@@ -654,11 +695,32 @@ public partial class MainWindow : Window
 
     private bool ApplyClipboardLocation(WorldLocation location)
     {
+        if (_npcapPositionSource is { } source)
+        {
+            source.SeedLocation(location);
+        }
+
         // Npcap is the sole source for the local player's position while live.
-        // Consume copied coordinates so an old clipboard value cannot jump the
-        // marker now or immediately after another telemetry frame arrives.
+        // Seed Npcap with copied coordinates to anchor channel selection and
+        // immediately snap the marker to the authoritative copied location.
         if (IsNpcapOwnPositionAuthoritative)
         {
+            var projected = ProjectNpcapLocation(location);
+            var changed = HasMapPositionChanged(
+                _location,
+                _mapLocation,
+                location,
+                projected);
+            _location = location;
+            _mapLocation = projected;
+            RecordPathTrailPoint(projected, location);
+            var alt = location.Z is null ? "—" : $"{location.Z.Value / 1000d:0.0}";
+            CoordinateLabel.Text = $"X {location.X / 1000d:0.0}  Y {location.Y / 1000d:0.0}  Z {alt}";
+            PlayerMarker.Visibility = Visibility.Visible;
+            if (changed)
+            {
+                PositionMap();
+            }
             return true;
         }
 
@@ -681,14 +743,14 @@ public partial class MainWindow : Window
                 minimumDistance: 2_000d))
         {
             _headingDegrees = clipboardHeading;
-            AnimateHeadingTo(_headingDegrees, MovementHeadingAnimationDuration);
+            AnimateHeadingTo(_headingDegrees);
             _hasMovementHeading = true;
             DirectionNeedle.Opacity = 1d;
             HeadingModeLabel.Text = $"{_headingDegrees:000}°";
         }
 
         _previousClipboardLocation = location;
-        var projectedLocation = GatewayMapProjection.Project(location);
+        var projectedLocation = ProjectNpcapLocation(location);
         var mapPositionChanged = HasMapPositionChanged(
             _location,
             _mapLocation,
@@ -743,7 +805,7 @@ public partial class MainWindow : Window
             _headingDegrees = _hasMovementHeading
                 ? MovementHeading.Smooth(_headingDegrees, measuredHeading, 0.72d)
                 : measuredHeading;
-            AnimateHeadingTo(_headingDegrees, MovementHeadingAnimationDuration);
+            AnimateHeadingTo(_headingDegrees);
             _hasMovementHeading = true;
             DirectionNeedle.Opacity = 1d;
             HeadingModeLabel.Text = $"{_headingDegrees:000}°";
@@ -756,34 +818,7 @@ public partial class MainWindow : Window
         _previousLocation = current;
     }
 
-    private void AnimateHeadingTo(double targetDegrees, TimeSpan duration)
-    {
-        var target = MapHeading.Normalize(targetDegrees);
-        var mapTarget = _rotateMap ? MapHeading.MapRotationForHeadingUp(target) : 0d;
-        var needleTarget = _rotateMap ? 0d : target;
-        if (!_hasMovementHeading)
-        {
-            MapRotationTransform.BeginAnimation(RotateTransform.AngleProperty, null);
-            MapRotationTransform.Angle = mapTarget;
-            DrinkingWaterRotationTransform.BeginAnimation(RotateTransform.AngleProperty, null);
-            DrinkingWaterRotationTransform.Angle = mapTarget;
-            SetSbtcZoneRotation(mapTarget, animate: false, duration: duration);
-            SetCompassRotation(mapTarget, animate: false, duration: duration);
-            DirectionNeedleRotationTransform.BeginAnimation(RotateTransform.AngleProperty, null);
-            DirectionNeedleRotationTransform.Angle = needleTarget;
-            PositionMap();
-            return;
-        }
-
-        AnimateRotationTo(MapRotationTransform, mapTarget, duration);
-        AnimateRotationTo(DrinkingWaterRotationTransform, mapTarget, duration);
-        SetSbtcZoneRotation(mapTarget, animate: true, duration: duration);
-        SetCompassRotation(mapTarget, animate: true, duration: duration);
-        AnimateRotationTo(DirectionNeedleRotationTransform, needleTarget, duration);
-        PositionMap();
-    }
-
-    private void SetCompassRotation(double mapAngle, bool animate, TimeSpan duration)
+    private void SetCompassRotation(double mapAngle)
     {
         var counterAngle = -mapAngle;
         RotateTransform[] counterRotations =
@@ -794,17 +829,6 @@ public partial class MainWindow : Window
             WestLabelCounterRotationTransform
         ];
 
-        if (animate)
-        {
-            AnimateRotationTo(CompassRingRotationTransform, mapAngle, duration);
-            foreach (var rotation in counterRotations)
-            {
-                AnimateRotationTo(rotation, counterAngle, duration);
-            }
-
-            return;
-        }
-
         CompassRingRotationTransform.BeginAnimation(RotateTransform.AngleProperty, null);
         CompassRingRotationTransform.Angle = mapAngle;
         foreach (var rotation in counterRotations)
@@ -814,30 +838,8 @@ public partial class MainWindow : Window
         }
     }
 
-    private void SetSbtcZoneRotation(double mapAngle, bool animate, TimeSpan duration)
+    private void SetSbtcZoneRotation(double mapAngle)
     {
-        if (animate)
-        {
-            AnimateRotationTo(SbtcZoneRotationTransform, mapAngle, duration);
-            AnimateRotationTo(SbtcZoneDecorationRotationTransform, mapAngle, duration);
-            AnimateRotationTo(RouteRotationTransform, mapAngle, duration);
-            AnimateRotationTo(SbtcPlayerRotationTransform, mapAngle, duration);
-            foreach (var rotation in _sbtcZoneLabelRotations)
-            {
-                AnimateRotationTo(rotation, -mapAngle, duration);
-            }
-            foreach (var rotation in _sbtcPlayerLabelRotations)
-            {
-                AnimateRotationTo(rotation, -mapAngle, duration);
-            }
-            if (_routeDistanceLabelRotation is not null)
-            {
-                AnimateRotationTo(_routeDistanceLabelRotation, -mapAngle, duration);
-            }
-
-            return;
-        }
-
         SbtcZoneRotationTransform.BeginAnimation(RotateTransform.AngleProperty, null);
         SbtcZoneRotationTransform.Angle = mapAngle;
         SbtcZoneDecorationRotationTransform.BeginAnimation(RotateTransform.AngleProperty, null);
@@ -861,23 +863,6 @@ public partial class MainWindow : Window
             _routeDistanceLabelRotation.BeginAnimation(RotateTransform.AngleProperty, null);
             _routeDistanceLabelRotation.Angle = -mapAngle;
         }
-    }
-
-    private static void AnimateRotationTo(RotateTransform transform, double targetAngle, TimeSpan duration)
-    {
-        var current = transform.Angle;
-        var shortestDelta = (targetAngle - current + 540d) % 360d - 180d;
-        transform.BeginAnimation(
-            RotateTransform.AngleProperty,
-            new DoubleAnimation
-        {
-            From = current,
-                To = current + shortestDelta,
-            Duration = duration,
-            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut },
-            FillBehavior = FillBehavior.HoldEnd
-            },
-            HandoffBehavior.SnapshotAndReplace);
     }
 
     private static void RenderVital(System.Windows.Controls.ProgressBar bar, System.Windows.Controls.TextBlock label, double? current, double? maximum, double? fallback)
@@ -972,7 +957,9 @@ public partial class MainWindow : Window
 
     private void SetTelemetryOpacity(double opacity)
     {
-        PlayerMarker.Opacity = opacity;
+        // The player pointer tracks its own position source (Npcap or the live map
+        // feed), so a stalled statistics session must not make it look faded and
+        // untrustworthy. Only the readouts follow the telemetry session health.
         HealthBar.Opacity = StaminaBar.Opacity = HungerBar.Opacity = WaterBar.Opacity = opacity;
         HealthValue.Opacity = StaminaValue.Opacity = HungerValue.Opacity = WaterValue.Opacity = opacity;
         GrowthLabel.Opacity = CoordinateLabel.Opacity = opacity;
@@ -1004,7 +991,7 @@ public partial class MainWindow : Window
         DrinkingWaterImage.Height = imageHeight;
 
         var point = _mapLocation ??
-            (_location is null ? new MapPoint(0.5d, 0.5d) : GatewayMapProjection.Project(_location));
+            (_location is null ? new MapPoint(0.5d, 0.5d) : ProjectNpcapLocation(_location));
         var left = viewportWidth / 2d - point.Left * imageWidth;
         var top = viewportHeight / 2d - point.Top * imageHeight;
         var targetChanged = _lastMapWorldLeft is null || _lastMapWorldTop is null ||
@@ -1055,6 +1042,14 @@ public partial class MainWindow : Window
         RouteRotationTransform.CenterY = viewportHeight / 2d - top;
         RenderRouteOverlay(imageWidth, imageHeight, point);
 
+        PathTrailLayer.Width = imageWidth;
+        PathTrailLayer.Height = imageHeight;
+        Canvas.SetLeft(PathTrailLayer, left);
+        Canvas.SetTop(PathTrailLayer, top);
+        PathTrailRotationTransform.CenterX = viewportWidth / 2d - left;
+        PathTrailRotationTransform.CenterY = viewportHeight / 2d - top;
+        RenderPathTrailOverlay(imageWidth, imageHeight);
+
         SbtcPlayerLayer.Width = imageWidth;
         SbtcPlayerLayer.Height = imageHeight;
         Canvas.SetLeft(SbtcPlayerLayer, left);
@@ -1062,10 +1057,11 @@ public partial class MainWindow : Window
         SbtcPlayerRotationTransform.CenterX = viewportWidth / 2d - left;
         SbtcPlayerRotationTransform.CenterY = viewportHeight / 2d - top;
         if (_sbtcPlayerMarkers.Count > 0 &&
-            (pointChanged ||
-             Math.Abs(_renderedPlayerWidth - imageWidth) > 0.1d ||
+            (Math.Abs(_renderedPlayerWidth - imageWidth) > 0.1d ||
              Math.Abs(_renderedPlayerHeight - imageHeight) > 0.1d))
         {
+            // Marker positions only depend on the map size, so moving the player
+            // must not rebuild this layer on every packet.
             RenderSbtcPlayerOverlay(imageWidth, imageHeight);
         }
 
@@ -1076,7 +1072,7 @@ public partial class MainWindow : Window
         {
             if (IsLoaded && pointChanged)
             {
-                AnimateMapPan(panStartX, panStartY);
+                FollowMapPan(panStartX, panStartY);
             }
             else
             {
@@ -1091,51 +1087,198 @@ public partial class MainWindow : Window
         _guideWindow?.UpdateCurrentLocation(CurrentMapPoint());
     }
 
-    private void AnimateMapPan(double offsetX, double offsetY)
+    private void AnimateHeadingTo(double targetDegrees)
     {
-        var distance = Math.Sqrt(offsetX * offsetX + offsetY * offsetY);
-        var durationMilliseconds = Math.Clamp(
-            110d + distance * 0.8d,
-            MinimumMapPanDuration.TotalMilliseconds,
-            MaximumMapPanDuration.TotalMilliseconds);
-        var duration = TimeSpan.FromMilliseconds(durationMilliseconds);
-
-        foreach (var transform in MapPanTransforms())
+        var target = MapHeading.Normalize(targetDegrees);
+        if (!_hasMovementHeading)
         {
-            AnimatePanAxis(transform, TranslateTransform.XProperty, offsetX, duration);
-            AnimatePanAxis(transform, TranslateTransform.YProperty, offsetY, duration);
+            SnapHeading(target);
+            return;
+        }
+
+        // The needle and the map own separate follow angles, so toggling the
+        // rotate mode eases both of them instead of jumping.
+        FollowHeadingAngle(
+            ref _needleFollowAngle,
+            ref _needleFollowTarget,
+            ref _needleFollowing,
+            _rotateMap ? 0d : target);
+        FollowHeadingAngle(
+            ref _mapFollowAngle,
+            ref _mapFollowTarget,
+            ref _mapRotationFollowing,
+            _rotateMap ? MapHeading.MapRotationForHeadingUp(target) : 0d);
+
+        if (_needleFollowing || _mapRotationFollowing)
+        {
+            EnsureOverlayFrame();
         }
     }
 
-    private static void AnimatePanAxis(
-        TranslateTransform transform,
-        DependencyProperty property,
-        double from,
-        TimeSpan duration)
+    private void FollowHeadingAngle(ref double angle, ref double target, ref bool following, double desiredDegrees)
     {
-        transform.BeginAnimation(property, null);
-        transform.SetValue(property, from);
-        var animation = new DoubleAnimation
+        var shortest = (MapHeading.Normalize(desiredDegrees) - MapHeading.Normalize(angle) + 540d) % 360d - 180d;
+        target = angle + shortest;
+        following = Math.Abs(target - angle) > HeadingFollowEpsilon;
+        if (!following)
         {
-            From = from,
-            To = 0d,
-            Duration = duration,
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
-            FillBehavior = FillBehavior.Stop
-        };
-        transform.BeginAnimation(property, animation, HandoffBehavior.SnapshotAndReplace);
-        transform.SetValue(property, 0d);
+            angle = target;
+            ApplyHeadingAngles();
+        }
     }
 
-    private void ResetMapPan()
+    private void SnapHeading(double target)
+    {
+        _needleFollowing = false;
+        _needleFollowAngle = _needleFollowTarget = _rotateMap ? 0d : target;
+        _mapRotationFollowing = false;
+        _mapFollowAngle = _mapFollowTarget = _rotateMap ? MapHeading.MapRotationForHeadingUp(target) : 0d;
+        ApplyHeadingAngles();
+        PositionMap();
+    }
+
+    private void ApplyHeadingAngles()
+    {
+        var needleAngle = _needleFollowAngle;
+        var mapAngle = _mapFollowAngle;
+        if (_lastAppliedNeedleAngle is { } previousNeedle &&
+            _lastAppliedMapAngle is { } previousMap &&
+            Math.Abs(previousNeedle - needleAngle) < 0.0001d &&
+            Math.Abs(previousMap - mapAngle) < 0.0001d)
+        {
+            return;
+        }
+
+        _lastAppliedNeedleAngle = needleAngle;
+        _lastAppliedMapAngle = mapAngle;
+        DirectionNeedleRotationTransform.BeginAnimation(RotateTransform.AngleProperty, null);
+        DirectionNeedleRotationTransform.Angle = needleAngle;
+        MapRotationTransform.BeginAnimation(RotateTransform.AngleProperty, null);
+        MapRotationTransform.Angle = mapAngle;
+        DrinkingWaterRotationTransform.BeginAnimation(RotateTransform.AngleProperty, null);
+        DrinkingWaterRotationTransform.Angle = mapAngle;
+        SetSbtcZoneRotation(mapAngle);
+        SetCompassRotation(mapAngle);
+    }
+
+    private void ApplyMapPanOffsets()
     {
         foreach (var transform in MapPanTransforms())
         {
             transform.BeginAnimation(TranslateTransform.XProperty, null);
             transform.BeginAnimation(TranslateTransform.YProperty, null);
-            transform.X = 0d;
-            transform.Y = 0d;
+            transform.X = _mapPanOffsetX;
+            transform.Y = _mapPanOffsetY;
         }
+    }
+
+    private void FollowMapPan(double offsetX, double offsetY)
+    {
+        _mapPanOffsetX = offsetX;
+        _mapPanOffsetY = offsetY;
+        ApplyMapPanOffsets();
+        if (Math.Abs(offsetX) < MapPanFollowEpsilon && Math.Abs(offsetY) < MapPanFollowEpsilon)
+        {
+            _mapPanOffsetX = 0d;
+            _mapPanOffsetY = 0d;
+            ApplyMapPanOffsets();
+            _mapPanFollowing = false;
+            StopOverlayFrameIfIdle();
+            return;
+        }
+
+        _mapPanFollowing = true;
+        EnsureOverlayFrame();
+    }
+
+    private void EnsureOverlayFrame()
+    {
+        if (_overlayFrameActive)
+        {
+            return;
+        }
+
+        _overlayFrameActive = true;
+        _overlayFrameTick = Stopwatch.GetTimestamp();
+        CompositionTarget.Rendering += OnOverlayFrame;
+    }
+
+    private void AdvanceHeadingFollow(ref double angle, double target, ref bool following, double step)
+    {
+        var delta = target - angle;
+        if (Math.Abs(delta) <= HeadingFollowEpsilon)
+        {
+            angle = target;
+            following = false;
+            return;
+        }
+
+        angle = target - delta * Math.Exp(-step * HeadingFollowRate);
+    }
+
+    private void StopOverlayFrameIfIdle()
+    {
+        if (!_overlayFrameActive || _mapPanFollowing || _needleFollowing || _mapRotationFollowing)
+        {
+            return;
+        }
+
+        _overlayFrameActive = false;
+        CompositionTarget.Rendering -= OnOverlayFrame;
+    }
+
+    private void OnOverlayFrame(object? sender, EventArgs e)
+    {
+        var now = Stopwatch.GetTimestamp();
+        var elapsed = (now - _overlayFrameTick) / (double)Stopwatch.Frequency;
+        _overlayFrameTick = now;
+        if (elapsed <= 0d)
+        {
+            return;
+        }
+
+        var step = Math.Min(elapsed, 0.25d);
+        if (_mapPanFollowing)
+        {
+            var decay = Math.Exp(-step * MapPanFollowRate);
+            _mapPanOffsetX *= decay;
+            _mapPanOffsetY *= decay;
+            if (Math.Abs(_mapPanOffsetX) < MapPanFollowEpsilon &&
+                Math.Abs(_mapPanOffsetY) < MapPanFollowEpsilon)
+            {
+                _mapPanOffsetX = 0d;
+                _mapPanOffsetY = 0d;
+                _mapPanFollowing = false;
+            }
+
+            ApplyMapPanOffsets();
+        }
+
+        if (_needleFollowing || _mapRotationFollowing)
+        {
+            AdvanceHeadingFollow(
+                ref _needleFollowAngle,
+                _needleFollowTarget,
+                ref _needleFollowing,
+                step);
+            AdvanceHeadingFollow(
+                ref _mapFollowAngle,
+                _mapFollowTarget,
+                ref _mapRotationFollowing,
+                step);
+            ApplyHeadingAngles();
+        }
+
+        StopOverlayFrameIfIdle();
+    }
+
+    private void ResetMapPan()
+    {
+        _mapPanOffsetX = 0d;
+        _mapPanOffsetY = 0d;
+        _mapPanFollowing = false;
+        ApplyMapPanOffsets();
+        StopOverlayFrameIfIdle();
     }
 
     private IEnumerable<TranslateTransform> MapPanTransforms()
@@ -1144,6 +1287,7 @@ public partial class MainWindow : Window
         yield return DrinkingWaterPanTransform;
         yield return SbtcZonePanTransform;
         yield return SbtcZoneDecorationPanTransform;
+        yield return PathTrailPanTransform;
         yield return RoutePanTransform;
         yield return SbtcPlayerPanTransform;
     }
@@ -1223,8 +1367,131 @@ public partial class MainWindow : Window
         RouteLayer.Children.Add(distanceLabel);
     }
 
+    private void ClearPathTrail()
+    {
+        _pathTrailStore.Clear();
+        _largeMapWindow?.UpdatePathTrail([], _layoutSettings.ShowPathTrail);
+        _guideWindow?.UpdatePathTrail([], _layoutSettings.ShowPathTrail);
+        RenderPathTrailOverlay(MapImage.ActualWidth, MapImage.ActualHeight);
+    }
+
+    private void RecordPathTrailPoint(MapPoint mapPoint, WorldLocation? worldLocation = null)
+    {
+        if (_pathTrailStore.AddPoint(mapPoint, worldLocation))
+        {
+            _largeMapWindow?.UpdatePathTrail(_pathTrailStore.GetPoints(), _layoutSettings.ShowPathTrail);
+            _guideWindow?.UpdatePathTrail(_pathTrailStore.GetPoints(), _layoutSettings.ShowPathTrail);
+        }
+    }
+
+    private void RenderPathTrailOverlay(double imageWidth, double imageHeight)
+    {
+        PathTrailLayer.Children.Clear();
+        if (!_layoutSettings.ShowPathTrail)
+        {
+            PathTrailLayer.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var points = _pathTrailStore.GetPoints();
+        if (points.Count < 2)
+        {
+            PathTrailLayer.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        PathTrailLayer.Visibility = Visibility.Visible;
+        const double maxNormalizedSegmentDistSq = 0.12 * 0.12;
+
+        List<Point> currentSegment = [];
+        for (var i = 0; i < points.Count; i++)
+        {
+            var p = points[i];
+            var canvasPoint = new Point(p.Left * imageWidth, p.Top * imageHeight);
+
+            if (currentSegment.Count > 0)
+            {
+                var prev = points[i - 1];
+                var dx = p.Left - prev.Left;
+                var dy = p.Top - prev.Top;
+                if (dx * dx + dy * dy > maxNormalizedSegmentDistSq)
+                {
+                    DrawPathTrailSegment(currentSegment);
+                    currentSegment = [];
+                }
+            }
+            currentSegment.Add(canvasPoint);
+        }
+
+        if (currentSegment.Count >= 2)
+        {
+            DrawPathTrailSegment(currentSegment);
+        }
+    }
+
+    private void DrawPathTrailSegment(List<Point> segmentPoints)
+    {
+        if (segmentPoints.Count < 2) return;
+
+        var points = new PointCollection(segmentPoints);
+        var outline = new Polyline
+        {
+            Points = points,
+            Stroke = Brushes.Black,
+            StrokeThickness = 3.2d,
+            StrokeLineJoin = PenLineJoin.Round,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round,
+            Opacity = 0.45d,
+            IsHitTestVisible = false
+        };
+        var line = new Polyline
+        {
+            Points = points,
+            Stroke = BrushFrom("#FF2E88"),
+            StrokeThickness = 1.8d,
+            StrokeLineJoin = PenLineJoin.Round,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round,
+            Opacity = 0.9d,
+            IsHitTestVisible = false
+        };
+        PathTrailLayer.Children.Add(outline);
+        PathTrailLayer.Children.Add(line);
+    }
+
+    private void PathTrailToggleButton_Click(object sender, RoutedEventArgs e)
+    {
+        var next = !_layoutSettings.ShowPathTrail;
+        _layoutSettings = OverlayLayoutRules.Normalize(_layoutSettings with { ShowPathTrail = next });
+        _layoutSettingsStore.Save(_layoutSettings);
+        UpdatePathTrailButtonState();
+        if (_lastMapWorldLeft is { } left && _lastMapWorldTop is { } top)
+        {
+            RenderPathTrailOverlay(left, top);
+        }
+        _largeMapWindow?.UpdatePathTrail(_pathTrailStore.GetPoints(), _layoutSettings.ShowPathTrail);
+        _guideWindow?.UpdatePathTrail(_pathTrailStore.GetPoints(), _layoutSettings.ShowPathTrail);
+    }
+
+    private void ClearPathTrailButton_Click(object sender, RoutedEventArgs e)
+    {
+        _pathTrailStore.Clear();
+        if (_lastMapWorldLeft is { } left && _lastMapWorldTop is { } top)
+        {
+            RenderPathTrailOverlay(left, top);
+        }
+        _largeMapWindow?.UpdatePathTrail(_pathTrailStore.GetPoints(), _layoutSettings.ShowPathTrail);
+        _guideWindow?.UpdatePathTrail(_pathTrailStore.GetPoints(), _layoutSettings.ShowPathTrail);
+    }
+
+    private void UpdatePathTrailButtonState()
+    {
+        PathTrailToggleButton.Content = _layoutSettings.ShowPathTrail ? "TRAIL · ON" : "TRAIL · OFF";
+    }
+
     private MapPoint? CurrentMapPoint() =>
-        _mapLocation ?? (_location is null ? null : GatewayMapProjection.Project(_location));
+        _mapLocation ?? (_location is null ? null : ProjectNpcapLocation(_location));
 
     private void ToggleLargeMap()
     {
@@ -1248,6 +1515,7 @@ public partial class MainWindow : Window
                     _routeDestination,
                     _sbtcZoneFeatures,
                     _sbtcPlayerMarkers);
+                _largeMapWindow.UpdatePathTrail(_pathTrailStore.GetPoints(), _layoutSettings.ShowPathTrail);
                 _largeMapWindow.ShowCentered();
             }
 
@@ -1263,6 +1531,7 @@ public partial class MainWindow : Window
             _routeDestination,
             _sbtcZoneFeatures,
             _sbtcPlayerMarkers);
+        mapWindow.UpdatePathTrail(_pathTrailStore.GetPoints(), _layoutSettings.ShowPathTrail);
         mapWindow.ShowCentered();
     }
 
@@ -1316,10 +1585,13 @@ public partial class MainWindow : Window
         guideWindow.DestinationChanged += GuideWindow_DestinationChanged;
         guideWindow.NpcapEnabledChanged += GuideWindow_NpcapEnabledChanged;
         guideWindow.AutoHideOutsideGameChanged += GuideWindow_AutoHideOutsideGameChanged;
+        guideWindow.PathTrailToggleRequested += GuideWindow_PathTrailToggleRequested;
+        guideWindow.ClearPathTrailRequested += GuideWindow_ClearPathTrailRequested;
         guideWindow.RetryNpcapRequested += GuideWindow_RetryNpcapRequested;
         guideWindow.DownloadNpcapRequested += GuideWindow_DownloadNpcapRequested;
         guideWindow.Closed += GuideWindow_Closed;
         _guideWindow = guideWindow;
+        guideWindow.UpdatePathTrail(_pathTrailStore.GetPoints(), _layoutSettings.ShowPathTrail);
         guideWindow.Show();
         guideWindow.Activate();
     }
@@ -1331,11 +1603,37 @@ public partial class MainWindow : Window
             _guideWindow.DestinationChanged -= GuideWindow_DestinationChanged;
             _guideWindow.NpcapEnabledChanged -= GuideWindow_NpcapEnabledChanged;
             _guideWindow.AutoHideOutsideGameChanged -= GuideWindow_AutoHideOutsideGameChanged;
+            _guideWindow.PathTrailToggleRequested -= GuideWindow_PathTrailToggleRequested;
+            _guideWindow.ClearPathTrailRequested -= GuideWindow_ClearPathTrailRequested;
             _guideWindow.RetryNpcapRequested -= GuideWindow_RetryNpcapRequested;
             _guideWindow.DownloadNpcapRequested -= GuideWindow_DownloadNpcapRequested;
             _guideWindow.Closed -= GuideWindow_Closed;
             _guideWindow = null;
         }
+    }
+
+    private void GuideWindow_PathTrailToggleRequested(bool enabled)
+    {
+        _layoutSettings = OverlayLayoutRules.Normalize(_layoutSettings with { ShowPathTrail = enabled });
+        _layoutSettingsStore.Save(_layoutSettings);
+        UpdatePathTrailButtonState();
+        if (_lastMapWorldLeft is { } left && _lastMapWorldTop is { } top)
+        {
+            RenderPathTrailOverlay(left, top);
+        }
+        _largeMapWindow?.UpdatePathTrail(_pathTrailStore.GetPoints(), _layoutSettings.ShowPathTrail);
+        _guideWindow?.UpdatePathTrail(_pathTrailStore.GetPoints(), _layoutSettings.ShowPathTrail);
+    }
+
+    private void GuideWindow_ClearPathTrailRequested()
+    {
+        _pathTrailStore.Clear();
+        if (_lastMapWorldLeft is { } left && _lastMapWorldTop is { } top)
+        {
+            RenderPathTrailOverlay(left, top);
+        }
+        _largeMapWindow?.UpdatePathTrail(_pathTrailStore.GetPoints(), _layoutSettings.ShowPathTrail);
+        _guideWindow?.UpdatePathTrail(_pathTrailStore.GetPoints(), _layoutSettings.ShowPathTrail);
     }
 
 
@@ -1526,13 +1824,15 @@ public partial class MainWindow : Window
 
     private void UpdateSbtcZoneData(
         string? serverName,
-        IReadOnlyList<MapPointOfInterestTelemetry>? pointsOfInterest)
+        IReadOnlyList<MapPointOfInterestTelemetry>? pointsOfInterest,
+        bool hasHostZones)
     {
         var features = SbtcZoneOverlay.Create(
             serverName,
             pointsOfInterest,
             _bundledSbtcZones,
-            _usesIslePilotMap);
+            _usesIslePilotMap,
+            hasHostZones);
         var signature = SbtcZoneOverlay.Signature(features);
         if (string.Equals(signature, _sbtcZoneSignature, StringComparison.Ordinal))
         {
@@ -2108,7 +2408,11 @@ public partial class MainWindow : Window
         _rotateMap = rotateMap;
         MapRotationButton.Content = _rotateMap ? "ROTATE · ON" : "ROTATE · OFF";
         MapRotationButton.Background = _rotateMap ? BrushFrom("#3A1D514B") : Brushes.Transparent;
-        AnimateHeadingTo(_headingDegrees, LiveHeadingAnimationDuration);
+        // The applied angles depend on the mode, so re-apply even when the
+        // heading itself did not change.
+        _lastAppliedNeedleAngle = null;
+        _lastAppliedMapAngle = null;
+        AnimateHeadingTo(_headingDegrees);
 
         if (persist)
         {

@@ -8,17 +8,15 @@ namespace TheIsleOverlay.IslePilot;
 
 public sealed class IslePilotOverlayApiClient : IIslePilotOverlayApiClient
 {
-    private static readonly Uri MeUri = new(IslePilotOverlayOptions.ServiceBaseUri, "api/overlay/me");
-    private static readonly Uri MapUri = new(IslePilotOverlayOptions.ServiceBaseUri, "api/overlay/map");
-    private static readonly Uri GarageUri = new(IslePilotOverlayOptions.ServiceBaseUri, "api/overlay/garage");
-    private static readonly Uri GarageParkUri = new(IslePilotOverlayOptions.ServiceBaseUri, "api/overlay/garage/park");
-    private static readonly Uri GarageStatusUri = new(IslePilotOverlayOptions.ServiceBaseUri, "api/overlay/garage/status");
-    private static readonly Uri SkinDraftsUri = new(IslePilotOverlayOptions.ServiceBaseUri, "api/player/skin-drafts");
-    private static readonly Uri SkinApplyUri = new(IslePilotOverlayOptions.ServiceBaseUri, "api/skin/set");
-    private static readonly Uri SbtcMarkersUri = new(
-        IslePilotOverlayOptions.ServiceBaseUri,
-        "api/p/sbtcisland/map/markers");
-
+    private readonly Uri _serviceBaseUri;
+    private readonly Uri _meUri;
+    private readonly Uri _mapUri;
+    private readonly Uri _garageUri;
+    private readonly Uri _garageParkUri;
+    private readonly Uri _garageStatusUri;
+    private readonly Uri _skinDraftsUri;
+    private readonly Uri _skinApplyUri;
+    private readonly Uri _sbtcMarkersUri;
     private readonly HttpClient _httpClient;
     private readonly string _overlayToken;
 
@@ -37,19 +35,28 @@ public sealed class IslePilotOverlayApiClient : IIslePilotOverlayApiClient
             throw new ArgumentException("The IslePilot overlay token is invalid.", nameof(options));
         }
 
+        _serviceBaseUri = options.ServiceBaseUri;
+        _meUri = new Uri(_serviceBaseUri, "api/overlay/me");
+        _mapUri = new Uri(_serviceBaseUri, "api/overlay/map");
+        _garageUri = new Uri(_serviceBaseUri, "api/overlay/garage");
+        _garageParkUri = new Uri(_serviceBaseUri, "api/overlay/garage/park");
+        _garageStatusUri = new Uri(_serviceBaseUri, "api/overlay/garage/status");
+        _skinDraftsUri = new Uri(_serviceBaseUri, "api/player/skin-drafts");
+        _skinApplyUri = new Uri(_serviceBaseUri, "api/skin/set");
+        _sbtcMarkersUri = new Uri(_serviceBaseUri, "api/p/sbtcisland/map/markers");
         _httpClient = httpClient;
         _overlayToken = NormalizeOverlayToken(options.OverlayToken);
     }
 
     public Task<IslePilotOverlayMeDto> GetMeAsync(CancellationToken cancellationToken = default) =>
-        GetAsync<IslePilotOverlayMeDto>(MeUri, cancellationToken);
+        GetAsync<IslePilotOverlayMeDto>(_meUri, cancellationToken);
 
     public Task<IslePilotOverlayMapDto> GetMapAsync(CancellationToken cancellationToken = default) =>
-        GetAsync<IslePilotOverlayMapDto>(MapUri, cancellationToken);
+        GetAsync<IslePilotOverlayMapDto>(_mapUri, cancellationToken);
 
     public Task<IslePilotOverlayGarageDto> GetGarageAsync(
         CancellationToken cancellationToken = default) =>
-        GetAsync<IslePilotOverlayGarageDto>(GarageUri, cancellationToken);
+        GetAsync<IslePilotOverlayGarageDto>(_garageUri, cancellationToken);
 
     public Task<IslePilotOverlayGarageCommandDto> ParkGarageDinoAsync(
         string step,
@@ -61,7 +68,7 @@ public sealed class IslePilotOverlayApiClient : IIslePilotOverlayApiClient
         }
 
         return PostAsync<IslePilotOverlayGarageCommandDto>(
-            GarageParkUri,
+            _garageParkUri,
             new IslePilotOverlayGarageParkRequest(step),
             cancellationToken);
     }
@@ -72,7 +79,7 @@ public sealed class IslePilotOverlayApiClient : IIslePilotOverlayApiClient
     {
         ValidateIdentifier(dinoId, nameof(dinoId));
         var uri = new Uri(
-            IslePilotOverlayOptions.ServiceBaseUri,
+            _serviceBaseUri,
             $"api/overlay/garage/{Uri.EscapeDataString(dinoId)}/restore");
         return PostAsync<IslePilotOverlayGarageCommandDto>(uri, body: null, cancellationToken);
     }
@@ -82,7 +89,7 @@ public sealed class IslePilotOverlayApiClient : IIslePilotOverlayApiClient
         CancellationToken cancellationToken = default)
     {
         ValidateIdentifier(commandId, nameof(commandId));
-        var uri = new UriBuilder(GarageStatusUri)
+        var uri = new UriBuilder(_garageStatusUri)
         {
             Query = $"id={Uri.EscapeDataString(commandId)}"
         }.Uri;
@@ -93,7 +100,7 @@ public sealed class IslePilotOverlayApiClient : IIslePilotOverlayApiClient
         string slug, CancellationToken cancellationToken = default)
     {
         ValidateIdentifier(slug, nameof(slug));
-        var uri = new UriBuilder(SkinDraftsUri)
+        var uri = new UriBuilder(_skinDraftsUri)
         {
             Query = $"slug={Uri.EscapeDataString(slug)}"
         }.Uri;
@@ -140,7 +147,7 @@ public sealed class IslePilotOverlayApiClient : IIslePilotOverlayApiClient
             .ToList();
 
         return await PostCookieOnlyAsync<IslePilotOverlaySkinDraftDto>(
-            SkinDraftsUri,
+            _skinDraftsUri,
             new IslePilotOverlaySkinDraftRequest(slug, merged),
             cancellationToken).ConfigureAwait(false);
     }
@@ -193,7 +200,7 @@ public sealed class IslePilotOverlayApiClient : IIslePilotOverlayApiClient
         ValidateIdentifier(species, nameof(species));
         ArgumentNullException.ThrowIfNull(palette);
         return PostCookieOnlyAsync<IslePilotOverlaySkinApplyDto>(
-            SkinApplyUri,
+            _skinApplyUri,
             new IslePilotOverlaySkinApplyRequest(
                 serverId,
                 IslePilotOverlaySkinSetPayloadDto.FromPalette(species, palette, female, theme, pattern, variation)),
@@ -208,7 +215,7 @@ public sealed class IslePilotOverlayApiClient : IIslePilotOverlayApiClient
         ValidateIdentifier(species, nameof(species));
         ArgumentNullException.ThrowIfNull(payload);
         return PostCookieOnlyAsync<IslePilotOverlaySkinApplyDto>(
-            SkinApplyUri,
+            _skinApplyUri,
             new IslePilotOverlaySkinApplyRequest(
                 serverId,
                 IslePilotOverlaySkinSetPayloadDto.FromDraft(species, payload, female)),
@@ -218,7 +225,7 @@ public sealed class IslePilotOverlayApiClient : IIslePilotOverlayApiClient
     public async Task<IslePilotOverlayMarkersDto> GetMarkersAsync(
         CancellationToken cancellationToken = default)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, SbtcMarkersUri);
+        using var request = new HttpRequestMessage(HttpMethod.Get, _sbtcMarkersUri);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         request.Headers.CacheControl = new CacheControlHeaderValue { NoCache = true, NoStore = true };
         request.Headers.Pragma.ParseAdd("no-cache");
@@ -258,7 +265,7 @@ public sealed class IslePilotOverlayApiClient : IIslePilotOverlayApiClient
         request.Headers.Pragma.ParseAdd("no-cache");
         request.Headers.TryAddWithoutValidation("X-Overlay-Version", "2");
         request.Headers.TryAddWithoutValidation("Cookie", PlayerCookieHeader);
-        request.Headers.Referrer = IslePilotOverlayOptions.ServiceBaseUri;
+        request.Headers.Referrer = _serviceBaseUri;
 
         using var response = await _httpClient.SendAsync(
             request,
@@ -341,8 +348,8 @@ public sealed class IslePilotOverlayApiClient : IIslePilotOverlayApiClient
         request.Headers.CacheControl = new CacheControlHeaderValue { NoCache = true, NoStore = true };
         request.Headers.Pragma.ParseAdd("no-cache");
         request.Headers.TryAddWithoutValidation("Cookie", PlayerCookieHeader);
-        request.Headers.TryAddWithoutValidation("Origin", IslePilotOverlayOptions.ServiceBaseUri.GetLeftPart(UriPartial.Authority));
-        request.Headers.Referrer = IslePilotOverlayOptions.ServiceBaseUri;
+        request.Headers.TryAddWithoutValidation("Origin", _serviceBaseUri.GetLeftPart(UriPartial.Authority));
+        request.Headers.Referrer = _serviceBaseUri;
     }
 
     private async Task<T> PostAsync<T>(
@@ -355,7 +362,7 @@ public sealed class IslePilotOverlayApiClient : IIslePilotOverlayApiClient
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         request.Headers.TryAddWithoutValidation("X-Overlay-Version", "2");
         request.Headers.TryAddWithoutValidation("Cookie", PlayerCookieHeader);
-        request.Headers.Referrer = IslePilotOverlayOptions.ServiceBaseUri;
+        request.Headers.Referrer = _serviceBaseUri;
         if (body is not null)
         {
             request.Content = JsonContent.Create(body, options: IslePilotOverlayJson.Options);

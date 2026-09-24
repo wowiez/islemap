@@ -40,6 +40,31 @@ public sealed class IslePilotRealtimeSessionTests
     }
 
     [Fact]
+    public async Task WatchAsync_ConnectsTheSocketToAHostedServerDomain()
+    {
+        var api = new FakeApiClient();
+        var socket = new FakeWebSocket(
+        [
+            new IslePilotOverlayLiveDataDto
+            {
+                HasDino = true,
+                Health = 8,
+                Position = new IslePilotOverlayPositionDto { X = 25, Y = 50, Yaw = 90 }
+            }
+        ]);
+        await using var session = new IslePilotRealtimeSession(api, HostedOptions("3.sdvn.org"), () => socket);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        await using var snapshots = session.WatchAsync(timeout.Token).GetAsyncEnumerator();
+
+        _ = await ReadUntilAsync(
+            snapshots,
+            value => value.SessionState == TelemetrySessionState.Live,
+            timeout.Token);
+
+        Assert.Equal(new Uri("wss://3.sdvn.org/ows"), socket.ConnectedUri);
+    }
+
+    [Fact]
     public async Task LiveWebSocket_DoesNotSuspendIndependentRestPollers()
     {
         var api = new FakeApiClient { Online = true, Server = "SBTC ISLAND" };
@@ -689,6 +714,12 @@ public sealed class IslePilotRealtimeSessionTests
         MapRefreshInterval = TimeSpan.FromHours(1)
     };
 
+    private static IslePilotOverlayOptions HostedOptions(string host) => Options() with
+    {
+        ServiceBaseUri = new Uri($"https://{host}/"),
+        WebSocketUri = new Uri($"wss://{host}/ows")
+    };
+
     private static async Task<TelemetrySnapshot> ReadUntilAsync(
         IAsyncEnumerator<TelemetrySnapshot> snapshots,
         Func<TelemetrySnapshot, bool> predicate,
@@ -792,11 +823,19 @@ public sealed class IslePilotRealtimeSessionTests
         public bool IsConnected { get; private set; }
         public bool Disposed { get; private set; }
         public string? ConnectedToken { get; private set; }
+        public Uri? ConnectedUri { get; private set; }
         public string? HelloName { get; private set; }
         public Task Connected => _connected.Task;
 
-        public Task ConnectAsync(string overlayToken, CancellationToken cancellationToken = default)
+        public Task ConnectAsync(string overlayToken, CancellationToken cancellationToken = default) =>
+            ConnectAsync(overlayToken, IslePilotOverlayOptions.DefaultWebSocketUri, cancellationToken);
+
+        public Task ConnectAsync(
+            string overlayToken,
+            Uri webSocketUri,
+            CancellationToken cancellationToken = default)
         {
+            ConnectedUri = webSocketUri;
             if (connectFailure is not null)
             {
                 return Task.FromException(connectFailure);

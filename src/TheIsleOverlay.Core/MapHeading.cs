@@ -2,6 +2,8 @@ namespace TheIsleOverlay.Core;
 
 public static class MapHeading
 {
+    // Unreal yaw 0 faces +X, which is the map's east on Gateway, so the compass
+    // heading is the yaw turned a quarter turn clockwise.
     public static double FromUnrealYaw(double yawDegrees) => Normalize(yawDegrees + 90d);
 
     public static double MapRotationForHeadingUp(double headingDegrees) => -Normalize(headingDegrees);

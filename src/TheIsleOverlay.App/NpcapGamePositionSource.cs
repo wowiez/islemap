@@ -7,6 +7,7 @@ using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
+using TheIsleOverlay.Core;
 
 namespace TheIsleOverlay.App;
 
@@ -26,6 +27,7 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
     private NpcapSourceState _state;
     private long _lastPositionTick;
     private GameFlow? _activeFlow;
+    private bool _seededFromClipboard;
 
     public NpcapGamePositionSource()
     {
@@ -36,6 +38,7 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
 
     public event Action<NpcapPositionSample>? PositionReceived;
     public event Action<NpcapSourceState>? StateChanged;
+    public event Action? ServerFlowChanged;
 
     public bool IsSupported => OperatingSystem.IsWindows() && File.Exists(NpcapLibrary);
     public NpcapSourceState State => _state;
@@ -44,6 +47,22 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
         FindGameUdpEndpoints().Select(endpoint => endpoint.Port).Distinct().Order().ToArray();
 
     internal static string? GetNpcapDeviceForDiagnostics() => FindActiveNpcapDevice();
+
+    public void SeedLocation(WorldLocation location)
+    {
+        _seededFromClipboard = true;
+        _stabilizer.Seed(location);
+        List<NpcapGamePacketDecoder> decoders;
+        lock (_decoders)
+        {
+            decoders = _decoders.Values.ToList();
+        }
+
+        foreach (var decoder in decoders)
+        {
+            decoder.SeedLocation(location);
+        }
+    }
 
     public void Start()
     {
@@ -203,6 +222,15 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
 
     private bool AcceptFlow(GameFlow flow)
     {
+        // Inbound replication carries movement for every nearby actor and cannot
+        // say which one is the local player, so on its own it can pin the marker
+        // on someone else. Only trust it once the player copied an Asset Location
+        // and the decoder was anchored to that spot.
+        if (flow.Inbound && !_seededFromClipboard)
+        {
+            return false;
+        }
+
         if (_activeFlow is null)
         {
             _activeFlow = flow;
@@ -214,8 +242,7 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
             return true;
         }
 
-        // Inbound replication contains movement for every nearby actor. The
-        // client's outbound movement RPC is the only reliable source for the
+        // The client's outbound movement RPC is the only reliable source for the
         // local player. Prefer it immediately when it becomes available,
         // otherwise a stationary player can be replaced by another dino's
         // packet and appear to jump across the map.
@@ -228,6 +255,7 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
         {
             _activeFlow = flow;
             _stabilizer.Reset();
+            ServerFlowChanged?.Invoke();
             return true;
         }
 
@@ -238,6 +266,7 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
 
         _activeFlow = flow;
         _stabilizer.Reset();
+        ServerFlowChanged?.Invoke();
         return true;
     }
 
@@ -257,10 +286,13 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
 
     private NpcapGamePacketDecoder GetDecoder(GameFlow flow)
     {
-        if (_decoders.TryGetValue(flow, out var decoder)) return decoder;
-        decoder = new NpcapGamePacketDecoder();
-        _decoders[flow] = decoder;
-        return decoder;
+        lock (_decoders)
+        {
+            if (_decoders.TryGetValue(flow, out var decoder)) return decoder;
+            decoder = new NpcapGamePacketDecoder();
+            _decoders[flow] = decoder;
+            return decoder;
+        }
     }
 
     internal static bool TryReadUdpDatagram(

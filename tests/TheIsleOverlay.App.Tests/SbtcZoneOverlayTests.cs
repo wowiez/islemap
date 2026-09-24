@@ -22,7 +22,8 @@ public sealed class SbtcZoneOverlayTests
                 Poi("West Rail", "Patrol Zones", 4),
                 Poi("Highlands", "Locations", 1),
                 Poi("Sanctuary", "Sanctuaries", 8)
-            ]);
+            ],
+            hasHostZones: true);
 
         Assert.Collection(
             features,
@@ -38,7 +39,8 @@ public sealed class SbtcZoneOverlayTests
     {
         var features = SbtcZoneOverlay.Create(
             "Another Gateway Server",
-            [Poi("Delta", "Locations", 1)]);
+            [Poi("Delta", "Locations", 1)],
+            hasHostZones: true);
 
         Assert.Empty(features);
     }
@@ -48,7 +50,8 @@ public sealed class SbtcZoneOverlayTests
     {
         var features = SbtcZoneOverlay.Create(
             "SBTC Gateway",
-            [Poi("Random food spawn", "Food", 1)]);
+            [Poi("Random food spawn", "Food", 1)],
+            hasHostZones: true);
 
         Assert.Empty(features);
     }
@@ -64,7 +67,7 @@ public sealed class SbtcZoneOverlayTests
                 [new MapPoint(0.1, 0.1), new MapPoint(0.2, 0.1), new MapPoint(0.2, 0.2)])
         };
 
-        var features = SbtcZoneOverlay.Create("SBTC Gateway", [], fallback);
+        var features = SbtcZoneOverlay.Create("SBTC Gateway", [], fallback, hasHostZones: true);
 
         Assert.Same(fallback, features);
     }
@@ -84,7 +87,8 @@ public sealed class SbtcZoneOverlayTests
             "DinoVietNam",
             [],
             fallback,
-            isIslePilotServer: true);
+            isIslePilotServer: true,
+            hasHostZones: true);
 
         Assert.Same(fallback, features);
     }
@@ -96,7 +100,8 @@ public sealed class SbtcZoneOverlayTests
             "DinoVietNam Premium",
             [Poi("Premium Patrol", "Patrol Zones", 4)],
             fallback: [],
-            isIslePilotServer: true);
+            isIslePilotServer: true,
+            hasHostZones: true);
 
         var feature = Assert.Single(features);
         Assert.Equal("Premium Patrol", feature.Name);
@@ -115,7 +120,8 @@ public sealed class SbtcZoneOverlayTests
         var features = SbtcZoneOverlay.Create(
             "SBTC Gateway",
             [Poi("Only one API zone", "Patrol Zones", 3)],
-            fallback);
+            fallback,
+            hasHostZones: true);
 
         var live = Assert.Single(features);
         Assert.Equal("Only one API zone", live.Name);
@@ -131,7 +137,7 @@ public sealed class SbtcZoneOverlayTests
             .Concat(Enumerable.Range(0, 6).Select(index => Poi($"Hunting {index}", null, 1, "circle", 0.05, "#38bdf8")))
             .ToArray();
 
-        var features = SbtcZoneOverlay.Create("SBTC ISLAND", pois);
+        var features = SbtcZoneOverlay.Create("SBTC ISLAND", pois, hasHostZones: true);
 
         Assert.Equal(46, features.Count);
         Assert.Equal(6, features.Count(feature => feature.Kind == SbtcZoneKind.Sanctuary));
@@ -143,6 +149,24 @@ public sealed class SbtcZoneOverlayTests
         Assert.Equal("circle", hunting.Shape);
         Assert.Equal(0.05, hunting.Size);
         Assert.Equal("#38bdf8", hunting.Color);
+    }
+
+    [Fact]
+    public void Create_DrawsNoZonesWithoutHostZoneData()
+    {
+        var fallback = new[]
+        {
+            new SbtcZoneFeature(
+                "Delta (MMZ)",
+                SbtcZoneKind.Migration,
+                [new MapPoint(0.1, 0.1), new MapPoint(0.2, 0.1), new MapPoint(0.2, 0.2)])
+        };
+
+        // No host zone payload: the map stays clean even on an SBTC-named server
+        // with a configured IslePilot source, and even when markers are flowing.
+        Assert.Empty(SbtcZoneOverlay.Create("SBTC Gateway", [], fallback));
+        Assert.Empty(SbtcZoneOverlay.Create("SBTC Gateway", [Poi("Delta", "Migration Zones", 3)], fallback));
+        Assert.Empty(SbtcZoneOverlay.Create("DinoVietNam", [], fallback, isIslePilotServer: true));
     }
 
     [Fact]

@@ -131,7 +131,7 @@ public partial class HomeWindow : Window
         }
     }
 
-    private void SourceButton_Click(object sender, RoutedEventArgs e)
+    private async void SourceButton_Click(object sender, RoutedEventArgs e)
     {
         if (_connecting || sender is not Button { Tag: string sourceId })
         {
@@ -150,6 +150,14 @@ public partial class HomeWindow : Window
 
         try
         {
+            if (source.Kind == TelemetrySourceKind.IslePilotHosted)
+            {
+                // Own-domain IslePilot host: Steam handshake and overlay token come
+                // from that host, so the shared network session is untouched.
+                await ConnectHostedIslePilotAsync(source);
+                return;
+            }
+
             var loginWindow = new LoginWindow(source, (cookie, token) => ValidateSessionAsync(source, cookie, token))
             {
                 Owner = this

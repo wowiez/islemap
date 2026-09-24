@@ -36,8 +36,18 @@ public static class SbtcZoneOverlay
         string? serverName,
         IReadOnlyList<MapPointOfInterestTelemetry>? pointsOfInterest,
         IReadOnlyList<SbtcZoneFeature>? fallback = null,
-        bool isIslePilotServer = false)
+        bool isIslePilotServer = false,
+        bool hasHostZones = false)
     {
+        // Zone shapes, colours and labels only belong on screen while the host map
+        // feed is actually delivering them. Without it the offline catalogue draws
+        // dozens of purple and yellow markers over the terrain, which buries the
+        // player's own position, and that position comes from Npcap anyway.
+        if (!hasHostZones)
+        {
+            return [];
+        }
+
         if (!isIslePilotServer && !IsSbtcServer(serverName))
         {
             return [];

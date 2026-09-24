@@ -4,6 +4,8 @@ public interface IIslePilotOverlayWebSocket : IAsyncDisposable
 {
     Task ConnectAsync(string overlayToken, CancellationToken cancellationToken = default);
 
+    Task ConnectAsync(string overlayToken, Uri webSocketUri, CancellationToken cancellationToken = default);
+
     Task SendHelloAsync(string? personaName, CancellationToken cancellationToken = default);
 
     IAsyncEnumerable<IslePilotOverlayLiveDataDto> ReadLiveAsync(

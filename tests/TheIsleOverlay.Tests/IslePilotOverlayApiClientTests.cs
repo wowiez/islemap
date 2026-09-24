@@ -38,6 +38,26 @@ public sealed class IslePilotOverlayApiClientTests
     }
 
     [Fact]
+    public async Task HostedServer_UsesItsOwnDomainForOverlayRequests()
+    {
+        using var handler = new RecordingHandler(HttpStatusCode.OK, """
+            {
+              "hasData": true,
+              "steamId": "76561198000000000",
+              "personaName": "Player",
+              "species": "Tyrannosaurus"
+            }
+            """);
+        using var httpClient = new HttpClient(handler);
+        var client = CreateHostedClient(httpClient, "3.sdvn.org");
+
+        var me = await client.GetMeAsync();
+
+        Assert.Equal("Tyrannosaurus", me.Species);
+        Assert.Equal(new Uri("https://3.sdvn.org/api/overlay/me"), handler.RequestUri);
+    }
+
+    [Fact]
     public async Task GetMapAsync_UsesOverlayMapEndpoint()
     {
         using var handler = new RecordingHandler(HttpStatusCode.OK, """
@@ -610,6 +630,15 @@ public sealed class IslePilotOverlayApiClientTests
     private static IslePilotOverlayApiClient CreateClient(HttpClient httpClient) => new(
         httpClient,
         new IslePilotOverlayOptions { OverlayToken = Token });
+
+    private static IslePilotOverlayApiClient CreateHostedClient(HttpClient httpClient, string host) => new(
+        httpClient,
+        new IslePilotOverlayOptions
+        {
+            OverlayToken = Token,
+            ServiceBaseUri = new Uri($"https://{host}/"),
+            WebSocketUri = new Uri($"wss://{host}/ows")
+        });
 
     private sealed class SequenceHandler(Queue<(HttpStatusCode Status, string Body)> responses) : HttpMessageHandler
     {

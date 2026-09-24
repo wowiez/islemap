@@ -5,10 +5,10 @@ namespace TheIsleOverlay.Tests;
 public sealed class MovementHeadingTests
 {
     [Theory]
-    [InlineData(-1000, 0, 0)]
-    [InlineData(0, 1000, 90)]
-    [InlineData(1000, 0, 180)]
-    [InlineData(0, -1000, 270)]
+    [InlineData(-1000, 0, 270)]
+    [InlineData(0, 1000, 180)]
+    [InlineData(1000, 0, 90)]
+    [InlineData(0, -1000, 0)]
     public void TryCalculate_MapsWorldMovementToClockwiseMapHeading(double x, double y, double expected)
     {
         var previous = new WorldLocation { X = 0, Y = 0 };

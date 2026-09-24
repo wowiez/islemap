@@ -10,9 +10,17 @@ public partial class IslePilotSteamLoginWindow : Window
     private bool _resettingAccount;
 
     public IslePilotSteamLoginWindow()
+        : this(IslePilotOverlayOptions.DefaultServiceBaseUri)
     {
+    }
+
+    public IslePilotSteamLoginWindow(Uri serviceBaseUri)
+    {
+        _serviceBaseUri = serviceBaseUri ?? IslePilotOverlayOptions.DefaultServiceBaseUri;
         InitializeComponent();
     }
+
+    private readonly Uri _serviceBaseUri;
 
     public IslePilotOverlayAuthResult? Credentials { get; private set; }
 
@@ -52,10 +60,10 @@ public partial class IslePilotSteamLoginWindow : Window
             return;
         }
 
-        if (!IslePilotOverlayLoginNavigationPolicy.IsAllowed(e.Uri))
+        if (!IslePilotOverlayLoginNavigationPolicy.IsAllowed(e.Uri, _serviceBaseUri))
         {
             e.Cancel = true;
-            LoginStatusLabel.Text = "Đã chặn điều hướng nằm ngoài IslePilot và Steam.";
+            LoginStatusLabel.Text = $"Đã chặn điều hướng nằm ngoài {_serviceBaseUri.Host} và Steam.";
         }
     }
 
@@ -80,13 +88,13 @@ public partial class IslePilotSteamLoginWindow : Window
             return;
         }
 
-        if (IslePilotOverlayLoginNavigationPolicy.IsAllowed(e.Uri))
+        if (IslePilotOverlayLoginNavigationPolicy.IsAllowed(e.Uri, _serviceBaseUri))
         {
             LoginBrowser.CoreWebView2.Navigate(e.Uri);
             return;
         }
 
-        LoginStatusLabel.Text = "Đã chặn cửa sổ nằm ngoài IslePilot và Steam.";
+        LoginStatusLabel.Text = $"Đã chặn cửa sổ nằm ngoài {_serviceBaseUri.Host} và Steam.";
     }
 
     private bool TryCompleteFromCallback(string? callback)
@@ -102,7 +110,7 @@ public partial class IslePilotSteamLoginWindow : Window
 
         if (!IslePilotOverlayAuthService.TryParseCallback(callback, out var credentials))
         {
-            LoginStatusLabel.Text = "IslePilot trả về callback không hợp lệ. Hãy thử đăng nhập lại.";
+            LoginStatusLabel.Text = "Máy chủ trả về callback không hợp lệ. Hãy thử đăng nhập lại.";
             return true;
         }
 
@@ -121,8 +129,9 @@ public partial class IslePilotSteamLoginWindow : Window
         }
 
         BrowserLoadingPanel.Visibility = Visibility.Visible;
-        LoginStatusLabel.Text = "Đang chuyển tới IslePilot và Steam…";
-        LoginBrowser.CoreWebView2.Navigate(IslePilotOverlayAuthService.LoginUri.AbsoluteUri);
+        LoginStatusLabel.Text = $"Đang chuyển tới {_serviceBaseUri.Host} và Steam…";
+        LoginBrowser.CoreWebView2.Navigate(
+            IslePilotOverlayAuthService.LoginUriFor(_serviceBaseUri).AbsoluteUri);
     }
 
     private void RetryButton_Click(object sender, RoutedEventArgs e) => NavigateToLogin();

@@ -7,7 +7,8 @@ public sealed class GatewayMapProjectionTests
     [Fact]
     public void Project_MapsKnownWorldCenterToImageCenter()
     {
-        var location = new WorldLocation { X = -49_000, Y = 51_000, Z = 0 };
+        // World X is the east/west axis on Gateway and world Y the north/south one.
+        var location = new WorldLocation { X = 51_000, Y = -49_000, Z = 0 };
 
         var point = GatewayMapProjection.Project(location);
 
@@ -16,9 +17,9 @@ public sealed class GatewayMapProjectionTests
     }
 
     [Theory]
-    [InlineData(-231654.353, 52099.673, 3907.71 / 7800d, 2629.10 / 7817d)]
-    [InlineData(41151.966, -88576.924, 2920.95 / 7800d, 4539.97 / 7817d)]
-    [InlineData(-51899.767, 158669.822, 4655.24 / 7800d, 3888.19 / 7817d)]
+    [InlineData(52099.673, -231654.353, 3907.71 / 7800d, 2629.10 / 7817d)]
+    [InlineData(-88576.924, 41151.966, 2920.95 / 7800d, 4539.97 / 7817d)]
+    [InlineData(158669.822, -51899.767, 4655.24 / 7800d, 3888.19 / 7817d)]
     public void Project_MatchesVerifiedGatewayAnchors(double x, double y, double expectedLeft, double expectedTop)
     {
         var point = GatewayMapProjection.Project(new WorldLocation { X = x, Y = y });
@@ -32,8 +33,8 @@ public sealed class GatewayMapProjectionTests
     {
         var point = GatewayMapProjection.Project(new WorldLocation
         {
-            X = 608519.832,
-            Y = -178543.339
+            X = -178543.339,
+            Y = 608519.832
         });
 
         Assert.InRange(point.Left, 0d, 1d);

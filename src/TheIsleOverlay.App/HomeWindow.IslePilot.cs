@@ -9,8 +9,9 @@ public partial class HomeWindow
 {
     private readonly IslePilotCredentialStore _islePilotCredentialStore = new(
         AppPaths.IslePilotCredential);
+    private readonly Dictionary<string, IslePilotCredentialStore> _hostedCredentialStores = [];
+    private TelemetrySourceDefinition? _islePilotSelectedSource;
     private IslePilotOverlayAuthResult? _islePilotCredentials;
-    private IReadOnlyList<IslePilotOverlayAuthResult> _islePilotAccounts = [];
     private bool _islePilotConnecting;
     private bool _updatingSteamAccountSelector;
 
@@ -51,6 +52,14 @@ public partial class HomeWindow
         SetSteamLoginControlsEnabled(false);
         try
         {
+            if (_islePilotSelectedSource is { } hostedSource)
+            {
+                // The selected account belongs to a server with its own IslePilot
+                // host, so reconnect through that host instead of the network.
+                await ConnectHostedIslePilotAsync(hostedSource);
+                return;
+            }
+
             var credentials = _islePilotCredentials
                 ?? await _islePilotCredentialStore.LoadAsync(_shutdown.Token);
             if (credentials is not null)
@@ -105,7 +114,9 @@ public partial class HomeWindow
         }
 
         var removedName = AccountDisplayName(_islePilotCredentials);
-        await _islePilotCredentialStore.RemoveAsync(_islePilotCredentials.SteamId, _shutdown.Token);
+        await CredentialStoreFor(_islePilotSelectedSource)
+            .RemoveAsync(_islePilotCredentials.SteamId, _shutdown.Token);
+        _islePilotSelectedSource = null;
         await ReloadSteamAccountsAsync();
         SourceStatusLabel.Text = $"Đã xóa {removedName} khỏi danh sách tài khoản đã lưu.";
     }
@@ -121,7 +132,7 @@ public partial class HomeWindow
         SetSteamLoginControlsEnabled(false);
         try
         {
-            var credentials = await PromptForSteamAccountAsync();
+            var credentials = await PromptForSteamAccountAsync(_islePilotSelectedSource);
             if (credentials is not null)
             {
                 await ReloadSteamAccountsAsync();
@@ -153,26 +164,90 @@ public partial class HomeWindow
         }
 
         _islePilotCredentials = choice.Credentials;
+        _islePilotSelectedSource = choice.Source;
         ApplySteamLoginState(_islePilotCredentials);
         try
         {
-            await _islePilotCredentialStore.SelectAsync(choice.Credentials.SteamId, _shutdown.Token);
+            await CredentialStoreFor(choice.Source).SelectAsync(choice.Credentials.SteamId, _shutdown.Token);
         }
         catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
         {
         }
     }
 
-    private async Task<IslePilotOverlayAuthResult?> PromptForSteamAccountAsync()
+    private IslePilotCredentialStore CredentialStoreFor(TelemetrySourceDefinition? source) =>
+        source is { Kind: TelemetrySourceKind.IslePilotHosted }
+            ? HostedCredentialStore(source.Id)
+            : _islePilotCredentialStore;
+
+    private IslePilotCredentialStore HostedCredentialStore(string sourceId)
     {
-        var loginWindow = new IslePilotSteamLoginWindow { Owner = this };
+        if (_hostedCredentialStores.TryGetValue(sourceId, out var store))
+        {
+            return store;
+        }
+
+        store = new IslePilotCredentialStore(AppPaths.IslePilotCredentialFor(sourceId));
+        _hostedCredentialStores[sourceId] = store;
+        return store;
+    }
+
+    // Servers that host their own IslePilot instance (custom domain) sign in on
+    // that host and keep their own overlay token, so they are reusable later
+    // without touching the network session.
+    private async Task ConnectHostedIslePilotAsync(TelemetrySourceDefinition source)
+    {
+        _islePilotSelectedSource = source;
+        var credentialStore = HostedCredentialStore(source.Id);
+        var credentials = await credentialStore.LoadAsync(_shutdown.Token);
+        if (credentials is not null)
+        {
+            SourceStatusLabel.Text = $"ĐANG XÁC MINH PHIÊN {source.ShortName}…";
+            var validation = await ValidateIslePilotCredentialsAsync(credentials, source.BaseUri);
+            if (validation.State == IslePilotOverlayAuthValidationState.Invalid)
+            {
+                SourceStatusLabel.Text = $"Phiên {source.ShortName} hết hạn. Đăng nhập Steam lại cho {source.BaseUri.Host}.";
+                credentials = null;
+            }
+            else if (validation.State == IslePilotOverlayAuthValidationState.Valid)
+            {
+                credentials = validation.Credentials;
+                await credentialStore.SaveAsync(credentials, _shutdown.Token);
+            }
+        }
+
+        if (credentials is null)
+        {
+            credentials = await PromptForSteamAccountAsync(source);
+            if (credentials is null)
+            {
+                SourceStatusLabel.Text = $"Chưa đăng nhập {source.BaseUri.Host}. Không có token nào được lưu.";
+                return;
+            }
+
+            await credentialStore.SaveAsync(credentials, _shutdown.Token);
+        }
+
+        SourceStatusLabel.Text = $"ĐANG KHỞI TẠO {source.ShortName} REALTIME…";
+        await OpenIslePilotOverlayAsync(credentials, source);
+    }
+
+    private async Task<IslePilotOverlayAuthResult?> PromptForSteamAccountAsync(TelemetrySourceDefinition? source = null)
+    {
+        var loginWindow = new IslePilotSteamLoginWindow(
+            source?.BaseUri ?? IslePilotOverlayOptions.DefaultServiceBaseUri)
+        {
+            Owner = this
+        };
         if (loginWindow.ShowDialog() != true || loginWindow.Credentials is null)
         {
             return null;
         }
 
         SourceStatusLabel.Text = "ĐÃ NHẬN PHIÊN · ĐANG XÁC MINH /ME…";
-        var validation = await ValidateIslePilotCredentialsAsync(loginWindow.Credentials);
+        var validation = await ValidateIslePilotCredentialsAsync(
+            loginWindow.Credentials,
+            source?.BaseUri ?? IslePilotOverlayOptions.DefaultServiceBaseUri);
         if (validation.State == IslePilotOverlayAuthValidationState.Invalid)
         {
             SourceStatusLabel.Text = "IslePilot từ chối phiên vừa đăng nhập. Hãy thử lại.";
@@ -180,13 +255,19 @@ public partial class HomeWindow
         }
 
         var credentials = validation.Credentials;
-        await _islePilotCredentialStore.SaveAsync(credentials, _shutdown.Token);
+        await CredentialStoreFor(source).SaveAsync(credentials, _shutdown.Token);
         _islePilotCredentials = credentials;
+        if (source is not null)
+        {
+            _islePilotSelectedSource = source;
+        }
+
         return credentials;
     }
 
     private async Task<SteamAccountValidation> ValidateIslePilotCredentialsAsync(
-        IslePilotOverlayAuthResult credentials)
+        IslePilotOverlayAuthResult credentials,
+        Uri? serviceBaseUri = null)
     {
         using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
         for (var attempt = 0; attempt < 3; attempt++)
@@ -195,7 +276,11 @@ public partial class HomeWindow
             {
                 var apiClient = new IslePilotOverlayApiClient(
                     httpClient,
-                    new IslePilotOverlayOptions { OverlayToken = credentials.OverlayToken });
+                    new IslePilotOverlayOptions
+                    {
+                        OverlayToken = credentials.OverlayToken,
+                        ServiceBaseUri = serviceBaseUri ?? IslePilotOverlayOptions.DefaultServiceBaseUri
+                    });
                 var me = await apiClient.GetMeAsync(_shutdown.Token);
                 var personaName = me.PersonaName ?? me.Name ?? credentials.PersonaName;
                 return new SteamAccountValidation(
@@ -221,12 +306,17 @@ public partial class HomeWindow
         return new SteamAccountValidation(IslePilotOverlayAuthValidationState.Unavailable, credentials);
     }
 
-    private async Task OpenIslePilotOverlayAsync(IslePilotOverlayAuthResult credentials)
+    private async Task OpenIslePilotOverlayAsync(
+        IslePilotOverlayAuthResult credentials,
+        TelemetrySourceDefinition? source = null)
     {
+        var serviceBaseUri = source?.BaseUri ?? IslePilotOverlayOptions.DefaultServiceBaseUri;
         var realtimeSession = IslePilotRealtimeSession.Create(new IslePilotOverlayOptions
         {
             OverlayToken = credentials.OverlayToken,
-            PersonaName = credentials.PersonaName
+            PersonaName = credentials.PersonaName,
+            ServiceBaseUri = serviceBaseUri,
+            WebSocketUri = WebSocketUriFor(serviceBaseUri)
         });
         try
         {
@@ -239,7 +329,10 @@ public partial class HomeWindow
                 realtimeSession.SaveSkinDraftAsync,
                 realtimeSession.ApplySkinPaletteAsync,
                 realtimeSession.ApplySkinDraftAsync);
-            var overlay = new MainWindow(realtimeSession, "ISLEPILOT", garageApi);
+            var overlay = new MainWindow(
+                realtimeSession,
+                source?.DisplayName ?? "ISLEPILOT",
+                garageApi);
             Application.Current.MainWindow = overlay;
             overlay.Show();
             Close();
@@ -261,12 +354,15 @@ public partial class HomeWindow
         SteamAccountLabel.Text = authenticated
             ? AccountDisplayName(credentials!)
             : "CHƯA ĐĂNG NHẬP STEAM";
+        var sourceLabel = _islePilotSelectedSource?.AccountLabel;
         SteamLoginDetailLabel.Text = authenticated
-            ? $"SteamID ••••{credentials!.SteamId[^4..]} · mã hóa Windows DPAPI"
+            ? sourceLabel is null
+                ? $"SteamID ••••{credentials!.SteamId[^4..]} · mã hóa Windows DPAPI"
+                : $"{sourceLabel} · SteamID ••••{credentials!.SteamId[^4..]}"
             : "Một phiên cho mọi server đã cài IslePilot";
         SteamLoginActionLabel.Text = authenticated ? "MỞ OVERLAY  →" : "ĐĂNG NHẬP  →";
         LogoutSteamButton.Visibility = authenticated ? Visibility.Visible : Visibility.Collapsed;
-        SteamAccountControls.Visibility = _islePilotAccounts.Count > 0
+        SteamAccountControls.Visibility = SteamAccountSelector.Items.Count > 0
             ? Visibility.Visible
             : Visibility.Collapsed;
     }
@@ -281,18 +377,44 @@ public partial class HomeWindow
 
     private async Task ReloadSteamAccountsAsync()
     {
-        _islePilotAccounts = await _islePilotCredentialStore.LoadAllAsync(_shutdown.Token);
-        _islePilotCredentials = await _islePilotCredentialStore.LoadAsync(_shutdown.Token);
-        var choices = _islePilotAccounts.Select(account => new SteamAccountChoice(account)).ToArray();
+        var networkAccounts = await _islePilotCredentialStore.LoadAllAsync(_shutdown.Token);
+        if (_islePilotSelectedSource is null && _islePilotCredentials is null && networkAccounts.Count > 0)
+        {
+            _islePilotCredentials = await _islePilotCredentialStore.LoadAsync(_shutdown.Token);
+        }
+
+        var choices = new List<SteamAccountChoice>(
+            networkAccounts.Select(account => new SteamAccountChoice(account, null)));
+        foreach (var hosted in TelemetrySourceDefinition.All.Where(
+                     source => source.Kind == TelemetrySourceKind.IslePilotHosted))
+        {
+            var store = HostedCredentialStore(hosted.Id);
+            var hostedAccounts = await store.LoadAllAsync(_shutdown.Token);
+            choices.AddRange(hostedAccounts.Select(account => new SteamAccountChoice(account, hosted)));
+            if (_islePilotSelectedSource is null && _islePilotCredentials is null && hostedAccounts.Count > 0)
+            {
+                // Keep the account and the host it belongs to in step, otherwise the
+                // open-overlay button would sign in to the wrong server.
+                _islePilotCredentials = await store.LoadAsync(_shutdown.Token);
+                if (_islePilotCredentials is not null)
+                {
+                    _islePilotSelectedSource = hosted;
+                }
+            }
+        }
 
         _updatingSteamAccountSelector = true;
         try
         {
             SteamAccountSelector.ItemsSource = choices;
-            SteamAccountSelector.SelectedItem = choices.FirstOrDefault(choice => string.Equals(
-                choice.Credentials.SteamId,
-                _islePilotCredentials?.SteamId,
-                StringComparison.Ordinal));
+            SteamAccountSelector.SelectedItem =
+                choices.FirstOrDefault(choice =>
+                    string.Equals(choice.Credentials.SteamId, _islePilotCredentials?.SteamId, StringComparison.Ordinal) &&
+                    string.Equals(choice.Source?.Id, _islePilotSelectedSource?.Id, StringComparison.OrdinalIgnoreCase))
+                ?? choices.FirstOrDefault(choice => string.Equals(
+                    choice.Credentials.SteamId,
+                    _islePilotCredentials?.SteamId,
+                    StringComparison.Ordinal));
         }
         finally
         {
@@ -301,6 +423,13 @@ public partial class HomeWindow
 
         ApplySteamLoginState(_islePilotCredentials);
     }
+
+    private static Uri WebSocketUriFor(Uri serviceBaseUri) => new UriBuilder(
+        string.Equals(serviceBaseUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ? "wss" : "ws",
+        serviceBaseUri.Host)
+    {
+        Path = "ows"
+    }.Uri;
 
     private static string AccountDisplayName(IslePilotOverlayAuthResult credentials) =>
         !string.IsNullOrWhiteSpace(credentials.PersonaName)
@@ -311,9 +440,12 @@ public partial class HomeWindow
         IslePilotOverlayAuthValidationState State,
         IslePilotOverlayAuthResult Credentials);
 
-    private sealed record SteamAccountChoice(IslePilotOverlayAuthResult Credentials)
+    internal sealed record SteamAccountChoice(
+        IslePilotOverlayAuthResult Credentials,
+        TelemetrySourceDefinition? Source)
     {
         public string Title => AccountDisplayName(Credentials);
-        public string Detail => "STEAM · ISLEPILOT";
+
+        public string Detail => $"STEAM · {Source?.AccountLabel ?? "ISLEPILOT"}";
     }
 }

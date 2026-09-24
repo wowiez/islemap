@@ -222,6 +222,7 @@ public partial class GuideWindow : Window
     private Task? _parkCancellationTask;
     private bool _npcapEnabled;
     private bool _autoHideOutsideGame;
+    private bool _showPathTrail = true;
     private NpcapSourceState _npcapState;
     private bool _settingSkinInputs;
     private string? _skinEditorSpecies;
@@ -276,6 +277,8 @@ public partial class GuideWindow : Window
     public event Action<MapPoint?>? DestinationChanged;
     public event Action<bool>? NpcapEnabledChanged;
     public event Action<bool>? AutoHideOutsideGameChanged;
+    public event Action<bool>? PathTrailToggleRequested;
+    public event Action? ClearPathTrailRequested;
     public event Action? RetryNpcapRequested;
     public event Action? DownloadNpcapRequested;
 
@@ -292,6 +295,13 @@ public partial class GuideWindow : Window
 
     public void UpdatePlayers(IReadOnlyList<SbtcPlayerMarker> players) =>
         _embeddedMapWindow.UpdatePlayers(players);
+
+    public void UpdatePathTrail(IReadOnlyList<PlayerPathTrailPoint>? points, bool showTrail)
+    {
+        _showPathTrail = showTrail;
+        GuidePathTrailToggleButton.Content = _showPathTrail ? "BẬT" : "TẮT";
+        _embeddedMapWindow.UpdatePathTrail(points, showTrail);
+    }
 
     public void UpdatePlayerOverview(GuidePlayerOverview? player)
     {
@@ -449,6 +459,16 @@ public partial class GuideWindow : Window
         _autoHideOutsideGame = !_autoHideOutsideGame;
         RenderCaptureSettings();
         AutoHideOutsideGameChanged?.Invoke(_autoHideOutsideGame);
+    }
+
+    private void GuidePathTrailToggleButton_Click(object sender, RoutedEventArgs e)
+    {
+        PathTrailToggleRequested?.Invoke(!_showPathTrail);
+    }
+
+    private void GuideClearPathTrailButton_Click(object sender, RoutedEventArgs e)
+    {
+        ClearPathTrailRequested?.Invoke();
     }
 
     private void ResetHotkeysButton_Click(object sender, RoutedEventArgs e)

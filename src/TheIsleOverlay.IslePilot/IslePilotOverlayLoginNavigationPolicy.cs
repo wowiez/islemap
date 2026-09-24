@@ -9,7 +9,9 @@ public static class IslePilotOverlayLoginNavigationPolicy
         "steampowered.com"
     ];
 
-    public static bool IsAllowed(string? rawUri)
+    public static bool IsAllowed(string? rawUri) => IsAllowed(rawUri, null);
+
+    public static bool IsAllowed(string? rawUri, Uri? serviceBaseUri)
     {
         if (!Uri.TryCreate(rawUri, UriKind.Absolute, out var uri))
         {
@@ -24,9 +26,21 @@ public static class IslePilotOverlayLoginNavigationPolicy
             return true;
         }
 
-        return string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
-            && HttpsHostSuffixes.Any(suffix =>
-                string.Equals(uri.IdnHost, suffix, StringComparison.OrdinalIgnoreCase)
-                || uri.IdnHost.EndsWith($".{suffix}", StringComparison.OrdinalIgnoreCase));
+        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        // Servers hosted on their own domain (for example 3.sdvn.org) keep the
+        // Steam handshake on that host.
+        if (serviceBaseUri is not null &&
+            string.Equals(uri.IdnHost, serviceBaseUri.IdnHost, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return HttpsHostSuffixes.Any(suffix =>
+            string.Equals(uri.IdnHost, suffix, StringComparison.OrdinalIgnoreCase)
+            || uri.IdnHost.EndsWith($".{suffix}", StringComparison.OrdinalIgnoreCase));
     }
 }

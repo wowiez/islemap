@@ -28,6 +28,8 @@ public partial class LargeMapWindow : Window
     private MapPoint? _destination;
     private IReadOnlyList<SbtcZoneFeature> _zones = [];
     private IReadOnlyList<SbtcPlayerMarker> _players = [];
+    private IReadOnlyList<PlayerPathTrailPoint> _pathTrailPoints = [];
+    private bool _showPathTrail = true;
     private Point? _dragStart;
     private Vector _dragStartPan;
     private bool _dragMoved;
@@ -63,6 +65,7 @@ public partial class LargeMapWindow : Window
         RenderZones();
         RenderPlayers();
         RenderRouteAndMarkers();
+        RenderPathTrail();
     }
 
     public void UpdateCurrentLocation(MapPoint? currentLocation)
@@ -88,6 +91,80 @@ public partial class LargeMapWindow : Window
     {
         _players = players ?? [];
         RenderPlayers();
+    }
+
+    public void UpdatePathTrail(IReadOnlyList<PlayerPathTrailPoint>? points, bool showTrail)
+    {
+        _pathTrailPoints = points ?? [];
+        _showPathTrail = showTrail;
+        RenderPathTrail();
+    }
+
+    private void RenderPathTrail()
+    {
+        LargePathTrailLayer.Children.Clear();
+        if (!_showPathTrail || _pathTrailPoints.Count < 2)
+        {
+            return;
+        }
+
+        const double maxNormalizedSegmentDistSq = 0.12 * 0.12;
+        List<Point> currentSegment = [];
+
+        for (var i = 0; i < _pathTrailPoints.Count; i++)
+        {
+            var p = _pathTrailPoints[i];
+            var canvasPoint = ToCanvasPoint(new MapPoint(p.Left, p.Top));
+
+            if (currentSegment.Count > 0)
+            {
+                var prev = _pathTrailPoints[i - 1];
+                var dx = p.Left - prev.Left;
+                var dy = p.Top - prev.Top;
+                if (dx * dx + dy * dy > maxNormalizedSegmentDistSq)
+                {
+                    DrawLargePathTrailSegment(currentSegment);
+                    currentSegment = [];
+                }
+            }
+            currentSegment.Add(canvasPoint);
+        }
+
+        if (currentSegment.Count >= 2)
+        {
+            DrawLargePathTrailSegment(currentSegment);
+        }
+    }
+
+    private void DrawLargePathTrailSegment(List<Point> segmentPoints)
+    {
+        if (segmentPoints.Count < 2) return;
+
+        var points = new PointCollection(segmentPoints);
+        var outline = new Polyline
+        {
+            Points = points,
+            Stroke = Brushes.Black,
+            StrokeThickness = 3.2d,
+            StrokeLineJoin = PenLineJoin.Round,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round,
+            Opacity = 0.45d,
+            IsHitTestVisible = false
+        };
+        var line = new Polyline
+        {
+            Points = points,
+            Stroke = BrushFrom("#FF2E88"),
+            StrokeThickness = 1.8d,
+            StrokeLineJoin = PenLineJoin.Round,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round,
+            Opacity = 0.9d,
+            IsHitTestVisible = false
+        };
+        LargePathTrailLayer.Children.Add(outline);
+        LargePathTrailLayer.Children.Add(line);
     }
 
     public bool PasteDestinationFromClipboard()

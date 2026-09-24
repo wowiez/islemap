@@ -30,6 +30,13 @@ public sealed class IslePilotOverlayWebSocket : IIslePilotOverlayWebSocket
 
     public async Task ConnectAsync(
         string overlayToken,
+        CancellationToken cancellationToken = default) =>
+        await ConnectAsync(overlayToken, IslePilotOverlayOptions.DefaultWebSocketUri, cancellationToken)
+            .ConfigureAwait(false);
+
+    public async Task ConnectAsync(
+        string overlayToken,
+        Uri webSocketUri,
         CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -43,7 +50,7 @@ public sealed class IslePilotOverlayWebSocket : IIslePilotOverlayWebSocket
         _socket.Options.SetRequestHeader("Authorization", $"Bearer {overlayToken}");
         try
         {
-            await _socket.ConnectAsync(IslePilotOverlayOptions.WebSocketUri, cancellationToken);
+            await _socket.ConnectAsync(webSocketUri, cancellationToken);
         }
         catch (Exception exception) when (IsAuthenticationFailure(exception))
         {

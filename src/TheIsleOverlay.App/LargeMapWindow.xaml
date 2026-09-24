@@ -41,12 +41,14 @@
                     </Image>
                     <Canvas x:Name="LargeZoneLayer" Width="1112" Height="1116"
                             Panel.ZIndex="1" IsHitTestVisible="False" />
-                    <Canvas x:Name="LargePlayerLayer" Width="1112" Height="1116"
+                    <Canvas x:Name="LargePathTrailLayer" Width="1112" Height="1116"
                             Panel.ZIndex="2" IsHitTestVisible="False" />
-                    <Canvas x:Name="LargeRouteLayer" Width="1112" Height="1116"
+                    <Canvas x:Name="LargePlayerLayer" Width="1112" Height="1116"
                             Panel.ZIndex="3" IsHitTestVisible="False" />
-                    <Canvas x:Name="LargeMarkerLayer" Width="1112" Height="1116"
+                    <Canvas x:Name="LargeRouteLayer" Width="1112" Height="1116"
                             Panel.ZIndex="4" IsHitTestVisible="False" />
+                    <Canvas x:Name="LargeMarkerLayer" Width="1112" Height="1116"
+                            Panel.ZIndex="5" IsHitTestVisible="False" />
                 </Canvas>
             </Viewbox>
             </Grid>

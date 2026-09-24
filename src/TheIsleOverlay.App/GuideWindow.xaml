@@ -803,6 +803,22 @@
                                                 Click="AutoHideOutsideGameButton_Click" />
                                     </Grid>
                                 </Border>
+                                <Border BorderBrush="#303236" BorderThickness="0,1,0,0" Margin="0,14,0,0" Padding="0,14,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="8" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="Đường đi người chơi (Path Trail)" Foreground="#E1E2E4" FontWeight="SemiBold" />
+                                            <TextBlock Text="Hiển thị vệt đường đi mỏng của bạn trên bản đồ; lưu vết tối đa 3 tiếng."
+                                                       Foreground="#85888D" Margin="0,3,16,0" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <Button x:Name="GuidePathTrailToggleButton" Grid.Column="1" Content="BẬT"
+                                                Style="{StaticResource SettingsActionButton}"
+                                                Click="GuidePathTrailToggleButton_Click" />
+                                        <Button x:Name="GuideClearPathTrailButton" Grid.Column="3" Content="XÓA VỆT"
+                                                Style="{StaticResource SettingsActionButton}"
+                                                Click="GuideClearPathTrailButton_Click" />
+                                    </Grid>
+                                </Border>
                             </StackPanel>
                         </Border>
 

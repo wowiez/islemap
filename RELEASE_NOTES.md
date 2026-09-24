@@ -1,9 +1,29 @@
 # Isle Live Map 1.8.4
 
-- Sửa lỗi nghiêm trọng: **lưu skin draft bị mất toàn bộ draft cũ**.
-  - Nguyên nhân: API IslePilot thay thế toàn bộ danh sách draft mỗi khi nhận POST — hub chỉ gửi 1 draft mới nên server xóa toàn bộ draft cũ.
-  - Cách sửa: trước khi lưu, hub tự động tải danh sách draft hiện có (GET), gộp draft mới vào (replace nếu trùng tên, append nếu khác tên), sau đó POST toàn bộ danh sách đầy đủ lên server.
-  - Nếu GET thất bại do lỗi mạng, hub vẫn tiếp tục lưu draft mới thay vì chặn hoàn toàn thao tác.
+- Sửa lỗi hướng nhìn (heading) NPCAP luôn sai hoặc đứng yên một hướng:
+  - Gói `ServerMove` gửi rotator (`pitch`/`yaw`/`roll`) **ngay sau** vector vị trí, mỗi trục là 1 bit "có giá trị" + 16 bit độ (`FRotator::SerializeCompressedShort`). Decoder cũ bỏ qua 16 bit trước khi đọc nên lấy nhầm sang vùng bit khác và cho ra `yaw = 0` hoặc giá trị ngẫu nhiên.
+  - Decoder giờ đọc đúng rotator liền sau vị trí và loại bỏ các khung hình có `pitch`/`roll` bất khả thi, nên kim hướng quay đúng theo hướng người chơi đang nhìn.
+- Sửa lỗi vị trí NPCAP hiển thị sai chỗ và không cập nhật:
+  - Decoder cũ quét offset bit và khoá vào offset **đầu tiên** đủ 3 khung hình "hợp lệ". Vì khung hình đứng yên (timestamp game không đổi) vẫn được tính là hợp lệ, decoder khoá nhầm vào một vùng bit rác và báo vị trí gần giữa bản đồ, giữ nguyên như vậy suốt phiên.
+  - Decoder giờ yêu cầu timestamp game trong gói phải tiến đúng nhịp với thời gian thực của phiên bắt gói, đồng thời kiểm tra vị trí nằm trong phạm vi bản đồ: chỉ layout thật của RPC di chuyển mới đủ điều kiện khoá.
+  - Khi layout gói thay đổi hoặc tạm ngưng quá 3 giây, decoder tự mở khoá và dò lại thay vì giữ nguyên offset đã chết; toạ độ mốc từ clipboard cũng tự hết hạn sau 15 giây để hồi sinh/teleport không làm mất vị trí.
+- Sửa lỗi **Copy Asset Location bị lệch/hiển thị sai chỗ**:
+  - Lệnh copy trong game in giá trị Bắc–Nam (`Lat`) trước rồi mới tới Đông–Tây (`Long`), trong khi vị trí đọc từ gói tin lại đưa Đông–Tây lên trước; parser cũ dùng nguyên thứ tự nên hai nguồn lệch nhau và marker nhảy sang vị trí đối xứng khi bấm copy.
+  - Đối chiếu một lần copy với vị trí decode được ngay lúc đó (đứng yên) cho thấy hai giá trị bị hoán vị, nên parser giờ đổi chỗ hai số đầu trước khi chiếu lên bản đồ.
+  - Thống nhất quy ước trục cho mọi nguồn (NPCAP, clipboard, IslePilot/Pandora REST): trục X là Đông–Tây (trục ngang của ảnh), trục Y là Bắc–Nam. Sửa theo đó phép chiếu `GatewayMapProjection`, công thức heading di chuyển và `FromUnrealYaw = yaw + 90` (khớp với heading suy ra từ calibration của server, có test chéo).
+- Chặn dữ liệu replication tổng hợp (chiều server → client) khi chưa có mốc Copy Asset: luồng này chứa chuyển động của mọi người xung quanh nên có thể hiển thị nhầm vị trí người chơi khác.
+- Làm mượt chuyển động và hướng nhìn, bỏ kiểu chạy–dừng theo nhịp gói:
+  - Bản đồ overlay trước đây khởi động lại animation pan 110–360 ms cho từng gói vị trí (~5 gói/giây), nên bản đồ cứ chạy–dừng theo nhịp gói. Nay bản đồ bám mục tiêu liên tục theo từng khung hình.
+  - Kim hướng và bản đồ (khi bật chế độ xoay) cũng khởi động lại animation 70–220 ms cho từng gói, nên lúc quay camera kim bị giật từng nhịp. Nay cả hai bám mục tiêu theo từng khung hình, đi đường ngắn nhất, và đổi chế độ xoay cũng chuyển mượt.
+  - Không dựng lại layer marker của người chơi khác mỗi gói vị trí (vị trí marker chỉ phụ thuộc kích thước bản đồ).
+- Danh sách tài khoản Steam ở Home gộp chung mọi nguồn IslePilot: tài khoản đăng nhập cho server chạy host riêng (ví dụ SDVN #3) được lưu và hiện ngay trong danh sách với nhãn riêng `STEAM · SDVN #3`, chọn tài khoản nào thì nút MỞ OVERLAY kết nối đúng host của tài khoản đó (không cần bấm lại nút server mỗi lần).
+- Hỗ trợ server **[SEA/VN]-SDVN-#3-X3** (`3.sdvn.org`): server này chạy một bản IslePilot trên tên miền riêng nên có nút kết nối riêng ở Home. App đăng nhập Steam một lần cho host đó, rồi dùng thẳng overlay API của host (chỉ số dino, marker, vùng bản đồ) và lưu token riêng theo host — phiên IslePilot Network không bị ảnh hưởng.
+  - Toàn bộ endpoint overlay (me/map/garage/skin + WebSocket `/ows`) giờ lấy theo host của nguồn thay vì cố định `islepilot.eu`.
+  - Trang đăng nhập Steam chỉ cho phép điều hướng trong host của server đó và Steam.
+- Bản đồ sạch khi server không gửi dữ liệu vùng: các mốc/vùng màu tím và vàng chỉ hiện khi feed bản đồ của server thực sự trả về polygon vùng. Khi chỉ dùng NPCAP để xem vị trí (hoặc nguồn chỉ có marker), bản đồ chỉ còn ảnh bản đồ + marker của bạn kèm vệt đường đi, không còn hàng chục mốc vùng chồng lên nhau gây rối. Bộ zone Gateway đóng gói chỉ còn là phương án dự phòng cho lúc feed đang chạy mà thiếu polygon.
+- Giữ chỉ điểm người chơi luôn rõ: trước đây khi phiên telemetry (IslePilot) bị stale/reconnecting thì cả marker và kim hướng bị giảm opacity còn 70% nên nhìn bị mờ, dù vị trí đến từ nguồn NPCAP độc lập. Nay chỉ các chỉ số (máu/thể lực/đói/nước) mờ theo phiên telemetry, còn marker và kim hướng giữ nguyên độ rõ.
+- Tự động xóa và reset đường đi cũ (Path Trail) khi người chơi chuyển sang server khác hoặc đổi chủng loài khủng long (Dino).
+- Sửa lỗi lưu skin draft: trước khi lưu, hub tự động lấy danh sách draft hiện có để tránh bị server đè mất draft cũ.
 
 # Isle Live Map 1.8.3
 

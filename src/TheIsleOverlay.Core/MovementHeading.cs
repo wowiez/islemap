@@ -19,9 +19,9 @@ public static class MovementHeading
             return false;
         }
 
-        // Gateway game X increases southward and game Y increases eastward.
-        // atan2(east, north) therefore maps north to 0 and east to 90 degrees.
-        degrees = Math.Atan2(deltaY, -deltaX) * 180d / Math.PI;
+        // Gateway game X increases eastward and game Y increases southward, so the
+        // map's north is -Y. atan2(east, north) maps north to 0 and east to 90.
+        degrees = Math.Atan2(deltaX, -deltaY) * 180d / Math.PI;
         if (degrees < 0d)
         {
             degrees += 360d;

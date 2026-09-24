@@ -11,10 +11,11 @@ public sealed class ClipboardRouteDestinationTests
             "27,840.493, -242,657.129, 30,707.498",
             out var destination));
 
+        // The copy command prints north/south first and east/west second.
         var expected = GatewayMapProjection.Project(new WorldLocation
         {
-            X = 27_840.493d,
-            Y = -242_657.129d,
+            X = -242_657.129d,
+            Y = 27_840.493d,
             Z = 30_707.498d
         });
         Assert.Equal(expected.Left, destination.Left, 10);
