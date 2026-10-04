@@ -1,3 +1,12 @@
+# Isle Live Map 1.9.0
+
+- Đọc máu, food, nước và stamina hiện tại / tối đa từ packet; khi chưa đủ dữ liệu dùng phần trăm web, thiếu cả hai thì hiện `- / -`. Thanh phần trăm dài như bone, cặp số có cột riêng và tất cả số căn phải.
+- Đóng gói sẵn vùng Patrol tím và Migration vàng, mặc định bật trên máy mới; vẫn có vùng khi API không trả dữ liệu. Nước luôn hiển thị; bộ lọc vùng và AI riêng.
+- Tích hợp AI, bạn bè và kill feed SBTC; điều chỉnh kích thước icon theo zoom, kích thước điểm người chơi và lớp AI trên / dưới điểm.
+- Tích hợp Studio skin và thiết kế đã lưu trên SBTC, sửa model 3D, gửi skin không hỏi xác nhận lần hai; ẩn Garage.
+- Lưu server được chọn lần cuối và thêm Ctrl+R để xóa trail nhanh.
+- Chuyển dòng phiên bản mới sang 1.9.0; giữ feed cập nhật đầy đủ cho bản cài.
+
 # Isle Live Map 1.8.33
 
 - Đóng gói sẵn vùng Patrol màu tím và Migration màu vàng trong DLL. Cài mới mặc định bật vùng; không cần file vùng từ máy khác hoặc chờ API. Có kiểm tra đọc cả hai catalogue trực tiếp từ tài nguyên đã biên dịch.
