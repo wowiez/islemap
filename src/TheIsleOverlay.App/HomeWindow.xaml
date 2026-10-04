@@ -244,6 +244,7 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <ComboBox x:Name="SteamAccountSelector" Style="{StaticResource SteamAccountCombo}"
                                       SelectionChanged="SteamAccountSelector_SelectionChanged">
@@ -261,6 +262,10 @@
                                     Style="{StaticResource HomeChromeButton}" Content="＋ THÊM TÀI KHOẢN"
                                     Padding="11,6" Margin="8,0,0,0"
                                     Click="AddSteamAccountButton_Click" />
+                            <Button x:Name="RemoveWebsiteSessionButton" Grid.Column="2"
+                                    Style="{StaticResource HomeChromeButton}" Content="XÓA PHIÊN"
+                                    Padding="11,6" Margin="8,0,0,0" Visibility="Collapsed"
+                                    Click="RemoveWebsiteSessionButton_Click" />
                         </Grid>
 
                         <Grid>
@@ -287,7 +292,7 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="SERVER DÙNG WEBSITE RIÊNG" Foreground="#A8BDB7"
                                    FontSize="11.5" FontWeight="SemiBold" />
-                        <TextBlock Grid.Column="1" Text="3 NGUỒN RIÊNG" Foreground="#6F8C84"
+                        <TextBlock x:Name="OwnSourceCountLabel" Grid.Column="1" Text="—" Foreground="#6F8C84"
                                    FontFamily="Bahnschrift SemiCondensed" FontSize="10"
                                    FontWeight="SemiBold" VerticalAlignment="Center" />
                     </Grid>
@@ -384,6 +389,40 @@
                                        FontSize="18" VerticalAlignment="Center" />
                         </Grid>
                     </Button>
+
+                    <Button x:Name="SbtcSourceButton" Style="{StaticResource SourceButton}" Tag="sbtc"
+                            Height="64" Margin="0,10,0,0" Padding="12,0"
+                            AutomationProperties.Name="Kết nối trực tiếp SBTC Island"
+                            Click="SourceButton_Click">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="36" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Border Width="32" Height="32" CornerRadius="6" Background="#3A2A17"
+                                    BorderBrush="#E0A45E" BorderThickness="1" VerticalAlignment="Center">
+                                <TextBlock Text="S" Foreground="#FFD8A8" FontFamily="Bahnschrift SemiCondensed"
+                                           FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel Grid.Column="1" Margin="8,0,5,0" VerticalAlignment="Center">
+                                <TextBlock Text="SBTC ISLAND" Foreground="{StaticResource HomeBone}"
+                                           FontFamily="Bahnschrift SemiCondensed" FontSize="14"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Text="sbtcislandd.com · live map + chỉ số" Foreground="#D8BFA0"
+                                           FontSize="10.5" FontWeight="Medium" />
+                            </StackPanel>
+                            <TextBlock Grid.Column="2" Text="→" Foreground="#E0A45E"
+                                       FontSize="18" VerticalAlignment="Center" />
+                        </Grid>
+                    </Button>
+
+                    <Button x:Name="GuestModeButton" Style="{StaticResource HomeChromeButton}"
+                            Content="CHẾ ĐỘ KHÁCH · CHỈ XEM BẢN ĐỒ" Padding="14,8" Margin="0,10,0,0"
+                            HorizontalAlignment="Left"
+                            AutomationProperties.Name="Mở overlay ở chế độ khách, chỉ xem bản đồ"
+                            Click="GuestModeButton_Click" />
 
                     <TextBlock Text="Các server này dùng phiên đăng nhập riêng trên live map của họ."
                                Foreground="#78938C" FontSize="10.5" TextWrapping="Wrap"

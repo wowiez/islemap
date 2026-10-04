@@ -9,6 +9,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using TheIsleOverlay.Core;
 using TheIsleOverlay.IslePilot;
+using TheIsleOverlay.Sbtc;
 
 namespace TheIsleOverlay.App;
 
@@ -41,19 +42,30 @@ internal static class IslePilotServerIds
 
 public sealed record GuideGarageApi(
     Func<CancellationToken, Task<IslePilotOverlayGarageDto>> Load,
-    Func<string, CancellationToken, Task<IslePilotOverlayGarageCommandDto>> Park,
+    Func<SbtcVaultParkTerms, CancellationToken, Task<IslePilotOverlayGarageCommandDto>> Park,
     Func<string, CancellationToken, Task<IslePilotOverlayGarageCommandDto>> Restore,
     Func<string, CancellationToken, Task<IslePilotOverlayGarageCommandStatusDto>> Status,
     Func<string, CancellationToken, Task<IslePilotOverlaySkinDraftsDto>> LoadSkinDrafts,
     Func<string, string, string, IslePilotOverlayGaragePaletteDto, bool, int, int, int, CancellationToken, Task<IslePilotOverlaySkinDraftDto>> SaveSkinDraft,
-    Func<string, string, IslePilotOverlayGaragePaletteDto, bool, int, int, int, CancellationToken, Task<IslePilotOverlaySkinApplyDto>> ApplySkinPalette,
-    Func<string, string, IslePilotOverlaySkinDraftPayloadDto, bool, CancellationToken, Task<IslePilotOverlaySkinApplyDto>> ApplySkinDraft);
+    Func<string, IslePilotOverlayGaragePaletteDto, int, int, int, CancellationToken, Task<SbtcPreparedSkinApply>> PrepareSkinApply,
+    Func<SbtcPreparedSkinApply, CancellationToken, Task<IslePilotOverlaySkinApplyDto>> ApplySkin,
+    Func<CancellationToken, Task<SbtcSkinAccess>> SkinAccess,
+    Func<CancellationToken, Task<IslePilotOverlaySkinApplyDto>> CheckSkinDelivery,
+    Func<Uri, CancellationToken, Task<byte[]>> DownloadAsset,
+    Func<CancellationToken, Task<SbtcVaultParkTerms>> ParkTerms,
+    Func<string, int, CancellationToken, Task<SbtcSkinPreview>>? SkinPreview = null);
 
 public sealed record SkinDraftPresentation(
     string Name,
-    IslePilotOverlayGaragePaletteDto Palette,
+    IslePilotOverlayGaragePaletteDto? Palette,
     IReadOnlyList<string> Colors,
-    IslePilotOverlaySkinDraftPayloadDto? Payload);
+    IslePilotOverlaySkinDraftPayloadDto? Payload)
+{
+    public string Description => Payload?.RenderMode == "glitch"
+        ? "Thiết kế glitch · xem và chỉnh trong Studio SBTC"
+        : Palette is null ? "Server chưa cung cấp bảng màu · xem trong Studio SBTC" : "Thiết kế màu thường";
+    public string ActionLabel => Payload?.RenderMode == "glitch" || Palette is null ? "MỞ STUDIO" : "CHỌN";
+}
 
 public sealed record GarageDinoCardPresentation(
     string DinoId,
@@ -83,6 +95,7 @@ public sealed record GarageDinoCardPresentation(
     IReadOnlyList<string> PaletteColors)
 {
     public IslePilotOverlayGaragePaletteDto? SkinPalette { get; init; }
+    public int Pattern { get; init; }
     private static readonly HashSet<string> SupportedPreviewSpecies = new(StringComparer.Ordinal)
     {
         "allosaurus", "austroraptor", "beipiaosaurus", "carnotaurus", "ceratosaurus",
@@ -144,7 +157,7 @@ public sealed record GarageDinoCardPresentation(
             mutationLabel,
             accent,
             bodyColor,
-            colors) { SkinPalette = dino.Palette };
+            colors) { SkinPalette = dino.Palette, Pattern = dino.Payload?.Pattern ?? 0 };
     }
 
     private static double Percent(double? value)
@@ -216,10 +229,9 @@ public partial class GuideWindow : Window
     private bool _garageLoading;
     private GarageCommandKind _pendingGarageCommand;
     private string? _pendingGarageDinoId;
+    private SbtcVaultParkTerms? _pendingParkTerms;
     private string _pendingGarageSuccessTitle = string.Empty;
     private CancellationTokenSource? _activeGarageCommandCancellation;
-    private bool _parkCountdownActive;
-    private Task? _parkCancellationTask;
     private bool _npcapEnabled;
     private bool _autoHideOutsideGame;
     private bool _showPathTrail = true;
@@ -232,9 +244,10 @@ public partial class GuideWindow : Window
     private bool _skinEditorFemale = true;
     private int _skinEditorTheme;
     private int _skinEditorPattern;
-    private int _skinEditorVariation;
+    private int _skinEditorVariation = 8;
     private bool _skinDraftLoading;
-    private bool _showAllSkinDrafts;
+    private bool _showAllSkinDrafts = true;
+    private bool _skinApplyBusy;
 
     public GuideWindow(
         string? activeSpecies = null,
@@ -253,6 +266,11 @@ public partial class GuideWindow : Window
         InitializeComponent();
         _embeddedMapWindow = new LargeMapWindow(mapSource);
         _garageApi = garageApi;
+        if (garageApi is not null)
+        {
+            SetValue(GarageModelControl.AssetDownloaderProperty, garageApi.DownloadAsset);
+            SetValue(GarageModelControl.PreviewProviderProperty, garageApi.SkinPreview);
+        }
         _npcapEnabled = npcapEnabled;
         _autoHideOutsideGame = autoHideOutsideGame;
         _skinEditorSpecies = activeSpecies;
@@ -262,16 +280,21 @@ public partial class GuideWindow : Window
         GuideMapHost.Content = mapContent;
         _embeddedMapWindow.UpdateState(currentLocation, destination, zones ?? [], players ?? []);
         _embeddedMapWindow.DestinationChanged += destinationValue => DestinationChanged?.Invoke(destinationValue);
+        _embeddedMapWindow.ClearPathTrailRequested += () => ClearPathTrailRequested?.Invoke();
+        _embeddedMapWindow.MapLayerFiltersChanged += (showZones, showWildlife) =>
+            MapLayerFiltersChanged?.Invoke(showZones, showWildlife);
         SpeciesComboBox.ItemsSource = MutationGuideCatalog.Species;
         SpeciesComboBox.DisplayMemberPath = nameof(SpeciesMutationGuide.Name);
         SelectSpecies(activeSpecies);
         ShowPage(OverviewPage, OverviewNavButton);
         UpdatePlayerOverview(playerOverview);
         RenderRecommendations();
-        GarageNavButton.Visibility = garageApi is null ? Visibility.Collapsed : Visibility.Visible;
+        GarageNavButton.Visibility = Visibility.Collapsed;
         SkinEditorNavButton.Visibility = garageApi is null ? Visibility.Collapsed : Visibility.Visible;
         ApplySkinPaletteToInputs(DefaultSkinPalette());
         RenderCaptureSettings();
+        UpdateMapMarkerSettings(OverlayLayoutRules.DefaultPlayerMarkerScale, wildlifeAbovePlayer: false);
+        InitializeKillFeed();
     }
 
     public event Action<MapPoint?>? DestinationChanged;
@@ -280,6 +303,7 @@ public partial class GuideWindow : Window
     public event Action<bool>? PathTrailToggleRequested;
     public event Action? ClearPathTrailRequested;
     public event Action? RetryNpcapRequested;
+    public event Action? ZoneSnifferRequested;
     public event Action? DownloadNpcapRequested;
 
     public bool IsMapPageVisible => MapPage.Visibility == Visibility.Visible;
@@ -327,7 +351,7 @@ public partial class GuideWindow : Window
             _skinEditorSpecies = player.Species;
             _skinEditorTheme = 0;
             _skinEditorPattern = 0;
-            _skinEditorVariation = 0;
+            _skinEditorVariation = 8;
             _skinEditorFemale = player.Female ?? true;
             RefreshSkinEditorModel();
         }
@@ -411,6 +435,7 @@ public partial class GuideWindow : Window
         try
         {
             ShowPage(SkinEditorPage, SkinEditorNavButton);
+            await RefreshSkinAccessAsync();
             RefreshSkinEditorModel();
             await LoadSkinDraftsAsync();
         }
@@ -434,6 +459,15 @@ public partial class GuideWindow : Window
 
     private void SettingsNavButton_Click(object sender, RoutedEventArgs e) =>
         ShowPage(SettingsPage, SettingsNavButton);
+
+    /// <summary>Shows where the zone sniffer saves its files.</summary>
+    public void UpdateSnifferTarget(string directory) =>
+        NpcapDiagnosticsLabel.Text = "Vùng IslePilot sẽ được lưu vào: " + directory;
+
+    private void ZoneSnifferButton_Click(object sender, RoutedEventArgs e)
+    {
+        ZoneSnifferRequested?.Invoke();
+    }
 
     private void NpcapToggleButton_Click(object sender, RoutedEventArgs e)
     {
@@ -509,8 +543,10 @@ public partial class GuideWindow : Window
         return string.Join(" + ", parts);
     }
 
-    private void SkinEditorRefreshButton_Click(object sender, RoutedEventArgs e)
+    private async void SkinEditorRefreshButton_Click(object sender, RoutedEventArgs e)
     {
+        await RefreshSkinAccessAsync();
+        await LoadSkinDraftsAsync();
         RefreshSkinEditorModel();
         SkinEditorModel.Reload();
     }
@@ -565,9 +601,11 @@ public partial class GuideWindow : Window
     private async void SkinShowAllDraftsButton_Click(object sender, RoutedEventArgs e)
     {
         _showAllSkinDrafts = !_showAllSkinDrafts;
-        SkinShowAllDraftsButton.Content = _showAllSkinDrafts ? "SHOW CURRENT DINO" : "SHOW ALL DRAFT";
+        SkinShowAllDraftsButton.Content = _showAllSkinDrafts ? "CHỈ LOÀI HIỆN TẠI" : "TẤT CẢ ĐÃ LƯU";
         await LoadSkinDraftsAsync();
     }
+
+    private async void SkinDraftsRefreshButton_Click(object sender, RoutedEventArgs e) => await LoadSkinDraftsAsync();
 
     private async Task SaveSkinDraftAsync()
     {
@@ -588,15 +626,15 @@ public partial class GuideWindow : Window
         try
         {
             await _garageApi.SaveSkinDraft(_skinEditorServerSlug, _skinEditorSpecies, name, palette, _skinEditorFemale, _skinEditorTheme, _skinEditorPattern, _skinEditorVariation, _garageCancellation.Token);
-            SkinEditorStatusLabel.Text = "ĐÃ LƯU VÀO SKIN-DRAFTS ISLEPILOT";
+            SkinEditorStatusLabel.Text = "ĐÃ LƯU VÀO THIẾT KẾ SBTC";
             SkinEditorStatusLabel.Foreground = BrushFrom("#8FC7A5");
             await LoadSkinDraftsAsync();
         }
         catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidDataException or JsonException or OperationCanceledException or TelemetryAuthenticationException or IslePilotOverlayAuthenticationException)
         {
             SkinEditorStatusLabel.Text = exception is IslePilotOverlayAuthenticationException or TelemetryAuthenticationException
-                ? "CHƯA ĐĂNG NHẬP ISLEPILOT HOẶC PHIÊN ĐÃ HẾT HẠN"
-                : "KHÔNG LƯU ĐƯỢC SKIN-DRAFTS · KIỂM TRA KẾT NỐI";
+                ? "CHƯA ĐĂNG NHẬP SBTC ISLAND HOẶC PHIÊN ĐÃ HẾT HẠN"
+                : $"KHÔNG LƯU ĐƯỢC THIẾT KẾ: {exception.Message}";
             SkinEditorStatusLabel.Foreground = BrushFrom("#D2726F");
         }
         catch (Exception exception)
@@ -634,60 +672,62 @@ public partial class GuideWindow : Window
 
     private async void SkinApplyButton_Click(object sender, RoutedEventArgs e)
     {
-        if (!TryReadSkinPalette(out var palette) || _garageApi is null || string.IsNullOrWhiteSpace(_skinEditorSpecies))
-        {
-            SkinEditorStatusLabel.Text = "KHÔNG THỂ ÁP DỤNG · KIỂM TRA MÃ HEX / DINO";
-            SkinEditorStatusLabel.Foreground = BrushFrom("#D2726F");
-            return;
-        }
-
+        if (_skinApplyBusy || _garageApi is null || string.IsNullOrWhiteSpace(_skinEditorSpecies)) return;
+        if (!TryReadSkinPalette(out var palette)) { SkinEditorStatusLabel.Text = "KIỂM TRA MÃ MÀU HEX"; return; }
+        _skinApplyBusy = true;
         try
         {
-            if (string.IsNullOrWhiteSpace(_skinEditorServerId))
+            var prepared = await _garageApi.PrepareSkinApply(_skinEditorSpecies, palette,
+                _skinEditorTheme, _skinEditorPattern, _skinEditorVariation, _garageCancellation.Token);
+            SkinAccessLabel.Text = prepared.Access.Message;
+            SkinEditorStatusLabel.Text = "ĐANG GỬI SKIN TỚI SBTC…";
+            var result = await _garageApi.ApplySkin(prepared, _garageCancellation.Token);
+            ShowSkinDelivery(result);
+            // Accepted is only an acknowledgement. Keep checking the island's result.
+            for (var poll = 0; result.Pending == true && result.Accepted && poll < 15; poll++)
             {
-                SkinEditorStatusLabel.Text = "KHÔNG CÓ SERVER ID ISLEPILOT ĐỂ ÁP DỤNG";
-                SkinEditorStatusLabel.Foreground = BrushFrom("#D2726F");
-                return;
+                await Task.Delay(TimeSpan.FromSeconds(2), _garageCancellation.Token);
+                result = await _garageApi.CheckSkinDelivery(_garageCancellation.Token);
+                ShowSkinDelivery(result);
             }
-
-            var result = await _garageApi.ApplySkinPalette(
-                _skinEditorServerId,
-                _skinEditorSpecies,
-                palette,
-                _skinEditorFemale,
-                _skinEditorTheme,
-                _skinEditorPattern,
-                _skinEditorVariation,
-                _garageCancellation.Token);
-            if (!result.Accepted)
-            {
-                SkinEditorStatusLabel.Text = string.IsNullOrWhiteSpace(result.Error)
-                    ? "ISLEPILOT KHÔNG CHẤP NHẬN BẢNG MÀU"
-                    : $"ISLEPILOT: {result.Error}";
-                SkinEditorStatusLabel.Foreground = BrushFrom("#D2726F");
-                return;
-            }
-
-            SkinEditorModel.SetModel(_skinEditorSpecies, palette);
-            SkinEditorStatusLabel.Text = result.Pending == true
-                ? "ĐÃ GỬI MÀU TỚI GAME · ĐANG CHỜ ISLEPILOT"
-                : "ĐÃ GỬI MÀU TỚI GAME QUA ISLEPILOT";
-            SkinEditorStatusLabel.Foreground = BrushFrom("#8FC7A5");
         }
-        catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidDataException or JsonException or OperationCanceledException or TelemetryAuthenticationException or IslePilotOverlayAuthenticationException)
-        {
-            SkinEditorStatusLabel.Text = exception is IslePilotOverlayAuthenticationException or TelemetryAuthenticationException
-                ? "CHƯA ĐĂNG NHẬP ISLEPILOT HOẶC PHIÊN ĐÃ HẾT HẠN"
-                : string.IsNullOrWhiteSpace(exception.Message)
-                    ? "KHÔNG GỬI ĐƯỢC MÀU TỚI ISLEPILOT"
-                    : $"ISLEPILOT: {exception.Message}";
-            SkinEditorStatusLabel.Foreground = BrushFrom("#D2726F");
-        }
+        catch (OperationCanceledException) when (_garageCancellation.IsCancellationRequested) { }
         catch (Exception exception)
         {
-            SkinEditorStatusLabel.Text = $"LỖI ÁP DỤNG: {exception.Message}";
+            SkinEditorStatusLabel.Text = $"CHƯA XÁC NHẬN SKIN: {exception.Message}";
             SkinEditorStatusLabel.Foreground = BrushFrom("#D2726F");
         }
+        finally { _skinApplyBusy = false; }
+    }
+
+    private void ShowSkinDelivery(IslePilotOverlaySkinApplyDto result)
+    {
+        SkinEditorStatusLabel.Text = result.Message ?? result.Error ?? "Server chưa xác nhận skin.";
+        SkinEditorStatusLabel.Foreground = BrushFrom(result.Pending == true ? "#E7B74E" : result.Accepted ? "#8FC7A5" : "#D2726F");
+    }
+
+    private async void SkinDeliveryCheckButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_garageApi is null || _skinApplyBusy) return;
+        _skinApplyBusy = true;
+        try { ShowSkinDelivery(await _garageApi.CheckSkinDelivery(_garageCancellation.Token)); }
+        catch (OperationCanceledException) when (_garageCancellation.IsCancellationRequested) { }
+        catch (Exception exception) { SkinEditorStatusLabel.Text = exception.Message; }
+        finally { _skinApplyBusy = false; }
+    }
+
+    private async Task RefreshSkinAccessAsync()
+    {
+        if (_garageApi is null) return;
+        try
+        {
+            var access = await _garageApi.SkinAccess(_garageCancellation.Token);
+            SkinAccessLabel.Text = access.Message;
+            foreach (var control in new Control[] { SkinTeethHex, SkinTeethSwatch, SkinMouthHex, SkinMouthSwatch, SkinClawsHex, SkinClawsSwatch })
+                control.IsEnabled = access.Advanced;
+        }
+        catch (OperationCanceledException) when (_garageCancellation.IsCancellationRequested) { }
+        catch (Exception exception) { SkinAccessLabel.Text = exception.Message; }
     }
 
     private void SkinDraftApplyButton_Click(object sender, RoutedEventArgs e)
@@ -699,6 +739,23 @@ public partial class GuideWindow : Window
 
         try
         {
+            if (draft.Payload?.RenderMode == "glitch")
+            {
+                SkinEditorStatusLabel.Text = "Skin glitch cần trình studio trên web SBTC; bảng HEX này dùng cho skin màu thường.";
+                OpenSkinStudio();
+                return;
+            }
+            if (draft.Palette is null)
+            {
+                SkinEditorStatusLabel.Text = "Thiết kế này chưa có bảng màu trong phản hồi server. Xem trong Studio SBTC.";
+                OpenSkinStudio();
+                return;
+            }
+            if (draft.Payload?.Species is { } draftSpecies && !string.Equals(SpeciesKey(draftSpecies), SpeciesKey(_skinEditorSpecies), StringComparison.OrdinalIgnoreCase))
+            {
+                SkinEditorStatusLabel.Text = "Skin này thuộc loài khác. Chọn skin đúng Dino đang chơi.";
+                return;
+            }
             ApplySkinPaletteToInputs(draft.Palette);
             if (draft.Payload is not null)
             {
@@ -714,6 +771,7 @@ public partial class GuideWindow : Window
                     _skinEditorFemale = string.Equals(draft.Payload.Sex, "female", StringComparison.OrdinalIgnoreCase);
                 }
             }
+            RefreshSkinEditorModel();
             SkinEditorStatusLabel.Text = $"ĐÃ NẠP DRAFT {draft.Name.ToUpperInvariant()} · BẤM ÁP DỤNG ĐỂ GỬI TỚI GAME";
             SkinEditorStatusLabel.Foreground = BrushFrom("#8FC7A5");
         }
@@ -724,18 +782,31 @@ public partial class GuideWindow : Window
         }
     }
 
+    private static void OpenSkinStudio() => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+    {
+        FileName = "https://sbtcislandd.com/studio", UseShellExecute = true
+    });
+
     private async Task LoadSkinDraftsAsync()
     {
-        if (_garageApi is null || _skinDraftLoading) return;
+        if (_garageApi is null)
+        {
+            SkinDraftsStatusLabel.Text = "Đăng nhập nguồn SBTC Island để tải thiết kế đã lưu.";
+            return;
+        }
+        if (_skinDraftLoading) return;
         _skinDraftLoading = true;
+        SkinDraftsRefreshButton.IsEnabled = false;
+        SkinDraftsStatusLabel.Text = "Đang tải thiết kế đã lưu từ Studio SBTC…";
+        SkinDraftsStatusLabel.Foreground = BrushFrom("#B9C8C1");
         try
         {
             var result = await _garageApi.LoadSkinDrafts(_skinEditorServerSlug, _garageCancellation.Token);
             var currentSpecies = SpeciesKey(_skinEditorSpecies);
-            SkinDraftsList.ItemsSource = result.Drafts
-                .Where(draft => _showAllSkinDrafts || (currentSpecies.Length > 0 && string.Equals(SpeciesKey(draft.GetSpecies()), currentSpecies, StringComparison.OrdinalIgnoreCase)))
+            var rows = result.Drafts
+                .Where(draft => _showAllSkinDrafts || string.IsNullOrWhiteSpace(draft.GetSpecies()) ||
+                    (currentSpecies.Length > 0 && string.Equals(SpeciesKey(draft.GetSpecies()), currentSpecies, StringComparison.OrdinalIgnoreCase)))
                 .Select(draft => (Draft: draft, Palette: draft.GetPalette(), Species: draft.GetSpecies()))
-                .Where(item => item.Palette is not null)
                 .Select(draft =>
                 {
                     var draftName = string.IsNullOrWhiteSpace(draft.Draft.Name) ? "Skin draft" : draft.Draft.Name!;
@@ -745,27 +816,34 @@ public partial class GuideWindow : Window
                         : draftName;
                     return new SkinDraftPresentation(
                         displayName,
-                        draft.Palette!,
-                        PaletteColors(draft.Palette!),
+                        draft.Palette,
+                        draft.Palette is null ? Array.Empty<string>() : PaletteColors(draft.Palette),
                         draft.Draft.GetPayload());
                 })
                 .ToArray();
+            SkinDraftsList.ItemsSource = rows;
+            var partial = !string.IsNullOrWhiteSpace(result.Message);
+            var message = result.Drafts.Count == 0 ? (partial ? "Chưa đọc được đầy đủ kho thiết kế." : "Chưa có thiết kế tự lưu trong kho Studio SBTC.")
+                : rows.Length == 0 ? "Không có thiết kế cho loài hiện tại. Bấm TẤT CẢ ĐÃ LƯU để xem kho."
+                : $"Đang hiển thị {rows.Length} / {result.Drafts.Count} thiết kế{(partial ? " đã nhận" : " đã lưu")}.";
+            SkinDraftsStatusLabel.Text = string.IsNullOrWhiteSpace(result.Message) ? message : message + " " + result.Message;
+            SkinDraftsStatusLabel.Foreground = BrushFrom(string.IsNullOrWhiteSpace(result.Message) ? "#8FC7A5" : "#E7B74E");
         }
         catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidDataException or OperationCanceledException or TelemetryAuthenticationException or IslePilotOverlayAuthenticationException)
         {
-            SkinDraftsList.ItemsSource = Array.Empty<SkinDraftPresentation>();
-            SkinEditorStatusLabel.Text = exception is IslePilotOverlayAuthenticationException or TelemetryAuthenticationException
-                ? "CHƯA ĐĂNG NHẬP ISLEPILOT HOẶC PHIÊN ĐÃ HẾT HẠN"
-                : "KHÔNG TẢI ĐƯỢC SKIN-DRAFTS TỪ ISLEPILOT";
-            SkinEditorStatusLabel.Foreground = BrushFrom("#D2726F");
+            var authenticationError = exception is IslePilotOverlayAuthenticationException or TelemetryAuthenticationException;
+            if (authenticationError) SkinDraftsList.ItemsSource = Array.Empty<SkinDraftPresentation>();
+            SkinDraftsStatusLabel.Text = authenticationError
+                ? "CHƯA ĐĂNG NHẬP SBTC ISLAND HOẶC PHIÊN ĐÃ HẾT HẠN"
+                : $"Không tải được thiết kế đã lưu: {exception.Message}";
+            SkinDraftsStatusLabel.Foreground = BrushFrom("#D2726F");
         }
         catch (Exception exception)
         {
-            SkinDraftsList.ItemsSource = Array.Empty<SkinDraftPresentation>();
-            SkinEditorStatusLabel.Text = $"LỖI TẢI DRAFT: {exception.Message}";
-            SkinEditorStatusLabel.Foreground = BrushFrom("#D2726F");
+            SkinDraftsStatusLabel.Text = $"LỖI TẢI DRAFT: {exception.Message}";
+            SkinDraftsStatusLabel.Foreground = BrushFrom("#D2726F");
         }
-        finally { _skinDraftLoading = false; }
+        finally { _skinDraftLoading = false; SkinDraftsRefreshButton.IsEnabled = true; }
     }
 
     private static string SpeciesKey(string? species)
@@ -780,7 +858,7 @@ public partial class GuideWindow : Window
     {
         _skinEditorTheme = 0;
         _skinEditorPattern = 0;
-        _skinEditorVariation = 0;
+        _skinEditorVariation = 8;
         ApplySkinPaletteToInputs(DefaultSkinPalette());
     }
 
@@ -788,7 +866,7 @@ public partial class GuideWindow : Window
     {
         _skinEditorTheme = 0;
         _skinEditorPattern = 0;
-        _skinEditorVariation = 0;
+        _skinEditorVariation = 8;
         string Color() => $"#{Random.Shared.Next(28, 232):X2}{Random.Shared.Next(28, 232):X2}{Random.Shared.Next(28, 232):X2}";
         ApplySkinPaletteToInputs(new IslePilotOverlayGaragePaletteDto
         {
@@ -817,16 +895,16 @@ public partial class GuideWindow : Window
     {
         if (!IsInitialized) return;
         _settingSkinInputs = true;
-        SkinBodyHex.Text = palette.Body;
-        SkinMarkingsHex.Text = palette.Markings;
-        SkinFlankHex.Text = palette.Flank;
-        SkinUnderbellyHex.Text = palette.Underbelly;
-        SkinDetailHex.Text = palette.Detail;
-        SkinDisplayHex.Text = palette.Display;
-        SkinEyesHex.Text = palette.Eyes;
-        SkinTeethHex.Text = palette.Teeth;
-        SkinMouthHex.Text = palette.Mouth;
-        SkinClawsHex.Text = palette.Claws;
+        SkinBodyHex.Text = palette.Body ?? DefaultSkinPalette().Body;
+        SkinMarkingsHex.Text = palette.Markings ?? DefaultSkinPalette().Markings;
+        SkinFlankHex.Text = palette.Flank ?? DefaultSkinPalette().Flank;
+        SkinUnderbellyHex.Text = palette.Underbelly ?? DefaultSkinPalette().Underbelly;
+        SkinDetailHex.Text = palette.Detail ?? DefaultSkinPalette().Detail;
+        SkinDisplayHex.Text = palette.Display ?? DefaultSkinPalette().Display;
+        SkinEyesHex.Text = palette.Eyes ?? DefaultSkinPalette().Eyes;
+        SkinTeethHex.Text = palette.Teeth ?? DefaultSkinPalette().Teeth;
+        SkinMouthHex.Text = palette.Mouth ?? DefaultSkinPalette().Mouth;
+        SkinClawsHex.Text = palette.Claws ?? DefaultSkinPalette().Claws;
         _settingSkinInputs = false;
         RenderSkinInputs();
     }
@@ -845,8 +923,8 @@ public partial class GuideWindow : Window
 
         if (valid && TryReadSkinPalette(out var palette))
         {
-            SkinEditorModel.SetModel(_skinEditorSpecies, palette);
-            SkinEditorStatusLabel.Text = "3D ĐÃ NHẬN BẢNG MÀU · #RRGGBB";
+            SkinEditorModel.SetModel(_skinEditorSpecies, palette, _skinEditorPattern);
+            SkinEditorStatusLabel.Text = "BẢNG MÀU HỢP LỆ · #RRGGBB";
             SkinEditorStatusLabel.Foreground = BrushFrom("#7F8C84");
         }
         else
@@ -862,7 +940,7 @@ public partial class GuideWindow : Window
         SkinEditorModelLabel.Text = species is null
             ? "CHƯA CÓ DINO HIỆN TẠI"
             : $"ĐANG CHỈNH: {species.ToUpperInvariant()}";
-        if (TryReadSkinPalette(out var palette)) SkinEditorModel.SetModel(species, palette);
+        if (TryReadSkinPalette(out var palette)) SkinEditorModel.SetModel(species, palette, _skinEditorPattern);
     }
 
     private bool TryReadSkinPalette(out IslePilotOverlayGaragePaletteDto palette)
@@ -920,6 +998,7 @@ public partial class GuideWindow : Window
         NpcapToggleButton.Content = _npcapEnabled ? "BẬT" : "TẮT";
         NpcapToggleButton.Background = _npcapEnabled ? BrushFrom("#34363A") : Brushes.Transparent;
         NpcapToggleButton.Foreground = BrushFrom(_npcapEnabled ? "#F2F3F4" : "#85888D");
+        NpcapDiagnosticsLabel.Text = _npcapEnabled ? NpcapDiagnostics.Describe(_npcapState) : string.Empty;
         NpcapStatusLabel.Text = NpcapSourcePresentation.StatusText(_npcapEnabled, _npcapState.Status);
         NpcapStatusLabel.Foreground = BrushFrom(!_npcapEnabled
             ? "#85888D"
@@ -941,12 +1020,12 @@ public partial class GuideWindow : Window
 
     private void ShowPage(FrameworkElement page, Button activeButton)
     {
-        foreach (var candidate in new FrameworkElement[] { OverviewPage, MapPage, GaragePage, SkinEditorPage, VoicePage, MutationPage, SettingsPage })
+        foreach (var candidate in new FrameworkElement[] { OverviewPage, MapPage, GaragePage, SkinEditorPage, VoicePage, MutationPage, KillFeedPage, SettingsPage })
         {
             candidate.Visibility = candidate == page ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        foreach (var button in new[] { OverviewNavButton, MapNavButton, GarageNavButton, SkinEditorNavButton, VoiceNavButton, MutationNavButton, SettingsNavButton })
+        foreach (var button in new[] { OverviewNavButton, MapNavButton, GarageNavButton, SkinEditorNavButton, VoiceNavButton, MutationNavButton, KillFeedNavButton, SettingsNavButton })
         {
             var active = button == activeButton;
             button.Foreground = BrushFrom(active ? "#111214" : "#9A9DA2");
@@ -958,6 +1037,7 @@ public partial class GuideWindow : Window
         {
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
         });
+        UpdateKillFeedPolling();
     }
 
     private void SetSbtcVoiceAvailability(bool available)
@@ -977,13 +1057,22 @@ public partial class GuideWindow : Window
     private async void GarageRefreshButton_Click(object sender, RoutedEventArgs e) =>
         await LoadGarageAsync(force: true);
 
-    private void GarageParkButton_Click(object sender, RoutedEventArgs e) =>
-        ShowGarageConfirmation(
-            GarageCommandKind.Park,
-            dinoId: null,
-            "Đã cất Dino",
-            "Cất Dino hiện tại",
-            "Dino bạn đang chơi sẽ được chuyển vào Garage. Khi bắt đầu đếm ngược, hãy đứng yên và không nhận sát thương.");
+    private async void GarageParkButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_garageApi is null || _activeGarageCommandCancellation is not null) return;
+        try
+        {
+            _pendingParkTerms = await _garageApi.ParkTerms(_garageCancellation.Token);
+            ShowGarageConfirmation(
+                GarageCommandKind.Park,
+                dinoId: null,
+                "Đã cất Dino",
+                "Cất Dino hiện tại",
+                _pendingParkTerms.Message);
+        }
+        catch (OperationCanceledException) when (_garageCancellation.IsCancellationRequested) { }
+        catch (Exception exception) { ShowGarageError("Chưa kiểm tra được điều kiện cất Dino", exception.Message); }
+    }
 
     private void RestoreDinoButton_Click(object sender, RoutedEventArgs e)
     {
@@ -1000,7 +1089,7 @@ public partial class GuideWindow : Window
             card.LiveSwap ? "Đổi Dino đang chơi" : "Lấy Dino khỏi Garage",
             card.LiveSwap
                 ? $"Server này hỗ trợ đổi trực tiếp. {card.DisplayName} ({card.Species}) sẽ được đổi sang Dino đang chơi."
-                : $"Server này dùng chế độ lấy ra. {card.DisplayName} ({card.Species}) sẽ được Restore theo quy tắc Garage của server.");
+                : $"Lấy {card.DisplayName} ({card.Species}) từ kho SBTC? Bạn cần spawn cùng loài để server giao Dino. Kho chỉ giải phóng slot khi server xác nhận.");
     }
 
     private void ShowGarageConfirmation(
@@ -1062,22 +1151,21 @@ public partial class GuideWindow : Window
         {
             if (!_garageCancellation.IsCancellationRequested)
             {
-                ShowGarageCommandResult(false, "Đã hủy", "Dino chưa được chuyển vào Garage.");
+                ShowGarageCommandResult(false, "Đã hủy", "Việc theo dõi đã dừng. Yêu cầu có thể vẫn được server xử lý; hãy kiểm tra Garage trước khi gửi lại.");
             }
         }
-        catch (IslePilotOverlayAuthenticationException)
+        catch (Exception exception) when (exception is IslePilotOverlayAuthenticationException or SbtcIslandAuthenticationException)
         {
-            ShowGarageCommandResult(false, "Phiên Steam đã hết hạn", "Đăng nhập lại IslePilot rồi thử lại.");
+            ShowGarageCommandResult(false, "Phiên Steam đã hết hạn", "Đăng nhập lại Steam SBTC rồi thử lại.");
         }
         catch (Exception exception) when (
             exception is HttpRequestException or IOException or InvalidDataException or System.Text.Json.JsonException ||
             exception is OperationCanceledException)
         {
-            ShowGarageCommandResult(false, "Không gửi được lệnh", "Server phản hồi chậm hoặc tạm thời không khả dụng.");
+            ShowGarageCommandResult(false, "Không gửi được lệnh", "Chưa xác nhận kết quả. Server có thể vẫn xử lý yêu cầu; kiểm tra Garage trước khi gửi lại.");
         }
         finally
         {
-            _parkCountdownActive = false;
             _activeGarageCommandCancellation?.Dispose();
             _activeGarageCommandCancellation = null;
             if (!_garageCancellation.IsCancellationRequested)
@@ -1091,36 +1179,11 @@ public partial class GuideWindow : Window
 
     private async Task ExecuteParkAsync(CancellationToken cancellationToken)
     {
-        var started = await _garageApi!.Park("start", cancellationToken);
-        if (!started.Ok)
-        {
-            ShowGarageCommandResult(false, "Không thể cất Dino", ErrorMessage(started.Error));
-            return;
-        }
-
-        if (started.Pending == true && started.DelaySec is > 0)
-        {
-            _parkCountdownActive = true;
-            GarageCommandCancelButton.Visibility = Visibility.Visible;
-            GarageCommandMessage.Text = "Hãy đứng yên và không nhận sát thương cho tới khi đếm ngược kết thúc.";
-            for (var remaining = started.DelaySec.Value; remaining > 0; remaining--)
-            {
-                GarageCommandProgress.Text = $"ĐANG CẤT · {remaining}s";
-                await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
-            }
-
-            GarageCommandCancelButton.Visibility = Visibility.Collapsed;
-            _parkCountdownActive = false;
-            GarageCommandProgress.Text = "ĐANG HOÀN TẤT…";
-            started = await _garageApi.Park("finalize", cancellationToken);
-            if (!started.Ok)
-            {
-                ShowGarageCommandResult(false, "Cất Dino bị hủy", ErrorMessage(started.Error));
-                return;
-            }
-        }
-
-        await CompleteGarageCommandAsync(started, "Đã cất Dino", cancellationToken);
+        GarageCommandProgress.Text = "ĐANG GỬI YÊU CẦU CẤT DINO…";
+        if (_pendingParkTerms is null) return;
+        var command = await _garageApi!.Park(_pendingParkTerms, cancellationToken);
+        if (!command.Ok) { ShowGarageCommandResult(false, "Không thể cất Dino", ErrorMessage(command.Error)); return; }
+        await CompleteGarageCommandAsync(command, "Đã cất Dino", cancellationToken);
     }
 
     private async Task ExecuteRestoreAsync(CancellationToken cancellationToken)
@@ -1152,12 +1215,17 @@ public partial class GuideWindow : Window
     {
         if (string.IsNullOrWhiteSpace(command.CommandId))
         {
+            if (command.Pending == true)
+            {
+                ShowGarageCommandResult(false, "Đang chờ server", "Yêu cầu đã gửi nhưng chưa xác nhận. Kiểm tra kho Dino trước khi gửi lại.");
+                return;
+            }
             ShowGarageCommandResult(true, successTitle, "Garage đã được cập nhật.");
             await LoadGarageAsync(force: true);
             return;
         }
 
-        var expiresAt = DateTimeOffset.UtcNow.AddSeconds(25);
+        var expiresAt = DateTimeOffset.UtcNow.AddSeconds(45);
         while (DateTimeOffset.UtcNow < expiresAt)
         {
             GarageCommandProgress.Text = "ĐANG CHỜ SERVER…";
@@ -1181,57 +1249,10 @@ public partial class GuideWindow : Window
             }
         }
 
-        ShowGarageCommandResult(false, "Server xử lý quá lâu", "Lệnh có thể vẫn đang chạy. Hãy đợi một chút rồi bấm LÀM MỚI.");
+        ShowGarageCommandResult(false, "Đang chờ xác nhận từ server", "Yêu cầu có thể vẫn đang chạy. Hãy kiểm tra Garage; lấy Dino cần spawn cùng loài. Đừng gửi lại khi lệnh chưa rõ kết quả.");
     }
 
-    private async void GarageCommandCancelButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (!_parkCountdownActive)
-        {
-            CloseGarageCommandOverlay();
-            return;
-        }
-
-        await CancelActiveParkAsync();
-    }
-
-    private async Task CancelActiveParkAsync()
-    {
-        _activeGarageCommandCancellation?.Cancel();
-        if (GarageCommandCancelButton is not null)
-        {
-            GarageCommandCancelButton.IsEnabled = false;
-            GarageCommandProgress.Text = "ĐANG HỦY…";
-        }
-
-        if (_garageApi is not null && !_garageCancellation.IsCancellationRequested)
-        {
-            var cancellationTask = _parkCancellationTask ??= SendParkCancellationAsync();
-            await cancellationTask;
-            if (ReferenceEquals(_parkCancellationTask, cancellationTask))
-            {
-                _parkCancellationTask = null;
-            }
-        }
-
-    }
-
-    private async Task SendParkCancellationAsync()
-    {
-        try
-        {
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_garageCancellation.Token);
-            timeout.CancelAfter(TimeSpan.FromSeconds(5));
-            await _garageApi!.Park("cancel", timeout.Token);
-        }
-        catch (Exception exception) when (
-            exception is HttpRequestException or IOException or InvalidDataException or System.Text.Json.JsonException ||
-            exception is OperationCanceledException)
-        {
-            // The local countdown is already stopped. A failed best-effort cancel
-            // must never keep the overlay open forever.
-        }
-    }
+    private void GarageCommandCancelButton_Click(object sender, RoutedEventArgs e) => CloseGarageCommandOverlay();
 
     private void ShowGarageCommandResult(bool success, string title, string message)
     {
@@ -1260,7 +1281,7 @@ public partial class GuideWindow : Window
     }
 
     private static string ErrorMessage(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? "IslePilot từ chối lệnh. Hãy kiểm tra trạng thái trong game." : value;
+        string.IsNullOrWhiteSpace(value) ? "SBTC từ chối lệnh. Hãy kiểm tra trạng thái trong game." : value;
 
     private async Task LoadGarageAsync(bool force)
     {
@@ -1273,7 +1294,7 @@ public partial class GuideWindow : Window
         GarageRefreshButton.IsEnabled = false;
         GarageStatePanel.Visibility = Visibility.Visible;
         GarageStateTitle.Text = "Đang tải Dino Garage";
-        GarageStateMessage.Text = "Đang đọc dữ liệu trực tiếp từ IslePilot…";
+        GarageStateMessage.Text = "Đang đọc dữ liệu trực tiếp từ SBTC Island…";
         if (!_garageLoaded)
         {
             GarageCards.Visibility = Visibility.Collapsed;
@@ -1312,9 +1333,9 @@ public partial class GuideWindow : Window
         catch (OperationCanceledException) when (_garageCancellation.IsCancellationRequested)
         {
         }
-        catch (IslePilotOverlayAuthenticationException)
+        catch (Exception exception) when (exception is IslePilotOverlayAuthenticationException or SbtcIslandAuthenticationException)
         {
-            ShowGarageError("Phiên Steam đã hết hạn", "Đăng nhập lại IslePilot để đọc Dino Garage.");
+            ShowGarageError("Phiên Steam đã hết hạn", "Đăng nhập lại Steam SBTC để đọc Dino Garage.");
         }
         catch (Exception exception) when (
             exception is HttpRequestException or IOException or InvalidDataException or System.Text.Json.JsonException ||
@@ -1422,6 +1443,7 @@ public partial class GuideWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        DisposeKillFeed();
         _garageCancellation.Cancel();
         _garageCancellation.Dispose();
         VoiceControl.Dispose();

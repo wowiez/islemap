@@ -67,7 +67,7 @@ public partial class IslePilotSteamLoginWindow : Window
         }
     }
 
-    private void Browser_NavigationCompleted(
+    private async void Browser_NavigationCompleted(
         object? sender,
         CoreWebView2NavigationCompletedEventArgs e)
     {
@@ -75,6 +75,36 @@ public partial class IslePilotSteamLoginWindow : Window
         if (!e.IsSuccess && !_completed)
         {
             LoginStatusLabel.Text = "Trang đăng nhập không tải được. Kiểm tra mạng rồi bấm THỬ LẠI.";
+            return;
+        }
+
+        await DescribeHostErrorAsync();
+    }
+
+    // The host may answer with a JSON error page instead of the Steam handoff, so
+    // read the rendered text and explain it in the status line.
+    private async Task DescribeHostErrorAsync()
+    {
+        if (_completed || LoginBrowser.CoreWebView2 is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var pageText = await LoginBrowser.CoreWebView2.ExecuteScriptAsync(
+                "document.body ? document.body.innerText : ''");
+            var message = IslePilotLoginErrorPresentation.DescribeHostError(
+                pageText,
+                _serviceBaseUri.Host);
+            if (message is not null)
+            {
+                LoginStatusLabel.Text = message;
+            }
+        }
+        catch (Exception)
+        {
+            // Reading the document is best effort; the status line keeps its text.
         }
     }
 

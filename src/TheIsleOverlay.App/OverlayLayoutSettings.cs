@@ -5,10 +5,14 @@ namespace TheIsleOverlay.App;
 
 public sealed record OverlayLayoutSettings
 {
-    public int Version { get; init; } = 10;
+    public int Version { get; init; } = 12;
     public double Scale { get; init; } = OverlayLayoutRules.DefaultScale;
     public double MapZoom { get; init; } = OverlayLayoutRules.DefaultMapZoom;
     public string MapStyle { get; init; } = OverlayLayoutRules.DefaultMapStyle;
+    public double PlayerMarkerScale { get; init; } = OverlayLayoutRules.DefaultPlayerMarkerScale;
+    public bool WildlifeAbovePlayer { get; init; }
+    public bool ShowMapZones { get; init; } = true;
+    public bool ShowWildlife { get; init; } = true;
     public bool ShowMap { get; init; } = true;
     public bool ShowActivity { get; init; } = true;
     public bool RotateMap { get; init; }
@@ -16,6 +20,9 @@ public sealed record OverlayLayoutSettings
     public bool ShowPrimeTasks { get; init; }
     public bool ShowPathTrail { get; init; } = true;
     public bool NpcapEnabled { get; init; } = true;
+
+    // Reads health/hunger/thirst/growth out of the game's own replication, for
+    // servers without a web source. Off by default: it is a comparison aid.
     public bool CopyAssetEnabled { get; init; } = true;
     public bool AutoHideOutsideGame { get; init; } = true;
     public double? Left { get; init; }
@@ -34,16 +41,20 @@ public static class OverlayLayoutRules
     public const double MaximumMapZoom = 10d;
     public const string DefaultMapStyle = "circle";
     public const string SquareMapStyle = "square";
+    public const double DefaultPlayerMarkerScale = 1d;
+    public const double MinimumPlayerMarkerScale = 0.5d;
+    public const double MaximumPlayerMarkerScale = 2d;
 
     public static OverlayLayoutSettings Normalize(OverlayLayoutSettings? settings)
     {
         settings ??= new OverlayLayoutSettings();
         return settings with
         {
-            Version = 10,
+            Version = 12,
             Scale = NormalizeScale(settings.Scale),
             MapZoom = NormalizeMapZoom(settings.MapZoom),
             MapStyle = NormalizeMapStyle(settings.MapStyle),
+            PlayerMarkerScale = NormalizePlayerMarkerScale(settings.PlayerMarkerScale),
             ShowMap = settings.ShowMap || !settings.ShowActivity,
             ShowActivity = settings.ShowActivity,
             RotateMap = settings.RotateMap,
@@ -98,6 +109,13 @@ public static class OverlayLayoutRules
     }
 
     public static string FormatMapZoom(double zoom) => $"{NormalizeMapZoom(zoom) * 100d:0}%";
+
+    public static double NormalizePlayerMarkerScale(double scale) => double.IsFinite(scale)
+        ? Math.Round(Math.Clamp(scale, MinimumPlayerMarkerScale, MaximumPlayerMarkerScale) * 20d,
+            MidpointRounding.AwayFromZero) / 20d
+        : DefaultPlayerMarkerScale;
+
+    public static string FormatPlayerMarkerScale(double scale) => $"{NormalizePlayerMarkerScale(scale) * 100d:0}%";
 
     public static string NormalizeMapStyle(string? style) =>
         string.Equals(style, SquareMapStyle, StringComparison.OrdinalIgnoreCase)

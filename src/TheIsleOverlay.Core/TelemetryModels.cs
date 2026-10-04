@@ -23,11 +23,20 @@ public sealed record PlayerTelemetry
     public string? Server { get; init; }
     public string? ServerId { get; init; }
     public bool? Female { get; init; }
+    // Percent fields use 0..100. Providers convert API fractions before assigning them.
     public double? GrowthPercent { get; init; }
     public double? HealthPercent { get; init; }
     public double? StaminaPercent { get; init; }
     public double? HungerPercent { get; init; }
     public double? ThirstPercent { get; init; }
+
+    // Extra condition fields some servers publish alongside the four main bars.
+    public double? OxygenPercent { get; init; }
+    public double? BloodPercent { get; init; }
+    public double? FracturePercent { get; init; }
+    public int? BleedingStacks { get; init; }
+    public string? LifeStage { get; init; }
+    public int? ElderStacks { get; init; }
     public ExactVitals? ExactVitals { get; init; }
     public string? ExactVitalsSource { get; init; }
     public NutritionTelemetry? Nutrition { get; init; }

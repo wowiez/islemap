@@ -7,8 +7,12 @@ namespace TheIsleOverlay.App;
 internal sealed class NpcapGamePacketDecoder
 {
     private const int StatelessPrefixBits = 6;
+
+    // Synthetic channel for movement found straight in the datagram.
+    private const uint MovementChannel = 0xFFFF_FFFF;
     private const int MaximumChannels = 16384;
     private const int MaximumBunchBits = 8192;
+
     private const int RequiredAdvancingFrames = 2;
     private const float MinimumTimestampAdvance = 0.02f;
     private const double MaximumFrameSeconds = 2.0d;
@@ -20,10 +24,45 @@ internal sealed class NpcapGamePacketDecoder
     private static readonly TimeSpan LockedCandidateTimeout = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan AnchorHoldDuration = TimeSpan.FromSeconds(15);
     private readonly Dictionary<(uint Channel, int Offset), MovementCandidate> _candidates = [];
+    private readonly Dictionary<uint, NpcapWeightSample> _pendingWeights = [];
+    private readonly NpcapBunchAssembler _bunchAssembler = new();
+    private NpcapWeightSample? _weightSample;
     private (uint Channel, int Offset)? _lockedCandidate;
+    private uint? _statisticsChannel;
     private DateTimeOffset _lastLockedAt;
     private WorldLocation? _verifiedPlayerAnchor;
     private DateTimeOffset _anchorAt;
+    private readonly Dictionary<(uint Channel, uint Handle), NpcapVitalSample> _pendingVitals = [];
+    private NpcapVitalSample? _vitalSample;
+    private uint? _statisticsActorHandle;
+    private uint? _movementActorHandle;
+    private uint? _candidateActorHandle;
+    private int _actorEvidence;
+    private DateTimeOffset _actorEvidenceAt;
+    private bool _irisStatistics;
+
+    internal uint? MovementActorHandle => _movementActorHandle;
+    internal uint? StatisticsActorHandle
+    {
+        get => _statisticsActorHandle;
+        set
+        {
+            if (_statisticsActorHandle == value) return;
+            _statisticsActorHandle = value;
+            if (value is not null) _irisStatistics = true;
+            _vitalSample = null;
+            _weightSample = null;
+        }
+    }
+
+    internal NpcapVitalSample? VitalSample(DateTimeOffset now)
+    {
+        if (_statisticsChannel is not { } channel || _statisticsActorHandle is not { } actor) return null;
+        if (_vitalSample is null && _pendingVitals.TryGetValue((channel, actor + NpcapDinosaurVitalDecoder.AttributeSubobjectOffset), out var pending) &&
+            now >= pending.CapturedAt && now - pending.CapturedAt <= NpcapDinosaurWeightDecoder.PendingSampleLifetime)
+            _vitalSample = pending;
+        return _vitalSample is { } sample && now >= sample.CapturedAt ? sample : null;
+    }
 
     public bool TryProcessEthernetFrame(
         ReadOnlySpan<byte> frame,
@@ -53,23 +92,64 @@ internal sealed class NpcapGamePacketDecoder
         // The packet-handler prefix is one byte on older servers and two bytes
         // on the current SBTC build. Probe both layouts; movement still has to
         // pass the multi-frame timestamp/location validation below.
-        return TryProcessPacketLayout(payload, capturedAt, 8, out sample) ||
-               TryProcessPacketLayout(payload, capturedAt, 16, out sample);
+        if (TryReadPacketLayout(payload, 8, 2, out var bunches) ||
+            TryReadPacketLayout(payload, 16, 2, out bunches) ||
+            TryReadPacketLayout(payload, 8, 1, out bunches) ||
+            TryReadPacketLayout(payload, 16, 1, out bunches))
+        {
+            var decoded = false;
+            foreach (var fragment in bunches)
+            {
+                if (fragment.Close)
+                {
+                    _pendingWeights.Remove(fragment.Channel);
+                    if (_weightSample is { } previous && previous.Channel == fragment.Channel) _weightSample = null;
+                    foreach (var key in _pendingVitals.Keys.Where(key => key.Channel == fragment.Channel).ToArray()) _pendingVitals.Remove(key);
+                    if (_statisticsChannel == fragment.Channel) _vitalSample = null;
+                    if (_lockedCandidate?.Channel == fragment.Channel) _movementActorHandle = null;
+                }
+                if (!_bunchAssembler.TryAssemble(fragment, capturedAt, out var bunch)) continue;
+                if (!decoded && TryDecodeMovement(bunch, capturedAt, out var decodedSample))
+                {
+                    sample = decodedSample;
+                    decoded = true;
+                    ObserveMovementActor(bunch, capturedAt);
+                }
+                ObserveStatistics(bunch, capturedAt);
+            }
+            if (decoded) return true;
+        }
+
+        // A client build can change the bunch header without moving the movement RPC
+        // itself: on a live capture the RPC still sits inside the datagram (fitted at
+        // bit 288) while the header no longer parses. Probing the whole datagram as one
+        // "bunch" keeps the position working, and the clipboard anchor plus the
+        // multi-frame clock validation still keep other players' movement out.
+        return TryDecodeMovement(
+            new ParsedBunch(MovementChannel, payload.Length * 8, payload.ToArray()),
+            capturedAt,
+            out sample);
     }
 
     internal static bool IsSupportedPacketPrefix(byte value) => (value & 0x03) == 0;
 
-    private bool TryProcessPacketLayout(
+    /// <summary>
+    /// Validate the entire packet layout before committing any actor or fragment
+    /// state. Packet handlers can add their own termination bit; some layouts only
+    /// have the engine's termination bit. Stripping two bits unconditionally used to
+    /// truncate those packets, leaving only the channel-less movement fallback.
+    /// </summary>
+    private static bool TryReadPacketLayout(
         ReadOnlySpan<byte> payload,
-        DateTimeOffset capturedAt,
         int packetPrefixBits,
-        out NpcapPositionSample sample)
+        int terminationBits,
+        out List<ParsedBunch> bunches)
     {
-        sample = default;
+        bunches = [];
         try
         {
             var outerEnd = FindTrailingOne(payload, payload.Length * 8);
-            var innerEnd = outerEnd < 0 ? -1 : FindTrailingOne(payload, outerEnd);
+            var innerEnd = terminationBits == 1 ? outerEnd : outerEnd < 0 ? -1 : FindTrailingOne(payload, outerEnd);
             if (innerEnd <= packetPrefixBits + StatelessPrefixBits + 64)
             {
                 return false;
@@ -102,22 +182,164 @@ internal sealed class NpcapGamePacketDecoder
             {
                 if (!TryReadBunch(reader, out var bunch))
                 {
+                    bunches.Clear();
                     return false;
                 }
-
-                if (TryDecodeMovement(bunch, capturedAt, out sample))
-                {
-                    return true;
-                }
+                bunches.Add(bunch);
             }
-
-            return false;
+            // A successful prefix must account for every bit, not merely happen
+            // to find one plausible bunch inside a different header layout.
+            return bunches.Count > 0 && reader.Remaining == 0;
         }
         catch (Exception ex) when (ex is EndOfStreamException or InvalidDataException or OverflowException)
         {
             return false;
         }
     }
+
+    /// <summary>
+    /// The actor channel the local player's movement RPC named, if any. Movement found
+    /// straight in the datagram belongs to no actor channel, so it reports null.
+    /// </summary>
+    internal uint? LockedChannel
+    {
+        get
+        {
+            lock (_candidates)
+            {
+                return _lockedCandidate is { } locked && locked.Channel != MovementChannel
+                    ? locked.Channel
+                    : null;
+            }
+        }
+    }
+
+    internal bool HasLockedMovement => _lockedCandidate is not null;
+
+    /// <summary>
+    /// The actor channel whose bunches carry the local player's statistics. The server
+    /// replicates every nearby actor on its own channel, so without this the mass scan
+    /// would follow whichever dinosaur happened to be on the channel it guessed.
+    /// </summary>
+    internal uint? StatisticsChannel
+    {
+        get => _statisticsChannel;
+        set
+        {
+            if (_statisticsChannel == value) return;
+            _weightSample = _statisticsChannel is null && value is { } channel &&
+                _pendingWeights.TryGetValue(channel, out var pending) ? pending : null;
+            _pendingWeights.Clear();
+            _vitalSample = null;
+            if (_statisticsChannel is not null) _pendingVitals.Clear();
+            if (_statisticsChannel is not null) _bunchAssembler.Clear();
+            _statisticsChannel = value;
+        }
+    }
+
+    internal NpcapWeightSample? WeightSample(DateTimeOffset now)
+    {
+        if (_weightSample is not { } sample || now < sample.CapturedAt) return null;
+        if (!sample.ActorConfirmed)
+        {
+            // Do not revive old replication when ownership is identified late.
+            if (now - sample.CapturedAt > NpcapDinosaurWeightDecoder.PendingSampleLifetime) return null;
+            _weightSample = sample = sample with { ActorConfirmed = true };
+        }
+        // Selected-actor mass remains valid until its channel/connection is reset.
+        // CapturedAt is kept intact: ordinary traffic is not a new KG measurement.
+        return sample;
+    }
+
+    internal void ObserveStatistics(ParsedBunch bunch, DateTimeOffset capturedAt)
+    {
+        ObserveVitals(bunch, capturedAt);
+        // Iris multiplexes nearby actors on the same channel. Once object
+        // ownership is known, an unscoped legacy mass scan is unsafe.
+        if (_irisStatistics) return;
+        if ((_statisticsChannel is { } channel && channel != bunch.Channel) ||
+            !NpcapDinosaurWeightDecoder.TryDecode(bunch.Payload, bunch.PayloadBits, out var kilograms, out var offset))
+        {
+            return;
+        }
+
+        var sample = new NpcapWeightSample(kilograms, capturedAt, bunch.Channel, offset)
+        {
+            ActorConfirmed = _statisticsChannel is not null
+        };
+        if (_statisticsChannel is null)
+        {
+            // Initial replication can precede the client's movement lock. Keep a
+            // small, expiring numeric cache; never publish it until that same
+            // connection's outbound RPC identifies the actor channel.
+            foreach (var expired in _pendingWeights.Where(entry =>
+                capturedAt - entry.Value.CapturedAt > NpcapDinosaurWeightDecoder.PendingSampleLifetime)
+                .Select(entry => entry.Key).ToArray()) _pendingWeights.Remove(expired);
+            if (_pendingWeights.TryGetValue(bunch.Channel, out var previous) && capturedAt < previous.CapturedAt) return;
+            if (_pendingWeights.Count >= 64 && !_pendingWeights.ContainsKey(bunch.Channel))
+                _pendingWeights.Remove(_pendingWeights.MinBy(entry => entry.Value.CapturedAt).Key);
+            _pendingWeights[bunch.Channel] = sample;
+        }
+        else if (_weightSample is null || capturedAt >= _weightSample.Value.CapturedAt)
+        {
+            _weightSample = sample;
+        }
+    }
+
+    private void ObserveMovementActor(ParsedBunch bunch, DateTimeOffset capturedAt)
+    {
+        if (_lockedCandidate is not { } locked || locked.Channel != bunch.Channel) return;
+        if (!NpcapDinosaurVitalDecoder.TryReadMovementHandle(bunch.Payload, bunch.PayloadBits, locked.Offset, out var handle))
+        {
+            _movementActorHandle = null;
+            _candidateActorHandle = null;
+            _actorEvidence = 0;
+            return;
+        }
+        if (capturedAt <= _actorEvidenceAt) return;
+        if (_candidateActorHandle != handle || capturedAt - _actorEvidenceAt > TimeSpan.FromSeconds(3))
+        {
+            _candidateActorHandle = handle;
+            _actorEvidence = 0;
+            _movementActorHandle = null;
+        }
+        _actorEvidenceAt = capturedAt;
+        if (++_actorEvidence >= 2) _movementActorHandle = handle;
+    }
+
+    private void ObserveVitals(ParsedBunch bunch, DateTimeOffset capturedAt)
+    {
+        if (_statisticsChannel is { } channel && channel != bunch.Channel) return;
+        foreach (var expired in _pendingVitals.Where(pair => capturedAt - pair.Value.CapturedAt >
+            NpcapDinosaurWeightDecoder.PendingSampleLifetime).Select(pair => pair.Key).ToArray()) _pendingVitals.Remove(expired);
+        foreach (var update in NpcapDinosaurVitalDecoder.ReadUpdates(bunch.Payload, bunch.PayloadBits))
+        {
+            if (_statisticsActorHandle is { } actor && update.Handle != actor + NpcapDinosaurVitalDecoder.AttributeSubobjectOffset) continue;
+            var key = (bunch.Channel, update.Handle);
+            _pendingVitals.TryGetValue(key, out var previous);
+            if (previous is not null && capturedAt < previous.CapturedAt) continue;
+            var selected = _statisticsActorHandle is { } selectedActor &&
+                selectedActor + NpcapDinosaurVitalDecoder.AttributeSubobjectOffset == update.Handle;
+            var old = selected && _vitalSample is { } live ? live.Vitals : previous?.Vitals ?? new ExactVitals();
+            var sample = new NpcapVitalSample(update.Handle - NpcapDinosaurVitalDecoder.AttributeSubobjectOffset,
+                capturedAt, NpcapDinosaurVitalDecoder.Merge(old, update.Vitals));
+            if (_pendingVitals.Count >= 64 && !_pendingVitals.ContainsKey(key))
+                _pendingVitals.Remove(_pendingVitals.MinBy(pair => pair.Value.CapturedAt).Key);
+            _pendingVitals[key] = sample;
+            if (selected && (_vitalSample is null || capturedAt >= _vitalSample.CapturedAt)) _vitalSample = sample;
+        }
+    }
+
+    internal string WeightDiagnostic(DateTimeOffset now) =>
+        VitalSample(now) is { Vitals: var vitals } ?
+            vitals.MaxHealth is not null && vitals.MaxHunger is not null && vitals.MaxStamina is not null
+                ? "HP / FOOD / NƯỚC / STAMINA: đọc từ packet Dino hiện tại"
+                : "HP / FOOD / NƯỚC / STAMINA: packet game · chờ các giá trị tối đa" :
+        _statisticsChannel is null ? "KG: chưa xác định được kênh Dino từ game" :
+        WeightSample(now) is { } sample ? now - sample.CapturedAt > NpcapDinosaurWeightDecoder.PendingSampleLifetime
+            ? "KG: giữ cân nặng cuối của Dino hiện tại" : "KG: đã nhận cân nặng để tính máu" :
+        _weightSample is not null ? "KG: mẫu đã hết hạn, chờ game cập nhật" :
+        "KG: đã xác định Dino, chờ khối cân nặng đầy đủ";
 
     internal bool TryDecodeMovement(
         ParsedBunch bunch,
@@ -142,10 +364,32 @@ internal sealed class NpcapGamePacketDecoder
             }
             else
             {
+                // A larger NetRef handle on respawn changes the movement offset
+                // by whole bytes. Drop ownership immediately and prove the new
+                // layout again instead of keeping the dead dinosaur for 3 s.
+                var changedActor = false;
+                if (locked.Channel == bunch.Channel && _movementActorHandle is { } actor)
+                    foreach (var shift in new[] { -24, -16, -8, 8, 16, 24 })
+                    {
+                        var offset = locked.Offset + shift;
+                        if (offset >= 0 && TryReadMovementAt(bunch, offset, out _) &&
+                            NpcapDinosaurVitalDecoder.TryReadMovementHandle(bunch.Payload, bunch.PayloadBits, offset, out var next) && next != actor)
+                        {
+                            changedActor = true;
+                            break;
+                        }
+                    }
+                if (changedActor)
+                {
+                    _movementActorHandle = null;
+                    _candidateActorHandle = null;
+                    _actorEvidence = 0;
+                    _lockedCandidate = null;
+                }
                 // Other RPCs share this actor channel. Keep the proven movement
                 // layout locked instead of allowing their bytes to create a false
                 // candidate while a real movement frame is briefly absent.
-                return false;
+                else return false;
             }
         }
 
@@ -231,15 +475,17 @@ internal sealed class NpcapGamePacketDecoder
 
             if (gameDelta <= 0f)
             {
-                // A duplicated datagram repeats the same timestamp within a few
-                // milliseconds; that must not break a running streak. Anything
-                // else with a frozen timestamp is a wrong bit offset, because the
-                // movement RPC always carries a fresh game clock value.
-                if (!(wallDelta is > 0 and <= 0.05 && planarDistance < 1d))
+                // The same movement frame is sent once per actor and can also be
+                // resent, so its timestamp repeats a few hundred milliseconds apart.
+                // A repeat with an unchanged location keeps the candidate instead of
+                // restarting its streak; anything else with a frozen clock is a wrong
+                // bit offset, because the movement RPC always carries a fresh value.
+                if (wallDelta is > 0 and <= MaximumFrameSeconds && planarDistance < 1d)
                 {
-                    _candidates[key] = MovementCandidate.Start(move, capturedAt);
+                    return false;
                 }
 
+                _candidates[key] = MovementCandidate.Start(move, capturedAt);
                 return false;
             }
 
@@ -377,15 +623,18 @@ internal sealed class NpcapGamePacketDecoder
         var reliable = reader.ReadBit();
         var channel = reader.ReadUInt32Packed();
         if (channel >= MaximumChannels) return false;
-        reader.ReadBit();
+        var hasExports = reader.ReadBit();
         reader.ReadBit();
         var partial = reader.ReadBit();
-        if (reliable) reader.ReadSerializedInt(1024);
+        var sequence = reliable ? reader.ReadSerializedInt(1024) : 0;
+        var initial = false;
+        var final = false;
+        var customExports = false;
         if (partial)
         {
-            reader.ReadBit();
-            reader.ReadBit();
-            reader.ReadBit();
+            initial = reader.ReadBit();
+            customExports = reader.ReadBit();
+            final = reader.ReadBit();
         }
         if (open || reliable)
         {
@@ -395,7 +644,13 @@ internal sealed class NpcapGamePacketDecoder
 
         var payloadBits = reader.ReadSerializedInt(MaximumBunchBits);
         if (payloadBits > reader.Remaining) return false;
-        bunch = new ParsedBunch(channel, payloadBits, reader.ReadBits(payloadBits));
+        bunch = new ParsedBunch(channel, payloadBits, reader.ReadBits(payloadBits))
+        {
+            Reliable = reliable, Sequence = sequence, Partial = partial,
+            PartialInitial = initial, PartialFinal = final,
+            HasPackageMapExports = hasExports, PartialCustomExportsFinal = customExports,
+            Close = close
+        };
         return true;
     }
 
@@ -424,7 +679,17 @@ internal sealed class NpcapGamePacketDecoder
         return true;
     }
 
-    internal readonly record struct ParsedBunch(uint Channel, int PayloadBits, byte[] Payload);
+    internal readonly record struct ParsedBunch(uint Channel, int PayloadBits, byte[] Payload)
+    {
+        public bool Reliable { get; init; }
+        public int Sequence { get; init; }
+        public bool Partial { get; init; }
+        public bool PartialInitial { get; init; }
+        public bool PartialFinal { get; init; }
+        public bool HasPackageMapExports { get; init; }
+        public bool PartialCustomExportsFinal { get; init; }
+        public bool Close { get; init; }
+    }
     internal readonly record struct DecodedMovement(
         float Timestamp,
         WorldLocation Location,

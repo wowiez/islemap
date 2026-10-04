@@ -29,16 +29,12 @@ public sealed class GuideSettingsTests
                 StringComparison.Ordinal));
 
         Assert.NotNull(Control("SettingsNavButton"));
-        Assert.NotNull(Control("SkinEditorNavButton"));
-        Assert.NotNull(Control("SkinEditorPage"));
-        Assert.NotNull(Control("SkinEditorModel"));
+        Assert.Equal("Collapsed", (string?)Control("GarageNavButton").Attribute("Visibility"));
         Assert.NotNull(Control("VoiceNavButton"));
         Assert.NotNull(Control("VoicePage"));
         Assert.NotNull(Control("VoiceControl"));
         Assert.Equal("Collapsed", (string?)Control("VoiceNavButton").Attribute("Visibility"));
         Assert.Equal("VoiceNavButton_Click", (string?)Control("VoiceNavButton").Attribute("Click"));
-        Assert.NotNull(Control("SkinBodyHex"));
-        Assert.Equal("SkinHexInput_TextChanged", (string?)Control("SkinBodyHex").Attribute("TextChanged"));
         Assert.Equal("Collapsed", (string?)Control("SettingsPage").Attribute("Visibility"));
         Assert.NotNull(Control("NpcapStatusLabel"));
         Assert.Equal("NpcapToggleButton_Click", (string?)Control("NpcapToggleButton").Attribute("Click"));

@@ -3,6 +3,8 @@ using System.Buffers.Binary;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -11,12 +13,20 @@ using System.Windows.Media.Imaging;
 using System.Windows.Input;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
+using TheIsleOverlay.Core;
 using TheIsleOverlay.IslePilot;
+using TheIsleOverlay.Sbtc;
 
 namespace TheIsleOverlay.App;
 
 public sealed class GarageModelControl : ContentControl
 {
+    public static readonly DependencyProperty AssetDownloaderProperty = DependencyProperty.RegisterAttached(
+        "AssetDownloader", typeof(Func<Uri, CancellationToken, Task<byte[]>>), typeof(GarageModelControl),
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.Inherits));
+    public static readonly DependencyProperty PreviewProviderProperty = DependencyProperty.RegisterAttached(
+        "PreviewProvider", typeof(Func<string, int, CancellationToken, Task<SbtcSkinPreview>>), typeof(GarageModelControl),
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.Inherits));
     private static readonly HttpClient Client = CreateHttpClient();
     private static readonly string Cache = Path.Combine(AppPaths.Root, "GarageModels");
     private static readonly ConcurrentDictionary<string, Task<ModelBundle>> Downloads = new();
@@ -46,10 +56,12 @@ public sealed class GarageModelControl : ContentControl
         ["Tyrannosaurus"] = new("Tyrannosaurus", "T_Tyrannosaurus_Adult_Pattern_1.png", "T_Tyrannosaurus_N.webp", "T_Tyrannosaurus_Detail_M.png", "T_Tyrannosaurus_RAC.webp")
     };
     private sealed record ModelDefinition(string Folder, string Pattern, string Normal, string? Tmc, string? Rac);
-    internal sealed record ModelBundle(string Model, string Pattern, string? Normal, string? Tmc, string? Rac);
+    internal sealed record ModelBundle(string Model, string Pattern, string Diffuse, string? Utility,
+        IReadOnlyDictionary<string, string> UtilityChannels);
     private WebView2CompositionControl? _browser;
     private string? _requestedSpecies;
     private IslePilotOverlayGaragePaletteDto? _requestedPalette;
+    private int _requestedPattern;
     private bool _viewerReady;
     private int _generation;
     public GarageModelControl()
@@ -63,7 +75,7 @@ public sealed class GarageModelControl : ContentControl
         {
             if (DataContext is GarageDinoCardPresentation dino)
             {
-                SetModel(dino.Species, dino.SkinPalette);
+                SetModel(dino.Species, dino.SkinPalette, dino.Pattern);
             }
         };
     }
@@ -80,12 +92,15 @@ public sealed class GarageModelControl : ContentControl
         }
     }
 
-    public void SetModel(string? species, IslePilotOverlayGaragePaletteDto? palette)
+    public void SetModel(string? species, IslePilotOverlayGaragePaletteDto? palette, int pattern = 0)
     {
         var normalized = species?.Trim();
-        var speciesChanged = !string.Equals(_requestedSpecies, normalized, StringComparison.OrdinalIgnoreCase);
+        if (normalized?.StartsWith("BP_", StringComparison.OrdinalIgnoreCase) == true) normalized = normalized[3..];
+        if (normalized?.EndsWith("_C", StringComparison.OrdinalIgnoreCase) == true) normalized = normalized[..^2];
+        var speciesChanged = !string.Equals(_requestedSpecies, normalized, StringComparison.OrdinalIgnoreCase) || _requestedPattern != pattern;
         _requestedSpecies = normalized;
         _requestedPalette = palette;
+        _requestedPattern = Math.Max(0, pattern);
         if (speciesChanged)
         {
             Stop();
@@ -118,6 +133,10 @@ public sealed class GarageModelControl : ContentControl
         }
         var generation = ++_generation;
         var species = _requestedSpecies!;
+        var patternIndex = _requestedPattern;
+        var downloadKey = species + "|" + patternIndex;
+        var assetDownloader = GetValue(AssetDownloaderProperty) as Func<Uri, CancellationToken, Task<byte[]>>;
+        var previewProvider = GetValue(PreviewProviderProperty) as Func<string, int, CancellationToken, Task<SbtcSkinPreview>>;
         ShowMessage("ĐANG LẤY DỮ LIỆU 3D MODEL…");
         WebView2CompositionControl? browser = null;
         try
@@ -136,7 +155,11 @@ public sealed class GarageModelControl : ContentControl
 
         try
         {
-            var assets = await Downloads.GetOrAdd(species, DownloadAsync);
+            var preview = previewProvider is null ? SbtcSkinPreview.Basic
+                : await previewProvider(species, patternIndex, CancellationToken.None);
+            if (generation != _generation) return;
+            downloadKey += "|" + preview.Build + "|" + preview.PatternAsset + "|" + preview.UtilityAsset;
+            var assets = await Downloads.GetOrAdd(downloadKey, _ => DownloadAsync(species, patternIndex, assetDownloader, preview));
             if (generation != _generation) return;
             var environment = await IslePilotWebViewEnvironment.GetAsync();
             if (generation != _generation) return;
@@ -168,15 +191,19 @@ public sealed class GarageModelControl : ContentControl
                         {
                             model = AssetUrl(assets.Model),
                             pattern = AssetUrl(assets.Pattern),
-                            normal = AssetUrl(assets.Normal),
-                            tmc = AssetUrl(assets.Tmc),
-                            rac = AssetUrl(assets.Rac),
+                            diffuse = AssetUrl(assets.Diffuse),
+                            utility = AssetUrl(assets.Utility),
+                            utilityChannels = assets.UtilityChannels,
                             palette = _requestedPalette
                         }, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
                     }
+                    else if (message.RootElement.TryGetProperty("ready", out _))
+                    {
+                        SendPalette();
+                    }
                     else if (message.RootElement.TryGetProperty("error", out _))
                     {
-                        Downloads.TryRemove(species, out _);
+                        Downloads.TryRemove(downloadKey, out _);
                         Stop();
                         ShowMessage("Model 3D bị lỗi. Bấm Làm mới để tải lại.");
                     }
@@ -203,14 +230,20 @@ public sealed class GarageModelControl : ContentControl
         catch (WebView2RuntimeNotFoundException ex)
         {
             CrashReporter.Write("GarageModelControl.WebView2RuntimeNotFound", ex);
-            Downloads.TryRemove(species, out _);
+            Downloads.TryRemove(downloadKey, out _);
             Stop();
             ShowMessage("Máy chưa cài đặt Microsoft Edge WebView2 Runtime để xem 3D.");
+        }
+        catch (Exception ex) when (generation == _generation && ex is HttpRequestException or TelemetryAuthenticationException or TaskCanceledException)
+        {
+            Downloads.TryRemove(downloadKey, out _);
+            Stop();
+            ShowMessage("Chưa tải được skin SBTC. Kiểm tra phiên Steam / kết nối rồi bấm Làm mới.");
         }
         catch (Exception ex) when (generation == _generation)
         {
             CrashReporter.Write("GarageModelControl.Start", ex);
-            Downloads.TryRemove(species, out _);
+            Downloads.TryRemove(downloadKey, out _);
             Stop();
             ShowMessage("Không thể khởi động 3D model trên thiết bị này. Bấm Làm mới để thử lại.");
         }
@@ -234,40 +267,63 @@ public sealed class GarageModelControl : ContentControl
         return client;
     }
 
-    internal static async Task<ModelBundle> DownloadAsync(string species)
+    internal static async Task<ModelBundle> DownloadAsync(string species, int patternIndex = 0,
+        Func<Uri, CancellationToken, Task<byte[]>>? download = null, SbtcSkinPreview? preview = null)
     {
-        if (!Models.TryGetValue(species, out var definition)) throw new InvalidDataException("Species has no 3D model.");
-        // Live telemetry may return a lowercase slug while the IslePilot CDN
-        // uses the canonical species spelling in both the URL and filenames.
+        if (!Models.ContainsKey(species)) throw new InvalidDataException("Species has no 3D model.");
+        preview ??= SbtcSkinPreview.Basic;
+        // SBTC asset folders use canonical species spelling.
         var canonicalSpecies = Models.Keys.First(key =>
             string.Equals(key, species, StringComparison.OrdinalIgnoreCase));
         Directory.CreateDirectory(Cache);
-        var baseUri = $"https://islepilot.eu/cdn/skinviewer/{definition.Folder}/";
-        var model = DownloadFileAsync(new Uri(baseUri + canonicalSpecies + ".glb?v=12"),
-            Path.Combine(Cache, canonicalSpecies + "-v12.glb"), IsValidGlb);
-        var pattern = DownloadFileAsync(new Uri(baseUri + definition.Pattern),
-            Path.Combine(Cache, canonicalSpecies + "-pattern-1.png"), IsValidImage);
-        var normal = DownloadOptionalImageAsync(baseUri, definition.Normal,
-            Path.Combine(Cache, canonicalSpecies + "-normal.webp"));
-        var tmc = DownloadOptionalImageAsync(baseUri, definition.Tmc,
-            Path.Combine(Cache, canonicalSpecies + "-tmc.png"));
-        var rac = DownloadOptionalImageAsync(baseUri, definition.Rac,
-            Path.Combine(Cache, canonicalSpecies + "-rac.webp"));
-        await Task.WhenAll(new Task[] { model, pattern, normal, tmc, rac }).ConfigureAwait(false);
-        return new ModelBundle(await model, await pattern, await normal, await tmc, await rac);
+        var baseUri = $"https://sbtcislandd.com/assets/dino/{canonicalSpecies}/";
+        var buildKey = preview.Build.Length == 0 ? "" : "-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(preview.Build)))[..12];
+        var cachePrefix = "sbtc-" + canonicalSpecies + buildKey;
+        var model = DownloadFileAsync(new Uri(baseUri + "mesh.glb"),
+            Path.Combine(Cache, cachePrefix + ".glb"), IsValidGlb, download);
+        var pattern = DownloadImageAsync(baseUri, $"pattern_{patternIndex}",
+            Path.Combine(Cache, cachePrefix + $"-pattern-{patternIndex}"), download, preview.PatternAsset);
+        var diffuse = DownloadImageAsync(baseUri, "diffuse", Path.Combine(Cache, cachePrefix + "-diffuse"), download);
+        var utility = DownloadOptionalImageAsync(baseUri, preview.UtilityAsset,
+            Path.Combine(Cache, cachePrefix + "-utility-" + preview.UtilityAsset), download);
+        await Task.WhenAll(new Task[] { model, pattern, diffuse, utility }).ConfigureAwait(false);
+        return new ModelBundle(await model, await pattern, await diffuse, await utility, preview.UtilityChannels);
     }
 
-    private static async Task<string?> DownloadOptionalImageAsync(string baseUri, string? file, string path)
+    internal static async Task<string> DownloadImageAsync(string baseUri, string stem, string cachePath,
+        Func<Uri, CancellationToken, Task<byte[]>>? download, string? exactAsset = null)
+    {
+        // Studio contracts can name a specific mask. Older assets have either format.
+        var candidates = new[] { exactAsset, stem + ".webp", stem + ".png" }
+            .Where(name => !string.IsNullOrWhiteSpace(name)).Distinct(StringComparer.Ordinal);
+        Exception? last = null;
+        foreach (var name in candidates)
+        {
+            try
+            {
+                return await DownloadFileAsync(new Uri(baseUri + name), cachePath + "-" + name,
+                    IsValidImage, download).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
+            {
+                if (ex is HttpRequestException { StatusCode: System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden }) throw;
+                last = ex;
+            }
+        }
+        throw new HttpRequestException("Không tải được texture skin SBTC.", last);
+    }
+
+    private static async Task<string?> DownloadOptionalImageAsync(string baseUri, string? file, string path, Func<Uri, CancellationToken, Task<byte[]>>? download)
     {
         if (string.IsNullOrWhiteSpace(file)) return null;
-        try { return await DownloadFileAsync(new Uri(baseUri + file), path, IsValidImage).ConfigureAwait(false); }
+        try { return await DownloadFileAsync(new Uri(baseUri + file), path, IsValidImage, download).ConfigureAwait(false); }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or IOException or InvalidDataException)
         {
             return null;
         }
     }
 
-    private static async Task<string> DownloadFileAsync(Uri uri, string path, Func<string, bool> validator)
+    private static async Task<string> DownloadFileAsync(Uri uri, string path, Func<string, bool> validator, Func<Uri, CancellationToken, Task<byte[]>>? download)
     {
         if (validator(path)) return path;
         TryDeleteModel(path);
@@ -278,22 +334,30 @@ public sealed class GarageModelControl : ContentControl
             TryDeleteModel(temp);
             try
             {
-                using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-                request.Headers.Referrer = new Uri("https://islepilot.eu/");
-                using var response = await Client.SendAsync(
-                    request,
-                    HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
-                response.EnsureSuccessStatusCode();
-                await using (var source = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
-                await using (var destination = new FileStream(
-                                 temp,
-                                 FileMode.CreateNew,
-                                 FileAccess.Write,
-                                 FileShare.None,
-                                 128 * 1024,
-                                 FileOptions.Asynchronous | FileOptions.SequentialScan))
+                if (download is not null)
                 {
-                    await source.CopyToAsync(destination).ConfigureAwait(false);
+                    using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+                    await File.WriteAllBytesAsync(temp, await download(uri, timeout.Token).ConfigureAwait(false)).ConfigureAwait(false);
+                }
+                else
+                {
+                    using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+                    request.Headers.Referrer = new Uri("https://sbtcislandd.com/studio");
+                    using var response = await Client.SendAsync(
+                        request,
+                        HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+                    response.EnsureSuccessStatusCode();
+                    await using (var source = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+                    await using (var destination = new FileStream(
+                                     temp,
+                                     FileMode.CreateNew,
+                                     FileAccess.Write,
+                                     FileShare.None,
+                                     128 * 1024,
+                                     FileOptions.Asynchronous | FileOptions.SequentialScan))
+                    {
+                        await source.CopyToAsync(destination).ConfigureAwait(false);
+                    }
                 }
                 if (!validator(temp)) throw new InvalidDataException("Invalid or incomplete 3D viewer asset.");
                 File.Move(temp, path, overwrite: true);
@@ -306,10 +370,11 @@ public sealed class GarageModelControl : ContentControl
             {
                 lastError = exception;
                 TryDeleteModel(temp);
+                if (exception is HttpRequestException { StatusCode: System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden or System.Net.HttpStatusCode.NotFound }) throw;
                 if (attempt < 3) await Task.Delay(TimeSpan.FromMilliseconds(350 * attempt)).ConfigureAwait(false);
             }
         }
-        throw new HttpRequestException("Unable to download an IslePilot 3D viewer asset after retries.", lastError);
+        throw new HttpRequestException("Không tải được model SBTC. Kiểm tra phiên Steam và kết nối mạng.", lastError);
     }
 
     internal static bool IsValidImage(string path)

@@ -6,6 +6,39 @@
         WindowStyle="None" ResizeMode="NoResize" Background="#06100F"
         Topmost="True" ShowInTaskbar="False" KeyDown="Window_KeyDown"
         Loaded="Window_Loaded" Closing="Window_Closing" SizeChanged="Window_SizeChanged">
+    <Window.Resources>
+        <Style x:Key="MapFilterToggleStyle" TargetType="ToggleButton">
+            <Setter Property="Foreground" Value="#AAB9B2" />
+            <Setter Property="Background" Value="#151D1B" />
+            <Setter Property="BorderBrush" Value="#53625C" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontFamily" Value="Bahnschrift SemiCondensed" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter Property="Foreground" Value="#D5FFF0" />
+                    <Setter Property="Background" Value="#23483B" />
+                    <Setter Property="BorderBrush" Value="#70C5A3" />
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="#BBE9D6" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
     <Border x:Name="MapBorder" Background="#06100F" BorderThickness="0"
             CornerRadius="16" Padding="0" ClipToBounds="True">
         <Grid x:Name="MapShell" Background="#06100F" ClipToBounds="True"
@@ -41,6 +74,10 @@
                     </Image>
                     <Canvas x:Name="LargeZoneLayer" Width="1112" Height="1116"
                             Panel.ZIndex="1" IsHitTestVisible="False" />
+                    <Canvas x:Name="LargeMapPoiLayer" Width="1112" Height="1116"
+                            Panel.ZIndex="1" IsHitTestVisible="False" />
+                    <Canvas x:Name="LargeWildlifeLayer" Width="1112" Height="1116"
+                            Panel.ZIndex="2" />
                     <Canvas x:Name="LargePathTrailLayer" Width="1112" Height="1116"
                             Panel.ZIndex="2" IsHitTestVisible="False" />
                     <Canvas x:Name="LargePlayerLayer" Width="1112" Height="1116"
@@ -52,6 +89,22 @@
                 </Canvas>
             </Viewbox>
             </Grid>
+            <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="14" Padding="5"
+                    Background="#E51B2422" CornerRadius="7">
+                <StackPanel Orientation="Horizontal">
+                    <ToggleButton x:Name="MapZonesFilterButton" Content="VÙNG" IsChecked="True"
+                                  Style="{StaticResource MapFilterToggleStyle}" Margin="0,0,5,0"
+                                  Click="MapLayerFilterButton_Click" ToolTip="Hiện vùng tím/vàng và khu trú ẩn" />
+                    <ToggleButton x:Name="MapWildlifeFilterButton" Content="AI" IsChecked="True"
+                                  Style="{StaticResource MapFilterToggleStyle}"
+                                  Click="MapLayerFilterButton_Click" ToolTip="Hiện động vật AI đang sống" />
+                </StackPanel>
+            </Border>
+            <Button x:Name="QuickClearTrailButton" Content="XÓA ĐƯỜNG ĐI · Ctrl+R"
+                    HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="14"
+                    Padding="12,8" Background="#E51B2422" Foreground="#E8EEEB"
+                    BorderBrush="#53625C" BorderThickness="1" Cursor="Hand"
+                    Click="QuickClearTrailButton_Click" ToolTip="Xóa đường đi đã ghi trên các bản đồ" />
         </Grid>
     </Border>
 </Window>

@@ -32,5 +32,19 @@ public static class AppPaths
         Root,
         "player-path-trail.json");
 
+    /// <summary>Steam cookies of servers that run their own site (SBTC Island, ...), DPAPI protected.</summary>
+    public static string WebsiteSessions { get; } = Path.Combine(Root, "website-sessions.dat");
+
+    /// <summary>Zones as the server sent them, written for calibration.
+    /// </summary>
+    public static string ZoneDump { get; } = Path.Combine(Root, "zones.json");
+
+    /// <summary>Validated mass samples from the player's replication, with sample age.
+    /// </summary>
+    public static string NpcapWeightLog { get; } =
+        Environment.GetEnvironmentVariable("ISLELIVEMAP_WEIGHT_LOG_PATH") is { Length: > 0 } path
+            ? Path.GetFullPath(path) : Path.Combine(Root, "npcap-weight.txt");
+
     public static string CrashLog { get; } = Path.Combine(Root, "crash.log");
+
 }

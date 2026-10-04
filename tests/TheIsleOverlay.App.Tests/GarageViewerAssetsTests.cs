@@ -1,5 +1,7 @@
 using System.Buffers.Binary;
 using System.IO;
+using System.Net;
+using System.Net.Http;
 
 namespace TheIsleOverlay.App.Tests;
 
@@ -51,6 +53,16 @@ public sealed class GarageViewerAssetsTests
     }
 
     [Fact]
+    public void ViewerPolicy_AllowsMeshoptWasmWithoutAllowingJavaScriptEval()
+    {
+        var root = Path.Combine(AppContext.BaseDirectory, "TestAssets", "GarageViewer");
+        var html = File.ReadAllText(Path.Combine(root, "viewer.html"));
+        Assert.Contains("'wasm-unsafe-eval'", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("'unsafe-eval'", html, StringComparison.Ordinal);
+        Assert.Contains("https://isle-model.local", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void TextureCache_AcceptsPngAndWebpButRejectsHtml()
     {
         var path = Path.Combine(Path.GetTempPath(), $"isle-texture-{Guid.NewGuid():N}");
@@ -77,11 +89,55 @@ public sealed class GarageViewerAssetsTests
         var root = Path.Combine(AppContext.BaseDirectory, "TestAssets", "GarageViewer");
         var script = File.ReadAllText(Path.Combine(root, "viewer.js"));
 
-        Assert.Contains("colorKeys = ['display', 'underbelly', 'flank', 'body', 'markings', 'detail']", script, StringComparison.Ordinal);
-        Assert.Contains("material.map = skinTexture", script, StringComparison.Ordinal);
-        Assert.Contains("['teeth', 'mouth', 'claws']", script, StringComparison.Ordinal);
+        Assert.Contains("createSkinMaterial(diffuse, pattern, utility, data.utilityChannels)", script, StringComparison.Ordinal);
+        Assert.Contains("setMeshoptDecoder(MeshoptDecoder)", script, StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(root, "skin-material.js")));
+        Assert.True(File.Exists(Path.Combine(root, "vendor", "meshopt_decoder.module.js")));
         Assert.DoesNotContain(": 'body';", script, StringComparison.Ordinal);
         Assert.Contains("targetRotationY - model.rotation.y", script, StringComparison.Ordinal);
         Assert.Contains("targetRotationZ - model.rotation.z", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TextureDownload_FallsBackToPngWhenWebpIsMissing()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "isle-skin-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        var requests = new List<string>();
+        try
+        {
+            var path = await GarageModelControl.DownloadImageAsync("https://sbtcislandd.com/assets/dino/Pteranodon/",
+                "pattern_2", Path.Combine(dir, "pattern"), (uri, _) =>
+                {
+                    requests.Add(uri.AbsolutePath);
+                    return uri.AbsolutePath.EndsWith(".webp")
+                        ? Task.FromException<byte[]>(new HttpRequestException("Missing test WebP", null, HttpStatusCode.NotFound))
+                        : Task.FromResult(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0, 0, 0, 0, 0 });
+                });
+            Assert.EndsWith("pattern_2.png", path);
+            Assert.True(GarageModelControl.IsValidImage(path));
+            Assert.Equal(new[] { "/assets/dino/Pteranodon/pattern_2.webp", "/assets/dino/Pteranodon/pattern_2.png" }, requests);
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    [Fact]
+    public async Task TextureDownload_UsesContractAssetAndDoesNotRetryAnExpiredSession()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "isle-skin-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        var requests = new List<string>();
+        try
+        {
+            await Assert.ThrowsAsync<HttpRequestException>(() => GarageModelControl.DownloadImageAsync(
+                "https://sbtcislandd.com/assets/dino/Pteranodon/", "pattern_2", Path.Combine(dir, "pattern"),
+                (uri, _) =>
+                {
+                    requests.Add(uri.AbsolutePath);
+                    return Task.FromException<byte[]>(new HttpRequestException("Expired synthetic session", null, HttpStatusCode.Unauthorized));
+                }, "pattern_contract.png"));
+            Assert.Equal("/assets/dino/Pteranodon/pattern_contract.png", Assert.Single(requests));
+        }
+        finally { Directory.Delete(dir, recursive: true); }
     }
 }

@@ -9,7 +9,8 @@ public enum SbtcZoneKind
     Sanctuary,
     Migration,
     Patrol,
-    Uncategorized
+    Uncategorized,
+    Wildlife
 }
 
 public sealed record SbtcZoneFeature(
@@ -20,7 +21,8 @@ public sealed record SbtcZoneFeature(
     double? Size = null,
     string? Color = null,
     string? Icon = null,
-    bool HideLabel = false);
+    bool HideLabel = false,
+    MapPoint? LabelLocation = null);
 
 public sealed record SbtcZoneLabel(
     string Name,
@@ -32,6 +34,9 @@ public sealed record SbtcZoneLabel(
 
 public static class SbtcZoneOverlay
 {
+    // Match IslePilot's patrol palette even when the SBTC feed supplies blue.
+    public const string PatrolColor = "#A78BFA";
+
     public static IReadOnlyList<SbtcZoneFeature> Create(
         string? serverName,
         IReadOnlyList<MapPointOfInterestTelemetry>? pointsOfInterest,
@@ -39,18 +44,19 @@ public static class SbtcZoneOverlay
         bool isIslePilotServer = false,
         bool hasHostZones = false)
     {
-        // Zone shapes, colours and labels only belong on screen while the host map
-        // feed is actually delivering them. Without it the offline catalogue draws
-        // dozens of purple and yellow markers over the terrain, which buries the
-        // player's own position, and that position comes from Npcap anyway.
-        if (!hasHostZones)
+        // Live zones are only drawn while the host map feed is actually delivering them
+        // (otherwise a server that stops sending them would leave stale markers on the
+        // map). The bundled catalogue is different: it belongs to the map itself, so it
+        // is drawn for every server and even before a dinosaur is loaded.
+        var hasLiveZones = pointsOfInterest is { Count: > 0 };
+        if (hasLiveZones && !hasHostZones)
         {
-            return [];
+            return fallback ?? [];
         }
 
-        if (!isIslePilotServer && !IsSbtcServer(serverName))
+        if (hasLiveZones && !isIslePilotServer && !IsSbtcServer(serverName))
         {
-            return [];
+            return fallback ?? [];
         }
 
         var liveFeatures = (pointsOfInterest ?? [])
@@ -58,8 +64,17 @@ public static class SbtcZoneOverlay
             .Where(feature => feature is not null)
             .Select(feature => feature!)
             .ToArray();
-        return liveFeatures.Length > 0 ? liveFeatures : fallback ?? [];
+        if (liveFeatures.Length == 0) return fallback ?? [];
+        if (liveFeatures.Any(feature => IsFilterableZone(feature.Kind))) return liveFeatures;
+
+        // Live AI and place labels do not replace the map's zone catalogue.
+        // A failed zone request can still leave a perfectly usable AI feed.
+        return (fallback?.Where(feature => IsFilterableZone(feature.Kind)) ?? [])
+            .Concat(liveFeatures).ToArray();
     }
+
+    internal static bool IsFilterableZone(SbtcZoneKind kind) =>
+        kind is SbtcZoneKind.Patrol or SbtcZoneKind.Migration or SbtcZoneKind.Sanctuary;
 
     public static bool IsSbtcServer(string? serverName)
     {
@@ -77,14 +92,21 @@ public static class SbtcZoneOverlay
 
     public static string Signature(IReadOnlyList<SbtcZoneFeature> features) => string.Join(
         '|',
-        features.Select(feature => string.Create(
-            CultureInfo.InvariantCulture,
-            $"{feature.Kind}:{feature.Name}:{feature.Shape}:{feature.Size:0.######}:{feature.Color}:{feature.Icon}:{feature.HideLabel}:{feature.Points.Count}:{feature.Points.FirstOrDefault().Left:0.######}:{feature.Points.FirstOrDefault().Top:0.######}")));
+        features.Select(FeatureSignature));
+
+    private static string FeatureSignature(SbtcZoneFeature feature)
+    {
+        var points = string.Join(';', feature.Points.Select(point => string.Create(
+            CultureInfo.InvariantCulture, $"{point.Left:R},{point.Top:R}")));
+        return string.Create(CultureInfo.InvariantCulture,
+            $"{feature.Kind}:{feature.Name}:{feature.Shape}:{feature.Size:R}:{feature.Color}:{feature.Icon}:{feature.HideLabel}:{feature.LabelLocation?.Left:R}:{feature.LabelLocation?.Top:R}:{points}");
+    }
 
     public static IReadOnlyList<SbtcZoneLabel> CreateLabels(IReadOnlyList<SbtcZoneFeature> features) => features
         .Where(feature => feature.Points.Count > 0 &&
+                          feature.Kind != SbtcZoneKind.Wildlife &&
                           !feature.HideLabel &&
-                          !string.IsNullOrWhiteSpace(feature.Name))
+                          !string.IsNullOrWhiteSpace(feature.Name) && feature.LabelLocation is null)
         .GroupBy(
             feature => (feature.Kind, Name: CleanName(feature.Name)),
             new ZoneLabelKeyComparer())
@@ -104,6 +126,10 @@ public static class SbtcZoneOverlay
                 representative.Size,
                 representative.Color);
         })
+        .Concat(features.Where(feature => feature.Kind != SbtcZoneKind.Wildlife && !feature.HideLabel && feature.LabelLocation is not null &&
+                                          !string.IsNullOrWhiteSpace(feature.Name))
+            .Select(feature => new SbtcZoneLabel(CleanName(feature.Name), feature.Kind,
+                feature.LabelLocation!.Value, feature.Shape, feature.Size, feature.Color)))
         .ToArray();
 
     private static SbtcZoneFeature? CreateFeature(MapPointOfInterestTelemetry poi)
@@ -124,11 +150,16 @@ public static class SbtcZoneOverlay
         var classification = $"{poi.CategoryName} {poi.CategoryId} {poi.Name}".ToLowerInvariant();
         SbtcZoneKind? kind = classification switch
         {
+            _ when poi.CategoryId == "wildlife" => SbtcZoneKind.Wildlife,
             var value when value.Contains("sanctuar") => SbtcZoneKind.Sanctuary,
             var value when value.Contains("migration") || value.Contains("mmz") => SbtcZoneKind.Migration,
             var value when value.Contains("patrol") => SbtcZoneKind.Patrol,
             var value when value.Contains("location") => SbtcZoneKind.Location,
             var value when value.Contains("uncategor") => SbtcZoneKind.Uncategorized,
+            // The server's own site publishes areas, waters and landmarks next to the
+            // zones; those four are the categories it shows by default, so they are drawn
+            // as plain markers while anything else stays out to keep the map readable.
+            _ when IsSiteCategory(poi.CategoryId) => SbtcZoneKind.Uncategorized,
             _ when !string.IsNullOrWhiteSpace(poi.Shape) && string.IsNullOrWhiteSpace(poi.CategoryId) =>
                 SbtcZoneKind.Uncategorized,
             _ when points.Length >= 3 => SbtcZoneKind.Uncategorized,
@@ -150,10 +181,15 @@ public static class SbtcZoneOverlay
             points,
             poi.Shape?.Trim().ToLowerInvariant(),
             size,
-            poi.Color,
+            kind == SbtcZoneKind.Patrol ? PatrolColor : poi.Color,
             poi.Icon,
-            poi.HideLabel == true);
+            poi.HideLabel == true,
+            poi.LabelLocation is { } anchor && double.IsFinite(anchor.Left) && double.IsFinite(anchor.Top)
+                ? anchor : null);
     }
+
+    private static bool IsSiteCategory(string? categoryId) =>
+        categoryId is "areas" or "waters" or "landmarks" or "sanctuaries";
 
     private static string CleanName(string name) => string.Join(
         ' ',

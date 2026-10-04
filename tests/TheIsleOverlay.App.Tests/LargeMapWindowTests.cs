@@ -43,8 +43,11 @@ public sealed class LargeMapWindowTests
         AssertLayer(document, nameAttribute, "LargeRouteLayer", "4", true);
         AssertLayer(document, nameAttribute, "LargeMarkerLayer", "5", true);
 
-        Assert.DoesNotContain(document.Descendants(), element =>
-            element.Name.LocalName is "Button" or "TextBlock");
+        var clearButton = Assert.Single(document.Descendants(), element => element.Name.LocalName == "Button");
+        Assert.Equal("QuickClearTrailButton", (string?)clearButton.Attribute(nameAttribute));
+        Assert.Equal("QuickClearTrailButton_Click", (string?)clearButton.Attribute("Click"));
+        Assert.DoesNotContain(clearButton.Ancestors(), element => element.Name.LocalName == "Canvas");
+        Assert.DoesNotContain(document.Descendants(), element => element.Name.LocalName == "TextBlock");
     }
 
     private static XElement Named(XDocument document, XName nameAttribute, string name) =>

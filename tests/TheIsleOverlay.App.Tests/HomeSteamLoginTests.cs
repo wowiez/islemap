@@ -71,7 +71,41 @@ public sealed class HomeSteamLoginTests
         Assert.Null(choices[0].Source);
         Assert.Equal("STEAM · SDVN #3", choices[1].Detail);
         Assert.Equal("sdvn3", choices[1].Source?.Id);
-        Assert.All(choices, choice => Assert.Equal(credentials.OverlayToken, choice.Credentials.OverlayToken));
+        Assert.All(choices, choice => Assert.Equal(credentials.OverlayToken, choice.Credentials!.OverlayToken));
+    }
+
+    [Fact]
+    public void SavedWebsiteSessions_ShowUpAsTheirOwnAccountRows()
+    {
+        // Servers with their own site are added by signing in there; the saved session
+        // then has to appear in the same list as the IslePilot accounts.
+        var choices = HomeWindow.BuildAccountChoices(
+            [],
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["sbtc"] = "session=abc"
+            });
+
+        var website = Assert.Single(choices);
+        Assert.True(website.IsWebsiteSession);
+        Assert.Null(website.Credentials);
+        Assert.Equal("sbtc", website.Source?.Id);
+        Assert.Equal("SBTC Island", website.Title);
+        Assert.Equal("WEBSITE · sbtcislandd.com · phiên đã lưu", website.Detail);
+        Assert.Equal("session=abc", website.WebsiteCookie);
+    }
+
+    [Fact]
+    public void WebsiteSessions_WithoutASavedCookieAreNotListed()
+    {
+        var choices = HomeWindow.BuildAccountChoices(
+            [],
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["sbtc"] = string.Empty
+            });
+
+        Assert.Empty(choices);
     }
 
     [Fact]
@@ -134,6 +168,25 @@ public sealed class HomeSteamLoginTests
             typeof(System.Runtime.CompilerServices.AsyncStateMachineAttribute),
             inherit: false));
     }
+
+    [Theory]
+    [InlineData("{\"error\":\"overlay_disabled\"}", "tắt tính năng overlay")]
+    [InlineData("{\"error\":\"unauthorized\"}", "không còn hợp lệ")]
+    [InlineData("{\"error\":\"something_else\"}", "trả về lỗi")]
+    public void HostErrorPage_IsExplainedInsteadOfShownRaw(string pageText, string expectedFragment)
+    {
+        var message = IslePilotLoginErrorPresentation.DescribeHostError(pageText, "3.sdvn.org");
+
+        Assert.NotNull(message);
+        Assert.Contains(expectedFragment, message);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("Sign in with Steam")]
+    public void NormalLoginPage_KeepsThePlainStatus(string? pageText) =>
+        Assert.Null(IslePilotLoginErrorPresentation.DescribeHostError(pageText, "3.sdvn.org"));
 
     [Fact]
     public void Sdvn3_ConnectsThroughItsOwnIslePilotDomain()

@@ -8,7 +8,8 @@ public sealed record SbtcPlayerMarker(
     string Label,
     bool Group,
     MapPoint Location,
-    double? HeadingDegrees);
+    double? HeadingDegrees,
+    bool Friend = false);
 
 public static class SbtcPlayerOverlay
 {
@@ -24,16 +25,17 @@ public static class SbtcPlayerOverlay
 
         return (markers ?? [])
             .Where(marker => !marker.Self &&
-                             marker.MapLocation is not null &&
-                             !string.IsNullOrWhiteSpace(marker.Label))
+                             marker.MapLocation is { } point &&
+                             double.IsFinite(point.Left) && double.IsFinite(point.Top))
             .GroupBy(MarkerKey, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .Select(marker => new SbtcPlayerMarker(
                 marker.SteamId,
-                marker.Label!.Trim(),
+                string.IsNullOrWhiteSpace(marker.Label) ? "Người chơi" : marker.Label.Trim(),
                 marker.Group,
                 marker.MapLocation!.Value,
-                marker.ExactMapHeadingDegrees))
+                marker.ExactMapHeadingDegrees,
+                marker.Friend))
             .ToArray();
     }
 
@@ -41,7 +43,7 @@ public static class SbtcPlayerOverlay
         '|',
         markers.Select(marker => string.Create(
             CultureInfo.InvariantCulture,
-            $"{marker.SteamId}:{marker.Label}:{marker.Group}:{marker.Location.Left:0.######}:{marker.Location.Top:0.######}:{marker.HeadingDegrees:0.###}")));
+            $"{marker.SteamId}:{marker.Label}:{marker.Group}:{marker.Friend}:{marker.Location.Left:0.######}:{marker.Location.Top:0.######}:{marker.HeadingDegrees:0.###}")));
 
     private static string MarkerKey(MapMarkerTelemetry marker) =>
         !string.IsNullOrWhiteSpace(marker.SteamId)

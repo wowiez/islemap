@@ -35,10 +35,12 @@ public partial class LargeMapWindow : Window
     private bool _dragMoved;
     private double _zoom = MinimumZoom;
     private bool _allowClose;
+    private double _playerMarkerScale = OverlayLayoutRules.DefaultPlayerMarkerScale;
 
     public LargeMapWindow(ImageSource? sharedMapSource = null)
     {
         InitializeComponent();
+        MapViewbox.SizeChanged += (_, _) => RenderWildlife();
         if (sharedMapSource is not null)
         {
             LargeMapImage.Source = sharedMapSource;
@@ -51,6 +53,35 @@ public partial class LargeMapWindow : Window
     }
 
     public event Action<MapPoint?>? DestinationChanged;
+    public event Action? ClearPathTrailRequested;
+    public event Action<bool, bool>? MapLayerFiltersChanged;
+
+    public void UpdateMapLayerFilters(bool showZones, bool showWildlife)
+    {
+        MapZonesFilterButton.IsChecked = showZones;
+        MapWildlifeFilterButton.IsChecked = showWildlife;
+        LargeZoneLayer.Visibility = showZones ? Visibility.Visible : Visibility.Collapsed;
+        LargeDrinkingWaterImage.Visibility = Visibility.Visible;
+        LargeWildlifeLayer.Visibility = showWildlife ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void MapLayerFilterButton_Click(object sender, RoutedEventArgs e)
+    {
+        var showZones = MapZonesFilterButton.IsChecked == true;
+        var showWildlife = MapWildlifeFilterButton.IsChecked == true;
+        UpdateMapLayerFilters(showZones, showWildlife);
+        MapLayerFiltersChanged?.Invoke(showZones, showWildlife);
+    }
+
+    public void UpdateMapMarkerSettings(double playerMarkerScale, bool wildlifeAbovePlayer)
+    {
+        _playerMarkerScale = OverlayLayoutRules.NormalizePlayerMarkerScale(playerMarkerScale);
+        Panel.SetZIndex(LargeWildlifeLayer, wildlifeAbovePlayer ? 6 : 2);
+        RenderRouteAndMarkers();
+    }
+
+    private void QuickClearTrailButton_Click(object sender, RoutedEventArgs e) =>
+        ClearPathTrailRequested?.Invoke();
 
     public void UpdateState(
         MapPoint? currentLocation,
@@ -234,10 +265,13 @@ public partial class LargeMapWindow : Window
     private void RenderZones()
     {
         LargeZoneLayer.Children.Clear();
+        LargeMapPoiLayer.Children.Clear();
         foreach (var feature in _zones)
         {
+            if (feature.Kind == SbtcZoneKind.Wildlife) continue;
+            var layer = SbtcZoneOverlay.IsFilterableZone(feature.Kind) ? LargeZoneLayer : LargeMapPoiLayer;
             var points = new PointCollection(feature.Points.Select(ToCanvasPoint));
-            if (points.Count == 0)
+            if (points.Count == 0 || feature.Shape == "label")
             {
                 continue;
             }
@@ -248,7 +282,7 @@ public partial class LargeMapWindow : Window
                             string.IsNullOrWhiteSpace(feature.Shape) && points.Count >= 3;
             if (isPolygon && points.Count >= 3)
             {
-                LargeZoneLayer.Children.Add(new Polygon
+                layer.Children.Add(new Polygon
                 {
                     Points = points,
                     Stroke = stroke,
@@ -271,7 +305,7 @@ public partial class LargeMapWindow : Window
                 };
                 Canvas.SetLeft(circle, center.X - radius);
                 Canvas.SetTop(circle, center.Y - radius);
-                LargeZoneLayer.Children.Add(circle);
+                layer.Children.Add(circle);
             }
         }
 
@@ -297,14 +331,31 @@ public partial class LargeMapWindow : Window
                 }
             };
             label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            var isPolygon = string.Equals(zoneLabel.Shape, "polygon", StringComparison.OrdinalIgnoreCase) ||
+            var isPolygon = zoneLabel.Shape == "label" || string.Equals(zoneLabel.Shape, "polygon", StringComparison.OrdinalIgnoreCase) ||
                             string.IsNullOrWhiteSpace(zoneLabel.Shape);
             var labelCenterY = isPolygon
                 ? center.Y
                 : center.Y - Math.Max(7d, (zoneLabel.Size ?? 0.01d) * MapWidth) - 15d;
             Canvas.SetLeft(label, center.X - label.DesiredSize.Width / 2d);
             Canvas.SetTop(label, labelCenterY - label.DesiredSize.Height / 2d);
-            LargeZoneLayer.Children.Add(label);
+            var layer = SbtcZoneOverlay.IsFilterableZone(zoneLabel.Kind) ? LargeZoneLayer : LargeMapPoiLayer;
+            layer.Children.Add(label);
+        }
+        RenderWildlife();
+    }
+
+    private void RenderWildlife()
+    {
+        LargeWildlifeLayer.Children.Clear();
+        var fitScale = Math.Min(MapViewbox.ActualWidth / MapWidth, MapViewbox.ActualHeight / MapHeight);
+        var markerSize = SbtcWildlifeMarker.LargeMapSize(_zoom, fitScale);
+        foreach (var feature in _zones.Where(feature => feature.Kind == SbtcZoneKind.Wildlife))
+        {
+            var center = ToCanvasPoint(feature.Points[0]);
+            var marker = SbtcWildlifeMarker.Create(feature.Name, feature.Color, markerSize);
+            Canvas.SetLeft(marker, center.X - marker.Width / 2d);
+            Canvas.SetTop(marker, center.Y - marker.Height / 2d);
+            LargeWildlifeLayer.Children.Add(marker);
         }
     }
 
@@ -316,7 +367,8 @@ public partial class LargeMapWindow : Window
         if (_currentLocation is { } current)
         {
             var currentPoint = ToCanvasPoint(current);
-            var currentMarker = AddMarker(currentPoint, "#FF2E88", 16d);
+            var currentMarker = AddMarker(currentPoint, "#FF2E88", 16d * _playerMarkerScale);
+            currentMarker.Name = "CurrentLocationMarker";
             if (_renderedCurrentLocation is { } previous && previous != current)
             {
                 var previousPoint = ToCanvasPoint(previous);
@@ -392,7 +444,7 @@ public partial class LargeMapWindow : Window
         foreach (var player in _players)
         {
             var center = ToCanvasPoint(player.Location);
-            var color = player.Group ? BrushFrom("#E879F9") : BrushFrom("#34D399");
+            var color = player.Group && !player.Friend ? BrushFrom("#E879F9") : BrushFrom("#34D399");
             FrameworkElement marker;
             if (player.HeadingDegrees is { } heading)
             {
@@ -643,6 +695,7 @@ public partial class LargeMapWindow : Window
             cursorOffset.X - (target / oldZoom) * (cursorOffset.X - pan.X),
             cursorOffset.Y - (target / oldZoom) * (cursorOffset.Y - pan.Y));
         _zoom = target;
+        RenderWildlife();
         AnimateValue(ZoomScaleTransform, ScaleTransform.ScaleXProperty, target);
         AnimateValue(ZoomScaleTransform, ScaleTransform.ScaleYProperty, target);
         SetPan(anchorPan.X, anchorPan.Y, animate: true);
@@ -761,7 +814,7 @@ public partial class LargeMapWindow : Window
         {
             SbtcZoneKind.Sanctuary => Color.FromArgb(alpha, 66, 221, 177),
             SbtcZoneKind.Migration => Color.FromArgb(alpha, 255, 169, 31),
-            SbtcZoneKind.Patrol => Color.FromArgb(alpha, 169, 123, 243),
+            SbtcZoneKind.Patrol => Color.FromArgb(alpha, 167, 139, 250),
             _ => Color.FromArgb(alpha, 184, 168, 216)
         };
         return new SolidColorBrush(fallback);
@@ -771,7 +824,7 @@ public partial class LargeMapWindow : Window
     {
         SbtcZoneKind.Sanctuary => Color.FromArgb(alpha, 66, 221, 177),
         SbtcZoneKind.Migration => Color.FromArgb(alpha, 255, 169, 31),
-        SbtcZoneKind.Patrol => Color.FromArgb(alpha, 169, 123, 243),
+        SbtcZoneKind.Patrol => Color.FromArgb(alpha, 167, 139, 250),
         SbtcZoneKind.Location => Color.FromArgb(alpha, 230, 236, 242),
         _ => Color.FromArgb(alpha, 184, 168, 216)
     });

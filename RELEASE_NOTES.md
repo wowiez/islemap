@@ -1,8 +1,153 @@
-# Isle Live Map 1.8.8
+# Isle Live Map 1.8.33
+
+- Đóng gói sẵn vùng Patrol màu tím và Migration màu vàng trong DLL. Cài mới mặc định bật vùng; không cần file vùng từ máy khác hoặc chờ API. Có kiểm tra đọc cả hai catalogue trực tiếp từ tài nguyên đã biên dịch.
+- Các dòng hiển thị phần trăm dùng thanh dài như bone; cặp số hiện tại / tối đa dùng thanh ngắn để chừa chỗ cho số. Số căn phải và chiều dài thanh không đổi theo số chữ số.
+
+# Isle Live Map 1.8.32
+
+- Cố định các thanh máu, stamina, food và nước cùng chiều dài trong mọi chế độ số hoặc phần trăm. Giữ thanh bone dài như trước và căn phải các số.
+
+# Isle Live Map 1.8.31
+
+- HUD có hai bố cục cố định theo từng dòng: phần trăm / chưa có dữ liệu dùng cột số 32 px để thanh dài hơn; hiện tại / tối đa dùng cột 64 px. Tất cả số căn phải cùng mép, chiều dài thanh không đổi theo số chữ số.
+- Kiểm tra ảnh render cho phần trăm, cặp số, dữ liệu trộn, Dino nhỏ, HP lớn, food bằng 0 và chưa có dữ liệu; chọn bố cục theo từng dòng sau khi so sánh với cách dùng chung cột rộng cho cả bảng.
+
+# Isle Live Map 1.8.30
+
+- Khi chưa đủ cặp hiện tại/tối đa từ packet, dùng phần trăm web cho chỉ số đó; nếu chưa có dữ liệu web thì hiển thị `- / -`. Khi nhận đủ packet, tự chuyển sang cặp số thực; không suy đoán sức chứa hoặc lấy số tối đa của Dino cũ.
+- Thu hẹp cột số cố định còn 64 px, căn số về sát thanh với khoảng cách 4 px. Các thanh vẫn giữ nguyên chiều dài khi số thay đổi.
+
+# Isle Live Map 1.8.29
+
+- Cố định cột số trong HUD ở 74 px để các thanh HP, food, nước, stamina và xương luôn có cùng chiều dài. Chuyển từ “Đang đồng bộ” sang số, đổi số chữ số hoặc cập nhật giá trị không còn làm thanh co giãn.
+
+# Isle Live Map 1.8.28
+
+- Khi mở overlay giữa phiên và mới nhận giá trị hiện tại, HUD báo “Đang đồng bộ” thay cho các cặp thiếu số tối đa như `87.5 / —`. Ẩn thanh chưa tính được phần trăm để tránh trông giống chỉ số bằng 0; tooltip vẫn cho biết giá trị hiện tại đã nhận.
+- Khi packet gửi sức chứa, HUD tự hiện lại thanh và cặp hiện tại / tối đa. Không thay đổi bộ đọc packet hoặc suy đoán số tối đa trong thời gian chờ.
+
+# Isle Live Map 1.8.27
+
+- Đọc HP, food, nước và stamina hiện tại/tối đa từ khối thuộc tính Iris đã đối chiếu trên packet SBTC. Giải mã mask byte thưa và các cặp scalar thay cho suy đoán vị trí float; cập nhật từng phần giữ nguyên các trường game chưa gửi lại.
+- Khóa đúng object handle từ RPC di chuyển của client rồi theo dõi subobject thuộc tính của Dino đó. Đổi con, respawn, đổi kết nối hoặc đóng kênh xóa dữ liệu cũ; hỗ trợ handle tăng từ 2 lên 3 byte. Không dùng khối KG không có object identity trên luồng Iris đã nhận diện.
+- HUD và tổng quan F8 ưu tiên chỉ số packet. HP vẫn hiển thị số nguyên; food/nước/stamina hiển thị hiện tại / tối đa với một số lẻ. Food bằng 0 giữ đúng 0%; mẫu thiếu sức chứa hiển thị dấu —, không mượn số tối đa của Dino cũ trên web. Schema SBTC đang đối chiếu dùng mức nước mặc định 1000 nếu server chưa gửi sức chứa khác.
+- Giữ sức chứa đã nhận khi growth/KG đạt plateau. Khối packet chưa nhận diện được bị bỏ qua; bật app giữa phiên có thể cần chờ game gửi lại sức chứa HP/food/stamina. Kiểm tra bằng replay packet respawn và capture trực tiếp; dữ liệu bắt mạng không nằm trong bản phân phối.
+
+# Isle Live Map 1.8.26
+
+- Giữ KG đã xác thực của Dino hiện tại khi khối lượng ngừng thay đổi và game không gửi lại khối thuộc tính. Mẫu thuộc đúng actor không còn hết hạn sau 120 giây; không khóa hoặc tăng KG theo mốc growth/prime.
+- Mẫu ban đầu chưa xác định đúng actor vẫn hết hạn sau 120 giây. Đổi kênh Dino, đóng actor, mất nguồn/kết nối hoặc tắt Npcap vẫn bỏ số máu dùng KG cũ; phép tính tiếp tục dùng KG nguyên nhân % máu web.
+- F8 báo đang giữ cân nặng cuối của Dino hiện tại khi mẫu không đổi lâu. Test plateau ba giờ, cập nhật % máu, nhận KG mới tăng/giảm, đổi actor và mẫu ban đầu quá hạn.
+
+# Isle Live Map 1.8.25
+
+- Bộ lọc VÙNG chỉ điều khiển các polygon patrol tím, migration vàng và sanctuary. Lớp nước uống, địa danh và tên nước luôn hiển thị; AI có bộ lọc riêng như trước.
+- Sửa mất vùng khi endpoint vùng lỗi nhưng AI vẫn tải được: giữ bộ vùng đã tải thành công trong provider; nếu chưa có vùng server thì ghép polygon dự phòng với AI hiện tại. Dữ liệu AI không còn thay thế bộ polygon tím/vàng.
+- Kiểm tra ảnh render khi bật/tắt VÙNG, khi chỉ có feed AI và khi feed vùng phục hồi trên minimap, map lớn và F8.
+
+# Isle Live Map 1.8.24
+
+- Giảm icon AI trên bản đồ lớn và F8: toàn đảo 18 px (trước 28 px), zoom 4x 38 px (trước 44 px), zoom 8x 48 px. Kiểm tra ảnh render cùng vị trí ở ba mức zoom, giữ kích thước AI trên minimap.
+- Thêm hai nút lọc VÙNG và AI trên bản đồ lớn và bản đồ F8. Có thể bật riêng hoặc bật cả hai, đồng bộ với minimap và lưu khi mở lại; cập nhật feed không bật lại lớp đã ẩn.
+- Sửa KG Ptera ở growth cao: trường ngữ cảnh đi kèm cân nặng có thể vượt 1,1, không phải phần trăm. Bỏ giới hạn sai, vẫn kiểm tra cặp ngữ cảnh và toàn bộ bản sao KG/sức chứa, từ chối ngữ cảnh dùng chính sức chứa. Replay packet Ptera 83% nhận 111,358 → 112,158 kg từ đúng actor; thêm test bằng các scalar số đã tách khỏi packet.
+- Máu tiếp tục dùng phần nguyên KG nhân phần trăm máu từ web và hiển thị số nguyên.
+
+# Isle Live Map 1.8.23
+
+- Thêm chỉnh kích thước điểm vị trí từ 50% đến 200% trong F8 → Cài đặt và bảng settings nhỏ, đồng bộ tức thì trên minimap, bản đồ lớn và bản đồ F8.
+- Cho chọn icon AI ở trên hoặc dưới điểm người chơi khi trùng vị trí. Mặc định giữ cách hiển thị hiện tại: kích thước 100%, AI ở dưới.
+- Lưu và khôi phục hai tùy chọn khi mở lại app; cài đặt cũ vẫn giữ kích thước và thứ tự lớp mặc định. AI có lớp riêng trên minimap để đổi thứ tự mà không đưa nhãn vùng lên trên điểm người chơi.
+- Kiểm tra bằng ảnh render WPF ở 50% / 100% / 200%, cả hai thứ tự lớp trên ba bản đồ; điểm vị trí không bị lệch, điểm đích giữ kích thước cũ.
+
+# Isle Live Map 1.8.22
+
+- Tăng kích thước icon AI trên bản đồ lớn và F8, bù cả tỷ lệ Viewbox và zoom. Icon có kích thước hiển thị 28 px ở 1x, 44 px ở 4x và 52 px ở 8x; kiểm tra bằng ảnh render WPF cùng vị trí trước/sau.
+- Nhớ server được chọn lần cuối trong dropdown và khôi phục đúng nguồn khi mở overlay. Chỉ lưu ID server; phiên đăng nhập vẫn dùng kho hiện có.
+- Sửa KG của Ptera: nhận thêm khối thuộc tính 16 scalar bên cạnh mẫu 20 scalar, vẫn kiểm tra đầy đủ ngữ cảnh, cặp máu và các bản sao cân nặng/sức chứa. Replay capture Ptera nhận đủ bốn mẫu 96,958 → 98,158 kg từ đúng channel Dino, không mất KG giữa các lần cập nhật.
+- Thêm tab Kill Feed trong F8 từ `GET /api/boards/species`, hiển thị người hạ/nạn nhân, loài, growth và nguyên nhân. Lọc theo loài, cập nhật mỗi 30 giây khi tab đang mở, thử tối đa ba lần khi mạng lỗi và giữ dữ liệu đã tải kèm thời điểm cũ.
+
+# Isle Live Map 1.8.21
+
+- Vùng patrol từ feed SBTC dùng màu tím `#A78BFA` giống IslePilot trên minimap, bản đồ lớn và F8; giữ màu các loại vùng và AI khác.
+- Sửa mất số máu giữa các lần cập nhật KG: capture Deino có hai khối thuộc tính cách nhau 80,130 giây, vượt giới hạn cũ 60 giây. Giữ mẫu đã xác thực tối đa 120 giây; vẫn bỏ mẫu khi mất luồng hoặc đổi actor, không làm mới tuổi mẫu từ dữ liệu không liên quan.
+- Thêm test bằng các trường số đã tách khỏi packet Deino 70,891 / 73,960 / 3.275,415 kg và test tính máu liên tục qua khoảng cập nhật. Chưa có packet của máy trong report mới để xác nhận nguyên nhân tại máy đó.
+
+# Isle Live Map 1.8.20
+
+- Hiển thị AI đang sống trên SBTC Island từ `/api/ai_positions?platform=steam`, cập nhật mỗi 8 giây, dùng cùng tọa độ và biểu tượng động vật với bản đồ web. Có trên minimap, bản đồ lớn và bản đồ F8; giữ biểu tượng đúng kích thước khi phóng to.
+- Loại tọa độ rỗng/không hợp lệ, xóa AI cũ khi nguồn mất hoặc lỗi; lỗi AI không ngắt chỉ số Dino, bạn bè hoặc vùng bản đồ.
+- Sửa luồng HUD bỏ qua POI của SBTC để các vùng và AI từ server được truyền tới bản đồ thực tế.
+
+# Isle Live Map 1.8.19
+
+- Sửa overlay mất khỏi màn hình khi vị trí lưu nằm trong khoảng trống giữa nhiều màn hình hoặc màn hình đã ngắt kết nối; tự đưa cửa sổ về vùng làm việc thực.
+- Không ghi đè vị trí đã lưu khi đóng cửa sổ chưa từng mở hoặc đang thu nhỏ. Các bài test bản đồ sử dụng file cấu hình riêng.
+
+# Isle Live Map 1.8.18
+
+- (local, chưa phát hành) Đối chiếu vùng với bản đồ web SBTC: vòng tròn dùng cùng 40 đỉnh của `map.js` và đúng khung ảnh thay vì chia bán kính cho toàn canvas; giữ điểm đặt nhãn gốc, không vẽ vòng tròn lớn cho tên khu vực/nước. Thay đổi ở bất kỳ đỉnh polygon nào cũng cập nhật bản đồ. Cache vùng tách theo provider để không dùng nhầm dữ liệu của phiên/host khác.
+- (local, chưa phát hành) Sửa pin bạn bè trên minimap và bản đồ lớn: gộp tên và cờ friend/group/squad của Steam ID trùng như web, không bỏ pin thiếu tên (dùng loài làm nhãn), ưu tiên tọa độ pixel từ server theo `map.js`. Bạn bè có màu xanh; không nhận pin không được server đánh dấu trong các danh sách chia sẻ. Rút gọn danh sách cổng trong chẩn đoán F8 để đọc rõ trạng thái KG.
+- (local, chưa phát hành) Sửa mục Đã lưu trong Skin: thêm nút TẢI LẠI riêng, số lượng và trạng thái tải/trống/lỗi; không để nút kiểm tra lệnh áp dụng che mất lỗi thư viện. Đọc cả thiết kế màu thường `/api/designs` và thiết kế tự lưu của Glitch Creator `/api/glitchcreator/designs`. Thiết kế thiếu bảng màu hoặc recipe không hỗ trợ vẫn hiện trong danh sách và có nút mở Studio; recipe không hợp lệ không làm mất cả kho.
+- (local, chưa phát hành) Sửa các trường hợp có tọa độ nhưng thiếu KG để tính máu: đọc packet có một hoặc hai bit kết thúc, xác thực toàn bộ header trước khi cập nhật trạng thái, ghép các mảnh reliable đúng channel/sequence và giữ tạm khối cân nặng đến khi movement của client xác định đúng Dino. Không dùng mẫu của kết nối khác, mảnh thiếu hoặc mẫu quá hạn. F8 · Cài đặt hiển thị lý do đang chờ KG.
+- (local, chưa phát hành) Gửi skin trực tiếp sau một lần bấm ÁP DỤNG, bỏ hộp xác nhận thứ hai; vẫn kiểm tra loài, quyền, phí và chống gửi lặp khi đang xử lý.
+- (local, chưa phát hành) Sửa model 3D không hiện vì CSP chặn WebAssembly của Meshopt; kiểm chứng viewer đóng gói với GLB nén và chính CSP của ứng dụng.
+- (local, chưa phát hành) Mục Đã lưu của Skin đọc toàn bộ thiết kế từ `GET /api/designs`, lưu mới bằng `POST /api/designs` giống studio SBTC. Lưu thiết kế không phụ thuộc skin genes hoặc Dino đang sống; lỗi kho đầy được hiển thị rõ.
+- (local, chưa phát hành) Thêm nút XÓA ĐƯỜNG ĐI trên bản đồ lớn và bản đồ trong F8, cùng Ctrl+R khi game/overlay đang được chọn. Xóa đồng bộ đường đi trên mọi bản đồ; nhả phím tắt khi chuyển sang ứng dụng khác.
+- (local, chưa phát hành) Sửa food và các chỉ số dưới hoặc bằng 1% bị nhân thành 100%: giữ đúng đơn vị phần trăm của nguồn web trên HUD và bảng F8.
+- (local, chưa phát hành) Sửa đọc nhầm cân nặng của Dino nhỏ: chấp nhận KG dưới 5, yêu cầu đầy đủ ngữ cảnh thuộc tính trước nhóm dung lượng để loại các nhóm số giống cân nặng. Đối chiếu packet Ptera 2,84–3,59 kg; có test khi Dino mất máu hoặc máu về 0.
+- (local, chưa phát hành) Bỏ ô KG khỏi bản đồ; cân nặng vẫn được đọc để tính máu:
+  - Đọc khối thuộc tính có các bản sao cân nặng và sức chứa bằng nửa cân nặng khớp chính xác, thay cách chọn nhiều chuỗi float ổn định.
+  - Chọn actor từ channel movement của client và ghép đúng hai chiều của cùng kết nối UDP. Nếu thiếu channel thì không dùng cân nặng từ luồng server.
+  - Giữ mẫu tối đa 60 giây giữa các lần server gửi khối thuộc tính; mất luồng, đổi actor hoặc tắt NPCAP sẽ bỏ mẫu cũ.
+  - Log `%LOCALAPPDATA%\IsleLiveMapData\npcap-weight.txt` chỉ ghi kg đã xác thực cùng channel, bit offset và tuổi mẫu. Có test bằng các trường số đã loại bỏ thông tin phiên từ capture Cera, cùng test chống đọc nhầm, lệch bit, sai actor và mẫu hết hạn.
+- (local, chưa phát hành) Dòng máu trên HUD: lấy phần nguyên KG trước khi nhân phần trăm máu theo quy ước 1 kg = 1 HP tối đa (2,7 kg → 2 HP tối đa), hiển thị máu không có số lẻ. Cập nhật khi KG hoặc phần trăm máu thay đổi; thiếu hoặc hết hạn KG thì trở về phần trăm. Nguồn đã cung cấp HP hiện tại/tối đa giữ giá trị gốc. Phần trăm máu nhỏ hơn 1% được giữ đúng khi tính toán.
+- (local, chưa phát hành) Ẩn Garage và tập trung Skin 3D trong F8 khi đăng nhập nguồn **SBTC Island**:
+  - Chỉnh màu HEX, xem model SBTC bằng phiên Steam hiện tại, đọc và lưu thiết kế trên `/api/designs`, áp dụng màu thường qua `/api/studio/apply`. Màu recipe dùng RGB/255; bảng màu mặc định dùng RGB tuyến tính.
+  - Kiểm tra quyền và skin genes trước khi gửi, hiện phí trên bảng skin; giữ mã yêu cầu khi mất phản hồi và kiểm tra delivery thay vì báo đã áp dụng từ phản hồi đang chờ. Skin glitch dùng studio trên web.
+  - Xem trước dùng diffuse và mask vùng màu của studio SBTC, tải mask răng/miệng/móng theo hợp đồng server thay vì đoán kênh màu. Hỗ trợ model nén Meshopt, texture WebP/PNG và giữ bảng màu mới nhất trong khi model đang tải.
+  - Sửa selector tài khoản tránh dereference credentials null của phiên website SBTC/Pandora.
+
+# Isle Live Map 1.8.17
 
 - Sửa lỗi **trạng thái không cập nhật khi phiên IslePilot đã bị thu hồi** (web vẫn cập nhật bình thường):
   - Token overlay bị xoay mỗi lần đăng nhập: token cũ bị chính host phát hành trả **410 Gone**, còn host khác trả 401. App cũ coi 410 là lỗi mạng nên vẫn mở overlay bằng token đã chết, cứ thử lại mãi mà không hiện chỉ số dino.
   - Nay 401 và 410 được xử lý là phiên hết hạn: ở Home app báo cần xác thực lại và mở cửa sổ đăng nhập Steam; trong phiên overlay, HUD báo `PHIÊN CẦN XÁC THỰC LẠI` thay vì đứng im. (403 vẫn là lỗi tạm thời vì Cloudflare trả 403 khi chặn bot — không được coi là hết phiên.)
+  - Cửa sổ đăng nhập Steam giờ đọc trang lỗi của server và diễn giải thành câu: nếu server tắt tính năng overlay (`overlay_disabled`), app báo rõ "server đang tắt tính năng overlay" kèm gợi ý dùng Copy Asset + NPCAP, thay vì chỉ hiện một trang JSON khó hiểu.
+- (local, chưa phát hành) Nguồn **SBTC Island** (sbtcislandd.com) cho live map + chỉ số, thay hẳn cho hướng giải mã từ packet (NPCAP) đã bỏ vì quá nhiều lỗi:
+  - Đăng nhập Steam OpenID (`/auth/steam/login?next=/map`) trong cửa sổ WebView2 như các server khác; app lưu cookie phiên, tự phát hiện phiên hết hạn (site trả `signed_in:false` chứ không phải 401) và mời đăng nhập lại.
+  - `/api/positions`: vị trí và hướng nhìn của bạn, kèm pin của bạn bè/group/squad khi họ bật chia sẻ. Mỗi entry có thể là toạ độ game (`ue_x`/`ue_y`) hoặc pixel bản đồ của site — app quy đổi bằng đúng calibration `gateway_v0217` của site (khớp với calibration Gateway sẵn có của app) rồi chiếu lên bản đồ như mọi nguồn khác.
+  - `/api/live`: thẻ dino — loài, growth, các thanh máu/thể lực/đói/nước/oxy/máu, diet (carb/protein/lipid), chảy máu, nứt xương, prime/elder.
+  - HUD lấy đủ những gì thẻ dino của site hiển thị: 4 thanh máu/thể lực/đói/nước, growth, diet (carb/protein/lipid), oxy, blood, nứt xương, chảy máu, giai đoạn sống (life stage) và prime/elder — phần ngoài 4 thanh gom vào một dòng điều kiện ngay dưới các thanh.
+  - Sửa lỗi **Npcap không chạy với nguồn SBTC Island**: điều kiện khởi động Npcap chỉ tính server IslePilot nên với nguồn web mới thì Npcap không bật, marker chỉ nhích theo nhịp poll 4 giây. Nay mọi nguồn có live map (IslePilot, IslePilot hosted, SBTC Island) đều bật Npcap, nên vị trí vẫn mượt theo packet như trước và zone/player overlay của SBTC cũng chạy.
+  - Dòng điều kiện trong HUD gọn lại: bỏ OXY, diet viết ngắn `C/P/L`, nứt xương không còn chiếm chữ mà hiện thành **icon xương** (chỉ hiện khi xương chưa lành, có tooltip % còn lại); panel chỉ số nới từ 248 lên 286 để chữ không bị xuống dòng giữa từ.
+  - Bộ icon chỉ số đổi sang SVG tự chọn: tim (máu, xanh lá), **đùi gà** (thức ăn, cam), giọt nước (nước, xanh dương), xương (nứt xương, đỏ). Icon đường dẫn SVG dùng trực tiếp được trong WPF (`Path Data`), chỉ cần đổi sang quy tắc tô `F1` (nonzero) vì WPF mặc định EvenOdd còn SVG mặc định nonzero.
+  - **Thêm tài khoản theo loại**: nút ＋ THÊM TÀI KHOẢN giờ hỏi bạn muốn thêm *IslePilot Network (Steam)* hay một *server dùng website riêng* (SBTC Island, EraGaming, PANDORA). Server web đăng nhập một lần rồi **xuất hiện trong danh sách tài khoản** kèm dòng "WEBSITE · <host> · phiên đã lưu", có nút XÓA PHIÊN riêng; chọn nó rồi bấm MỞ OVERLAY là vào map không cần đăng nhập lại. Phiên được lưu bằng DPAPI (Windows) như vault IslePilot, không ghi ra log.
+  - **Chế độ khách**: nút CHẾ ĐỘ KHÁCH · CHỈ XEM BẢN ĐỒ mở overlay chỉ có bản đồ + vị trí từ packet (Npcap), không cần tài khoản nào.
+  - HUD gọn theo đúng phản hồi: **bỏ dòng chữ điều kiện** (MÁU/DIET/life stage) và trả panel chỉ số về bề rộng cũ; thay vào đó các **thanh màu được kéo khít tới con số %** (bỏ khoảng trống 8px, cột số thu còn 52px) — đúng chỗ cần "dài ra".
+  - **Icon xương chỉ hiện ở server có trường fracture (SBTC Island)**, các server khác không có dòng này; xương luôn **màu trắng** (xương thì phải trắng) và luôn hiện **`XƯƠNG n%`** bên cạnh — số chuyển đỏ khi xương chưa lành. Icon trái tim (máu) đổi sang **màu đỏ**.
+  - **Thanh xương** giờ cùng dạng với các thanh khác (icon + thanh + %), xương luôn trắng còn thanh chuyển đỏ khi nứt; giá trị nứt được giữ trong 12 giây nên mẫu 100% thoáng qua không làm thanh nhảy.
+  - **Npcap không bắt được gói dù đang trong server**: app chỉ đọc được UDP **IPv4** và chỉ liệt kê cổng UDP IPv4, nên khi client nối server qua **IPv6** thì card mở được mà đếm 0 gói (`Đã mở card mạng · chưa nhận gói game`). Nay bộ lọc bắt cả hai họ, bộ đọc parse được IPv6 (kể cả frame có VLAN tag) và danh sách cổng lấy thêm bảng UDP IPv6. Dòng chẩn đoán cũng đếm số gói thấy trên card để biết ngay là sai card hay sai cổng.
+  - **Npcap**: nút **BẬT LẠI DRIVER** hiện cả khi capture đang kẹt ở CONNECTING (trước đây chỉ hiện khi lỗi nên không có cách bật lại driver), và dòng chẩn đoán nói rõ đang tắc ở bước nào (chưa nhận gói / đã nhận N gói mà chưa khoá được toạ độ).
+  - **Chẩn đoán Npcap trong F8**: thêm dòng cho biết nó đang tắc ở đâu — cổng UDP của tiến trình game, tình trạng driver npcap, và card mạng sẽ dùng. Kèm đó, Npcap nay khởi động cho **mọi** nguồn có live map (trước đây chỉ IslePilot nên nguồn website như SBTC không bật Npcap).
+  - **Vùng bản đồ theo site**: nguồn SBTC Island giờ đọc chính dữ liệu bản đồ công khai của server (`assets/data/map_pois.json` và `assets/maps/mapconfig.json`) và vẽ đúng 4 nhóm mà web đang bật mặc định — **areas, waters, landmarks, sanctuaries** — kèm màu của site, thay vì bộ zones Gateway đóng gói sẵn. Zone có bán kính (`r`) vẽ thành vòng tròn, còn lại là marker chấm; mặc định tắt các nhóm nhiễu (animals, plants, KI-spawns…) nên bản đồ không bị rối. Dữ liệu cache 10 phút.
+  - **Trả Npcap về đúng bản cũ đã chạy được**: bỏ toàn bộ thay đổi IPv6/đổi cách liệt kê cổng mà mình thêm ở bản trước (nghi là nguyên nhân 285 gói mà không khớp cổng), giữ nguyên cách bắt gói + giải mã như bản ổn định. Chỉ giữ lại **dòng đếm gói** trong F8 để chẩn đoán.
+  - **Sửa gốc lỗi Npcap "thấy gói nhưng không khớp cổng game"**: card mạng của bạn (VPN/tunnel) được Npcap trả về dạng **raw IP** (link type 101) — frame bắt đầu bằng header IP chứ không có header Ethernet, mà app lại luôn đọc ethertype ở byte 12 nên mọi gói đều bị loại. App giờ thử lần lượt layout Ethernet → raw IP → loopback, nên bắt được cả hai kiểu card. Đã kiểm chứng trên capture sống 45 giây lấy từ chính máy bạn: khoá được vị trí, toạ độ mượt, yaw đúng.
+  - App ghi lại vùng nó nhận được từ server ra  (mỗi phút một lần) để đối chiếu/hiệu chuẩn bộ polygon mà không cần DevTools hay token.
+  - **Thanh chỉ số fit động**: cột số giờ tự co theo nội dung (`Auto`) thay cho bề rộng cứng 52px, nên thanh luôn dừng đúng chỗ con số bắt đầu — không đè lên số, cũng không chừa khoảng trống thừa, dù là "1018 / 10018" hay "100%".
+  - **Nút lấy vùng từ IslePilot web** trong F8: mở trang IslePilot bằng WebView2 (dùng chung phiên đăng nhập), tự bắt mọi phản hồi JSON có sanctuary/patrol/migration và lưu vào `%LOCALAPPDATA%\IsleLiveMapData\islepilot-sniff\` để nhúng làm bộ polygon chuẩn.
+  - **Vùng bản đồ cố định cho mọi server**: overlay luôn vẽ bộ polygon đóng gói trong app (Assets/GatewayZones.json, 80 vùng: 7 sanctuary · 12 migration · 61 patrol) thay vì chờ server gửi vùng. Server tắt overlay, server không có vùng, hay server khác hệ thống — tất cả đều hiện cùng một bộ vùng. File  (ghi mỗi phút) giờ ghi đúng bộ đang vẽ để đối chiếu.
+  - **Vùng lấy thẳng từ IslePilot**: mở trang bản đồ IslePilot bằng chính phiên đăng nhập của bạn, trích lớp SVG vùng (polygon sanctuary/migration/patrol kèm nhãn), đổi sang toạ độ bản đồ của app rồi nhúng thành asset  (48 vùng: 5 sanctuary · 10 migration · 33 patrol, đúng màu IslePilot). App luôn vẽ bộ này cho mọi server, không phụ thuộc server gửi gì; bộ Gateway cũ vẫn là dự phòng nếu asset lỗi.
+  - Vùng đóng gói giờ vẽ **kể cả khi chưa vào server** (trước đây app chờ biết tên server mới dựng lớp vùng, nên màn hình NO ACTIVE DINOSAUR bị trắng vùng).
+  - **Sửa lỗi khiến vùng không bao giờ hiện**: còn một điều kiện cũ `if (!hasHostZones) return [];` chặn luôn cả bộ vùng đóng gói, nên mọi thay đổi trước đó bị vô hiệu. Nay chỉ chặn vùng *từ server* khi feed stale, còn bộ vùng cố định luôn được vẽ.
+  - Bộ vùng IslePilot lấy lại bằng đúng phép biến đổi của trang (không còn lệch): 42 vùng — 5 sanctuary (xanh), 9 migration (cam), 28 patrol (tím) — đã render chồng lên bản đồ app để đối chiếu, khớp với bản đồ islepilot.eu.
+  - Thêm nút kết nối **SBTC ISLAND** ở màn hình chọn server (cạnh EraGaming, PANDORA, SDVN #3).
+  - Bỏ toàn bộ phần đọc chỉ số từ packet: không còn switch trong F8, không còn file chẩn đoán `pcap-vitals.txt`; Npcap vẫn giữ vai trò cũ là nguồn vị trí dự phòng khi server không có web.
+
+- (local, chưa phát hành) Bỏ **Garage** và **Skin 3D** trong app, chuyển sang trang của server:
+  - Hai tab Garage và Skin 3D (kèm trình xem 3D WebView2, lệnh cất/lấy dino, sửa màu skin) đã được gỡ khỏi cửa sổ Cẩm nang cùng toàn bộ phần nạp dữ liệu tương ứng.
+  - Màn hình chọn server có thêm hai nút **VAULT** và **SKIN STUDIO**, mở thẳng `sbtcislandd.com/vault` và `sbtcislandd.com/studio` trong cửa sổ WebView2 dùng chung profile đăng nhập — nên vào là đã có phiên Steam sẵn, không phải đăng nhập lại.
+  - Vault của site làm được việc garage từng làm (cất/lấy dino, đổi tên, chọn skin đã lưu, mutations) và Skin Studio chỉnh màu theo từng phần cơ thể; bảng màu mặc định của từng loài lấy từ `/api/palettes` (công khai, 22 loài, màu linear RGBA).
+
 - Vệt đường đi (Path Trail) không còn bị xoá sạch sau 3 tiếng:
   - Trước đây cửa sổ 3 tiếng tính theo đồng hồ thực, nên chỉ cần mở app sau một giờ nghỉ là toàn bộ đường đi cũ biến mất — nhìn như "đúng 3 tiếng xoá hết một lần".
   - Nay cửa sổ cuốn theo chính vệt đường: chỉ những đoạn cũ hơn 3 tiếng tính từ điểm mới nhất mới bị bỏ, nên đường đi vẫn còn khi bạn quay lại, và chỉ ngắn dần khi bạn tiếp tục di chuyển. Vẫn xoá được bằng nút xoá trail, hoặc tự reset khi đổi server/chủng loài.

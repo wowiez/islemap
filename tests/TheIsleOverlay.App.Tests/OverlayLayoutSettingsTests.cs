@@ -62,6 +62,15 @@ public sealed class OverlayLayoutSettingsTests
     public void MapStyle_AllowsOnlyCircleOrSquare(string? input, string expected) =>
         Assert.Equal(expected, OverlayLayoutRules.NormalizeMapStyle(input));
 
+    [Theory]
+    [InlineData(double.NaN, 1d)]
+    [InlineData(double.PositiveInfinity, 1d)]
+    [InlineData(-1d, 0.5d)]
+    [InlineData(1.127d, 1.15d)]
+    [InlineData(3d, 2d)]
+    public void PlayerMarkerScale_RejectsInvalidSizesAndStaysWithinTheSliderRange(double input, double expected) =>
+        Assert.Equal(expected, OverlayLayoutRules.NormalizePlayerMarkerScale(input));
+
     [Fact]
     public void Store_RoundTripsScaleAndPositionAndRecoversFromMalformedJson()
     {
@@ -80,12 +89,20 @@ public sealed class OverlayLayoutSettingsTests
             Assert.True(store.Load().CopyAssetEnabled);
             Assert.True(store.Load().ShowPathTrail);
             Assert.True(store.Load().AutoHideOutsideGame);
+            Assert.Equal(1d, store.Load().PlayerMarkerScale);
+            Assert.False(store.Load().WildlifeAbovePlayer);
+            Assert.True(store.Load().ShowMapZones);
+            Assert.True(store.Load().ShowWildlife);
 
             store.Save(new OverlayLayoutSettings
             {
                 Scale = 1.35d,
                 MapZoom = 3.1d,
                 MapStyle = "SQUARE",
+                PlayerMarkerScale = 1.65d,
+                WildlifeAbovePlayer = true,
+                ShowMapZones = false,
+                ShowWildlife = false,
                 ShowMap = false,
                 ShowActivity = true,
                 RotateMap = true,
@@ -102,6 +119,10 @@ public sealed class OverlayLayoutSettingsTests
             Assert.Equal(1.35d, restored.Scale);
             Assert.Equal(3.1d, restored.MapZoom);
             Assert.Equal(OverlayLayoutRules.SquareMapStyle, restored.MapStyle);
+            Assert.Equal(1.65d, restored.PlayerMarkerScale);
+            Assert.True(restored.WildlifeAbovePlayer);
+            Assert.False(restored.ShowMapZones);
+            Assert.False(restored.ShowWildlife);
             Assert.False(restored.ShowMap);
             Assert.True(restored.ShowActivity);
             Assert.True(restored.RotateMap);
@@ -113,6 +134,16 @@ public sealed class OverlayLayoutSettingsTests
             Assert.False(restored.AutoHideOutsideGame);
             Assert.Equal(120.5d, restored.Left);
             Assert.Equal(80.25d, restored.Top);
+
+            File.WriteAllText(path, """{"version":10,"scale":1.35,"mapZoom":3.1}""");
+            var migrated = store.Load();
+            Assert.Equal(1.35d, migrated.Scale);
+            Assert.Equal(3.1d, migrated.MapZoom);
+            Assert.Equal(1d, migrated.PlayerMarkerScale);
+            Assert.False(migrated.WildlifeAbovePlayer);
+            Assert.True(migrated.ShowMapZones);
+            Assert.True(migrated.ShowWildlife);
+            Assert.Equal(12, migrated.Version);
 
             File.WriteAllText(path, "{broken");
             Assert.Equal(new OverlayLayoutSettings(), store.Load());
@@ -319,7 +350,7 @@ public sealed class OverlayLayoutSettingsTests
     }
 
     [Fact]
-    public void Activity_UsesVectorSteakForFoodStatus()
+    public void Activity_UsesVectorDrumstickForFoodStatus()
     {
         var document = XDocument.Load(Path.Combine(
             AppContext.BaseDirectory,
@@ -328,12 +359,18 @@ public sealed class OverlayLayoutSettingsTests
         XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
         XName nameAttribute = "{http://schemas.microsoft.com/winfx/2006/xaml}Name";
 
-        var steak = Assert.Single(document.Descendants(), element =>
+        // The food status is drawn as the drumstick icon the user supplied, with a warm
+        // orange body and a lighter edge/highlight.
+        var drumstick = Assert.Single(document.Descendants(), element =>
             string.Equals((string?)element.Attribute(nameAttribute), "FoodSteakIcon", StringComparison.Ordinal));
-        Assert.Equal("Thức ăn", (string?)steak.Attribute("ToolTip"));
-        var meat = Assert.Single(steak.Descendants(presentation + "Path"));
-        Assert.Equal("#E49428", (string?)meat.Attribute("Fill"));
-        Assert.Empty(steak.Descendants(presentation + "Ellipse"));
-        Assert.Empty(steak.Descendants(presentation + "TextBlock"));
+        Assert.Equal("Thức ăn", (string?)drumstick.Attribute("ToolTip"));
+        var paths = drumstick.Descendants(presentation + "Path").ToArray();
+        Assert.Equal(2, paths.Length);
+        Assert.Equal("#E49428", (string?)paths[0].Attribute("Fill"));
+        Assert.Equal("#FFD18B", (string?)paths[0].Attribute("Stroke"));
+        Assert.Equal("#FFE3B8", (string?)paths[1].Attribute("Fill"));
+        Assert.Empty(drumstick.Descendants(presentation + "Ellipse"));
+        Assert.Empty(drumstick.Descendants(presentation + "TextBlock"));
     }
+
 }

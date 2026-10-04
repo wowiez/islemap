@@ -66,11 +66,27 @@
                             </TransformGroup>
                         </Canvas.RenderTransform>
                     </Canvas>
+                    <Canvas x:Name="SbtcMapPoiLayer" Panel.ZIndex="3" Visibility="Collapsed" IsHitTestVisible="False">
+                        <Canvas.RenderTransform>
+                            <TransformGroup>
+                                <RotateTransform x:Name="SbtcMapPoiRotationTransform" Angle="0" CenterX="141" CenterY="141" />
+                                <TranslateTransform x:Name="SbtcMapPoiPanTransform" />
+                            </TransformGroup>
+                        </Canvas.RenderTransform>
+                    </Canvas>
                     <Canvas x:Name="SbtcZoneDecorationLayer" Panel.ZIndex="3" Visibility="Collapsed" IsHitTestVisible="False">
                         <Canvas.RenderTransform>
                             <TransformGroup>
                                 <RotateTransform x:Name="SbtcZoneDecorationRotationTransform" Angle="0" CenterX="141" CenterY="141" />
                                 <TranslateTransform x:Name="SbtcZoneDecorationPanTransform" />
+                            </TransformGroup>
+                        </Canvas.RenderTransform>
+                    </Canvas>
+                    <Canvas x:Name="SbtcWildlifeLayer" Panel.ZIndex="3" Visibility="Collapsed" IsHitTestVisible="False">
+                        <Canvas.RenderTransform>
+                            <TransformGroup>
+                                <RotateTransform x:Name="SbtcWildlifeRotationTransform" Angle="0" CenterX="141" CenterY="141" />
+                                <TranslateTransform x:Name="SbtcWildlifePanTransform" />
                             </TransformGroup>
                         </Canvas.RenderTransform>
                     </Canvas>
@@ -98,7 +114,10 @@
                             </TransformGroup>
                         </Canvas.RenderTransform>
                     </Canvas>
-                    <Grid x:Name="PlayerMarker" Panel.ZIndex="6" Width="34" Height="34" IsHitTestVisible="False">
+                    <Grid x:Name="PlayerMarker" Panel.ZIndex="6" Width="34" Height="34" IsHitTestVisible="False" RenderTransformOrigin="0.5,0.5">
+                        <Grid.RenderTransform>
+                            <ScaleTransform x:Name="PlayerMarkerSizeTransform" ScaleX="1" ScaleY="1" />
+                        </Grid.RenderTransform>
                         <Ellipse Width="27" Height="27" Fill="#35FF2E88" />
                         <Ellipse Width="15" Height="15" Fill="#FF2E88" Stroke="#FFFFFF" StrokeThickness="2">
                             <Ellipse.Effect>
@@ -109,7 +128,7 @@
                             <Grid.RenderTransform>
                                 <RotateTransform x:Name="DirectionNeedleRotationTransform" Angle="0" />
                             </Grid.RenderTransform>
-                            <Path Data="M 17,0 L 21,9 L 17,7 L 13,9 Z" Fill="#FFFFFF" Stroke="#FF2E88" StrokeThickness="1" />
+                            <Path Data="F1 M 17,0 L 21,9 L 17,7 L 13,9 Z" Fill="#FFFFFF" Stroke="#FF2E88" StrokeThickness="1" />
                         </Grid>
                     </Grid>
                 </Canvas>
@@ -186,49 +205,67 @@
 
                 <StackPanel Grid.Row="1" Margin="0,5,0,0">
                     <Grid Margin="0,0,0,4">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="27" /><ColumnDefinition Width="*" /><ColumnDefinition Width="62" /></Grid.ColumnDefinitions>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="27" /><ColumnDefinition Width="*" /><ColumnDefinition x:Name="HealthValueColumn" Width="32" /></Grid.ColumnDefinitions>
                         <Viewbox Width="19" Height="19" HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="Máu">
-                            <Canvas Width="18" Height="18">
-                                <Path Fill="#62DD59" Stroke="#C8FFC3" StrokeThickness="0.7"
-                                      Data="M9,16 C7.8,14.8 2,11.1 2,6.4 C2,3.6 5.5,2.2 9,5.2 C12.5,2.2 16,3.6 16,6.4 C16,11.1 10.2,14.8 9,16 Z" />
+                            <Canvas Width="15" Height="15">
+                                <Path Fill="#E0453A" Stroke="#FFC9C4" StrokeThickness="0.45"
+                                      Data="F1 M13.91 6.75c-1.17 2.25-4.3 5.31-6.07 6.94a.5.5 0 0 1-.67 0C5.39 12.06 2.26 9 1.09 6.75-1.48 1.8 5-1.5 7.5 3.45c2.5-4.95 8.98-1.65 6.41 3.3" />
                             </Canvas>
                         </Viewbox>
-                        <ProgressBar x:Name="HealthBar" Grid.Column="1" Style="{StaticResource TelemetryBar}" Height="8" Margin="0,0,8,0" Foreground="#55D64E" VerticalAlignment="Center" />
-                        <TextBlock x:Name="HealthValue" Grid.Column="2" Text="— / —" Foreground="#E1E9E5" FontFamily="Bahnschrift" FontSize="9.5" HorizontalAlignment="Right" />
+                        <ProgressBar x:Name="HealthBar" Grid.Column="1" Style="{StaticResource TelemetryBar}" Height="8" Margin="0,0,4,0" Foreground="#55D64E" VerticalAlignment="Center" />
+                        <TextBlock x:Name="HealthValue" Grid.Column="2" Text="- / -" Foreground="#E1E9E5" FontFamily="Bahnschrift" FontSize="9.5" HorizontalAlignment="Right" />
                     </Grid>
                     <Grid Margin="0,0,0,4">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="27" /><ColumnDefinition Width="*" /><ColumnDefinition Width="62" /></Grid.ColumnDefinitions>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="27" /><ColumnDefinition Width="*" /><ColumnDefinition x:Name="StaminaValueColumn" Width="32" /></Grid.ColumnDefinitions>
                         <Viewbox Width="19" Height="19" HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="Thể lực">
                             <Canvas Width="18" Height="18">
                                 <Path Fill="#EBD35B" Stroke="#FFF3A1" StrokeThickness="0.6"
                                       Data="M10.5,1 L4,10 L8.2,10 L7,17 L14.5,7.2 L10.3,7.2 Z" />
                             </Canvas>
                         </Viewbox>
-                        <ProgressBar x:Name="StaminaBar" Grid.Column="1" Style="{StaticResource TelemetryBar}" Height="8" Margin="0,0,8,0" Foreground="#E6D24D" VerticalAlignment="Center" />
-                        <TextBlock x:Name="StaminaValue" Grid.Column="2" Text="— / —" Foreground="#DDE6E1" FontFamily="Bahnschrift" FontSize="9.5" HorizontalAlignment="Right" />
+                        <ProgressBar x:Name="StaminaBar" Grid.Column="1" Style="{StaticResource TelemetryBar}" Height="8" Margin="0,0,4,0" Foreground="#E6D24D" VerticalAlignment="Center" />
+                        <TextBlock x:Name="StaminaValue" Grid.Column="2" Text="- / -" Foreground="#DDE6E1" FontFamily="Bahnschrift" FontSize="9.5" HorizontalAlignment="Right" />
                     </Grid>
                     <Grid Margin="0,0,0,4">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="27" /><ColumnDefinition Width="*" /><ColumnDefinition Width="62" /></Grid.ColumnDefinitions>
-                        <Viewbox x:Name="FoodSteakIcon" Width="21" Height="21" HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="Thức ăn">
-                            <Canvas Width="20" Height="20">
-                                <Path Fill="#E49428" Stroke="#FFD18B" StrokeThickness="0.45" StrokeLineJoin="Round"
-                                      Data="M4.5,4.4 C6.1,2.9 8.8,3 10.4,4.6 C12,6.2 11.8,8.7 10.2,10.1 C8.7,11.4 6.2,11.2 4.8,9.8 C3.3,8.3 3,5.8 4.5,4.4 Z M9.5,9.2 L13.2,12.9 C13.8,12.5 14.7,12.6 15.2,13.1 C15.8,13.7 15.7,14.6 15.2,15.1 C14.7,15.6 13.9,15.6 13.4,15.2 C12.9,15.7 12,15.7 11.5,15.2 C10.9,14.6 11,13.7 11.5,13.2 L8.8,10.5 Z" />
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="27" /><ColumnDefinition Width="*" /><ColumnDefinition x:Name="HungerValueColumn" Width="32" /></Grid.ColumnDefinitions>
+                        <Viewbox x:Name="FoodSteakIcon" Width="20" Height="20" HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="Thức ăn">
+                            <Canvas Width="70" Height="70">
+                                <Path Fill="#E49428" Stroke="#FFD18B" StrokeThickness="0.9" StrokeLineJoin="Round"
+                                      Data="F1 M62.131 8.45c-3.445-3.446-8.139-5.344-13.215-5.344-5.678 0-11.348 2.413-15.554 6.619C26.787 16.3 19.139 31.689 20.874 41.44l-7.891 7.891c-2.729-1.6-6.083-1.244-8.414 1.086-2.717 2.717-2.726 7.131-.02 9.84a6.9 6.9 0 0 0 3.15 1.814c.316 1.184.941 1.927 1.815 2.8 1.315 1.314 3.067 1.712 4.933 1.712h.047c1.861 0 3.604-.372 4.91-1.677 2.08-2.08 2.486-5.259 1.21-7.813l7.712-7.619a16 16 0 0 0 3.802.469c9.404 0 22.688-6.707 28.727-12.747 3.987-3.986 6.328-9.143 6.594-14.54.27-5.47-1.62-10.508-5.318-14.206M16.605 55.63a2 2 0 0 0-.001 2.828c.911.91 1.098 2.842-.027 3.965a2.9 2.9 0 0 1-2.103.854 3.02 3.02 0 0 1-3.011-2.994 2 2 0 0 0-1.997-1.994 2.95 2.95 0 0 1-2.089-.865c-1.146-1.146-1.138-3.021.02-4.178 1.236-1.238 3.025-1.176 4.35.148a2 2 0 0 0 2.828 0l7.848-7.846a8.8 8.8 0 0 0 1.158 1.451c.276.277.575.531.887.77zm46.849-33.159c-.217 4.403-2.144 8.636-5.427 11.919-5.475 5.474-17.714 11.597-25.898 11.597-2.59 0-4.515-.611-5.72-1.816-5.414-5.416 2.362-24.198 9.781-31.618 3.462-3.462 8.101-5.447 12.726-5.447 4.008 0 7.696 1.481 10.387 4.172 2.889 2.889 4.364 6.865 4.151 11.193" />
+                                <!-- The little shine and crumbs the original icon carries. -->
+                                <Path Fill="#FFE3B8"
+                                      Data="F1 M54.475 11.944a1.001 1.001 0 0 0-.903 1.785 9.7 9.7 0 0 1 2.483 1.796.997.997 0 0 0 1.414 0 1 1 0 0 0 0-1.414 11.6 11.6 0 0 0-2.994-2.167m-7.068-1.215c-3.204.358-6.274 1.861-8.645 4.232-2.686 2.685-5.54 7.548-7.104 12.104a1.002 1.002 0 0 0 .946 1.325 1 1 0 0 0 .946-.676c1.473-4.293 4.136-8.849 6.625-11.338 2.051-2.052 4.697-3.351 7.453-3.658.549-.062.943-.557.883-1.105a.996.996 0 0 0-1.104-.884M9.724 52.583h-.011c-.567 0-1.668.747-2.201 1.974-.221.506.012 1.315.519 1.536.13.057.265.174.397.174.387 0 .754-.189.918-.566.132-.301.334-.344.421-.354.537-.023.963-.842.957-1.383-.006-.549-.453-1.381-1-1.381" />
                             </Canvas>
                         </Viewbox>
-                        <ProgressBar x:Name="HungerBar" Grid.Column="1" Style="{StaticResource TelemetryBar}" Height="8" Margin="0,0,8,0" Foreground="#E49428" VerticalAlignment="Center" />
-                        <TextBlock x:Name="HungerValue" Grid.Column="2" Text="— / —" Foreground="#DDE6E1" FontFamily="Bahnschrift" FontSize="9.5" HorizontalAlignment="Right" />
+                        <ProgressBar x:Name="HungerBar" Grid.Column="1" Style="{StaticResource TelemetryBar}" Height="8" Margin="0,0,4,0" Foreground="#E49428" VerticalAlignment="Center" />
+                        <TextBlock x:Name="HungerValue" Grid.Column="2" Text="- / -" Foreground="#DDE6E1" FontFamily="Bahnschrift" FontSize="9.5" HorizontalAlignment="Right" />
                     </Grid>
                     <Grid>
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="27" /><ColumnDefinition Width="*" /><ColumnDefinition Width="62" /></Grid.ColumnDefinitions>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="27" /><ColumnDefinition Width="*" /><ColumnDefinition x:Name="WaterValueColumn" Width="32" /></Grid.ColumnDefinitions>
                         <Viewbox Width="19" Height="19" HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="Nước">
-                            <Canvas Width="18" Height="18">
-                                <Path Fill="#31A9D7" Stroke="#A7E8FF" StrokeThickness="0.7"
-                                      Data="M9,1 C7.6,3.7 3,8.5 3,12 A6,6 0 0 0 15,12 C15,8.5 10.4,3.7 9,1 Z" />
-                                <Path Data="M6,12.2 C6.4,14 7.6,14.8 9.1,14.9" Stroke="#BCEFFF" StrokeThickness="0.8" StrokeStartLineCap="Round" />
+                            <Canvas Width="15" Height="15">
+                                <Path Fill="#31A9D7" Stroke="#A7E8FF" StrokeThickness="0.5"
+                                      Data="F1 M7.49 15A5.84 5.84 0 0 1 2 9.5C2 6.6 6.25 1.66 7.49 0c1.24 1.66 5 6.59 5 9.49S10.17 15 7.49 15" />
+                                <Path Stroke="#BCEFFF" StrokeThickness="0.7" StrokeStartLineCap="Round"
+                                      Data="M4.6 9.6c.1 1.6 1 2.6 2.3 2.9" />
                             </Canvas>
                         </Viewbox>
-                        <ProgressBar x:Name="WaterBar" Grid.Column="1" Style="{StaticResource TelemetryBar}" Height="8" Margin="0,0,8,0" Foreground="#31A9D7" VerticalAlignment="Center" />
-                        <TextBlock x:Name="WaterValue" Grid.Column="2" Text="— / —" Foreground="#DDE6E1" FontFamily="Bahnschrift" FontSize="9.5" HorizontalAlignment="Right" />
+                        <ProgressBar x:Name="WaterBar" Grid.Column="1" Style="{StaticResource TelemetryBar}" Height="8" Margin="0,0,4,0" Foreground="#31A9D7" VerticalAlignment="Center" />
+                        <TextBlock x:Name="WaterValue" Grid.Column="2" Text="- / -" Foreground="#DDE6E1" FontFamily="Bahnschrift" FontSize="9.5" HorizontalAlignment="Right" />
+                    </Grid>
+                    <Grid x:Name="FractureRow" Margin="0,4,0,0" Visibility="Collapsed">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="27" /><ColumnDefinition Width="*" /><ColumnDefinition x:Name="FractureValueColumn" Width="32" /></Grid.ColumnDefinitions>
+                        <Viewbox x:Name="FractureIcon" Width="17" Height="17" HorizontalAlignment="Center"
+                                 VerticalAlignment="Center" ToolTip="Tình trạng xương">
+                            <Canvas Width="32" Height="32">
+                                <Path x:Name="FractureBone" Fill="#F4F7F5" Stroke="#C9D4D0" StrokeThickness="0.7" StrokeLineJoin="Round"
+                                      Data="F1 M27.7 18.3c-1.3-1.3-3.2-1.6-4.8-.8l-8.3-8.3c.7-1.6.4-3.6-.8-4.8-1.7-1.7-4.4-1.7-6.1 0q-1.05.75-1.2 2.1c-.9.1-1.6.5-2.2 1.1-1.7 1.7-1.7 4.4 0 6.1 1.3 1.3 3.2 1.6 4.8.8l8.3 8.3c-.7 1.6-.4 3.6.8 4.8.8.8 1.9 1.3 3 1.3s2.2-.4 3-1.3c.6-.6 1-1.3 1.2-2.2.8-.2 1.6-.6 2.2-1.2 1.8-1.5 1.8-4.2.1-5.9" />
+                            </Canvas>
+                        </Viewbox>
+                        <ProgressBar x:Name="FractureBar" Grid.Column="1" Style="{StaticResource TelemetryBar}" Height="8"
+                                     Margin="0,0,4,0" Foreground="#C9D4D0" VerticalAlignment="Center" />
+                        <TextBlock x:Name="FractureValue" Grid.Column="2" Text="—" Foreground="#D6DEDA"
+                                   FontFamily="Bahnschrift" FontSize="9.5" HorizontalAlignment="Right" />
                     </Grid>
                 </StackPanel>
 
@@ -336,13 +373,29 @@
                     <TextBlock x:Name="OverlayScaleLabel" Grid.Column="2" Text="100%" Foreground="#E7B74E" FontFamily="Bahnschrift" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center" />
                 </Grid>
 
-                <Grid Grid.Row="3" Margin="0,7,0,0">
+                <StackPanel Grid.Row="3" Margin="0,7,0,0">
+                <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /><ColumnDefinition Width="46" /></Grid.ColumnDefinitions>
                     <TextBlock Text="MAP CROP" Foreground="#D5DDD5" FontFamily="Bahnschrift SemiCondensed" FontSize="10" VerticalAlignment="Center" />
                     <Slider x:Name="MapZoomSlider" Grid.Column="1" Minimum="100" Maximum="1000" Value="225" SmallChange="10" LargeChange="50"
                             Margin="7,0" VerticalAlignment="Center" ValueChanged="MapZoomSlider_ValueChanged" />
                     <TextBlock x:Name="MapZoomLabel" Grid.Column="2" Text="225%" Foreground="#31A9D7" FontFamily="Bahnschrift" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center" />
                 </Grid>
+                <Grid Margin="0,7,0,0">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /><ColumnDefinition Width="46" /></Grid.ColumnDefinitions>
+                    <TextBlock Text="ĐIỂM VỊ TRÍ" Foreground="#D5DDD5" FontFamily="Bahnschrift SemiCondensed" FontSize="10" VerticalAlignment="Center" />
+                    <Slider x:Name="PlayerMarkerScaleSlider" Grid.Column="1" Minimum="50" Maximum="200" Value="100"
+                            TickFrequency="5" IsSnapToTickEnabled="True" SmallChange="5" LargeChange="25" Margin="7,0"
+                            VerticalAlignment="Center" ValueChanged="PlayerMarkerScaleSlider_ValueChanged" />
+                    <TextBlock x:Name="PlayerMarkerScaleLabel" Grid.Column="2" Text="100%" Foreground="#FF7EB6" FontFamily="Bahnschrift" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                </Grid>
+                <Grid Margin="0,7,0,0">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /><ColumnDefinition Width="5" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <TextBlock Text="LỚP AI" Foreground="#D5DDD5" FontFamily="Bahnschrift SemiCondensed" FontSize="10" VerticalAlignment="Center" />
+                    <Button x:Name="WildlifeBelowPlayerButton" Grid.Column="1" Style="{StaticResource ChromeButton}" Content="DƯỚI ĐIỂM" Padding="6,4" Click="WildlifeBelowPlayerButton_Click" />
+                    <Button x:Name="WildlifeAbovePlayerButton" Grid.Column="3" Style="{StaticResource ChromeButton}" Content="TRÊN ĐIỂM" Padding="6,4" Click="WildlifeAbovePlayerButton_Click" />
+                </Grid>
+                </StackPanel>
 
                 <Grid Grid.Row="4" Margin="0,8,0,0">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /><ColumnDefinition Width="5" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
@@ -380,7 +433,7 @@
                     <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /><ColumnDefinition Width="5" /><ColumnDefinition Width="60" /></Grid.ColumnDefinitions>
                     <TextBlock Text="ĐƯỜNG ĐI" Foreground="#D5DDD5" FontFamily="Bahnschrift SemiCondensed" FontSize="10" VerticalAlignment="Center" />
                     <Button x:Name="PathTrailToggleButton" Grid.Column="1" Style="{StaticResource ChromeButton}" Content="TRAIL · ON" Padding="8,4" Click="PathTrailToggleButton_Click" ToolTip="Bật/tắt hiển thị đường đi của bạn trên bản đồ" />
-                    <Button x:Name="ClearPathTrailButton" Grid.Column="3" Style="{StaticResource ChromeButton}" Content="XÓA" Padding="8,4" Click="ClearPathTrailButton_Click" ToolTip="Xóa lịch sử đường đi hiện tại" />
+                    <Button x:Name="ClearPathTrailButton" Grid.Column="3" Style="{StaticResource ChromeButton}" Content="XÓA · Ctrl+R" Padding="8,4" Click="ClearPathTrailButton_Click" ToolTip="Xóa lịch sử đường đi hiện tại · Ctrl+R khi đang trong game hoặc overlay" />
                 </Grid>
 
                 <Grid Grid.Row="10" Margin="0,9,0,0">

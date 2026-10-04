@@ -3,6 +3,7 @@ using TheIsleOverlay.Core;
 using TheIsleOverlay.EraGaming;
 using TheIsleOverlay.IslePilot;
 using TheIsleOverlay.Pandora;
+using TheIsleOverlay.Sbtc;
 
 namespace TheIsleOverlay.App;
 
@@ -14,7 +15,11 @@ public enum TelemetrySourceKind
 
     // An IslePilot instance on the server's own domain: same overlay API and Steam
     // handshake, but hosted outside islepilot.eu.
-    IslePilotHosted
+    IslePilotHosted,
+
+    // SBTC Island's own site (sbtcislandd.com): Steam sign-in, /api/positions for the
+    // live map and /api/live for the dino's vitals and growth.
+    SbtcIsland
 }
 
 public sealed record TelemetrySourceDefinition
@@ -32,6 +37,7 @@ public sealed record TelemetrySourceDefinition
     public TimeSpan PollingInterval => Kind switch
     {
         TelemetrySourceKind.EraGaming => TimeSpan.FromMilliseconds(500),
+        TelemetrySourceKind.SbtcIsland => TimeSpan.FromSeconds(4),
         TelemetrySourceKind.Pandora => TimeSpan.FromSeconds(1),
         _ => TimeSpan.FromSeconds(2)
     };
@@ -57,6 +63,13 @@ public sealed record TelemetrySourceDefinition
         TelemetrySourceKind.Pandora => new PandoraTelemetryProvider(
             httpClient,
             new PandoraOptions
+            {
+                BaseUri = BaseUri,
+                SessionCookieHeader = cookieValue
+            }),
+        TelemetrySourceKind.SbtcIsland => new SbtcIslandTelemetryProvider(
+            httpClient,
+            new SbtcIslandOptions
             {
                 BaseUri = BaseUri,
                 SessionCookieHeader = cookieValue
@@ -137,9 +150,22 @@ public sealed record TelemetrySourceDefinition
         ServerSlug = "sdvn3123123123"
     };
 
+    public static TelemetrySourceDefinition SbtcIsland { get; } = new()
+    {
+        Id = "sbtc",
+        DisplayName = "SBTC Island",
+        ShortName = "SBTC",
+        Kind = TelemetrySourceKind.SbtcIsland,
+        BaseUri = new Uri("https://sbtcislandd.com/"),
+        LoginUri = new Uri("https://sbtcislandd.com/auth/steam/login?next=%2Fmap"),
+        CookieName = "session",
+        CaptureAllHostCookies = true
+    };
+
     public static IReadOnlyList<TelemetrySourceDefinition> All { get; } =
     [
         EraGaming,
+        SbtcIsland,
         DinoVietnam,
         DinoVietnamPremium,
         HoHo,

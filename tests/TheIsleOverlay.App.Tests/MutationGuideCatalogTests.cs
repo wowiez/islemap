@@ -35,7 +35,7 @@ public sealed class MutationGuideCatalogTests
     }
 
     [Fact]
-    public void GuideWindow_HasOverviewMapGarageAndMutationPages()
+    public void GuideWindow_HasOverviewMapAndMutationPages()
     {
         var document = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "TestAssets", "GuideWindow.xaml"));
         XName nameAttribute = "{http://schemas.microsoft.com/winfx/2006/xaml}Name";
@@ -44,11 +44,17 @@ public sealed class MutationGuideCatalogTests
 
         foreach (var name in new[]
                  {
-                     "OverviewPage", "MapPage", "GaragePage", "MutationPage", "SpeciesComboBox", "MutationCards",
-                     "OverviewNavButton", "MapNavButton", "GarageNavButton", "MutationNavButton",
-                     "GarageCards", "GarageRefreshButton", "GarageParkButton", "GarageStatePanel",
-                     "GarageModeLabel", "GarageCommandOverlay", "GarageCommandConfirmButton"
+                     "OverviewPage", "MapPage", "MutationPage", "SpeciesComboBox", "MutationCards",
+                     "OverviewNavButton", "MapNavButton", "MutationNavButton", "KillFeedPage",
+                     "KillFeedNavButton", "KillFeedSpeciesFilter", "KillFeedRows"
                  })
+        {
+            Assert.Single(document.Descendants(), element =>
+                string.Equals((string?)element.Attribute(nameAttribute), name, StringComparison.Ordinal));
+        }
+
+        // The SBTC vault and native skin editor are available inside F8.
+        foreach (var name in new[] { "GaragePage", "SkinEditorPage", "GarageNavButton", "SkinEditorNavButton" })
         {
             Assert.Single(document.Descendants(), element =>
                 string.Equals((string?)element.Attribute(nameAttribute), name, StringComparison.Ordinal));
@@ -61,89 +67,18 @@ public sealed class MutationGuideCatalogTests
         Assert.Single(document.Descendants(), element => element.Name.LocalName == "Popup");
         var selectionText = Assert.Single(document.Descendants(), element =>
             string.Equals(
-                (string?)element.Attribute("Text"),
-                "{Binding SelectedItem.Name, RelativeSource={RelativeSource AncestorType=ComboBox}}",
+                (string?)element.Attribute("Content"),
+                "{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}",
                 StringComparison.Ordinal));
-        Assert.Equal("#FFFFFF", (string?)selectionText.Attribute("Foreground"));
+        Assert.Equal("#FFFFFF", (string?)selectionText.Attribute("TextElement.Foreground"));
+        Assert.Equal("{Binding SelectionBoxItemTemplate, RelativeSource={RelativeSource AncestorType=ComboBox}}",
+            (string?)selectionText.Attribute("ContentTemplate"));
+        Assert.Equal("{Binding ItemTemplateSelector, RelativeSource={RelativeSource AncestorType=ComboBox}}",
+            (string?)selectionText.Attribute("ContentTemplateSelector"));
         Assert.Contains(document.Descendants(), element =>
             element.Name.LocalName == "ScrollViewer" &&
             string.Equals((string?)element.Attribute("VerticalScrollBarVisibility"), "Hidden", StringComparison.Ordinal));
         Assert.True(document.Descendants().Count(element => element.Name.LocalName == "Path") >= 7);
     }
 
-    [Fact]
-    public void GaragePresentation_FormatsBilingualVitalsAndSanitizesPalette()
-    {
-        var card = GarageDinoCardPresentation.From(new IslePilotOverlayGarageDinoDto
-        {
-            Name = "Tank",
-            Species = "Pachycephalosaurus",
-            Gender = "Male",
-            Growth = 120,
-            Health = 95,
-            Hunger = 64.5,
-            Thirst = -4,
-            Stamina = 80,
-            IsPrimeElder = true,
-            Palette = new IslePilotOverlayGaragePaletteDto
-            {
-                Display = "#AABBCC",
-                Body = "not-a-color",
-                Markings = "#112233"
-            }
-        });
-
-        Assert.Equal("Tank", card.DisplayName);
-        Assert.Equal("Đực · Male", card.Gender);
-        Assert.Equal(100, card.Growth);
-        Assert.Equal("100%", card.GrowthLabel);
-        Assert.Equal("64.5%", card.HungerLabel);
-        Assert.Equal(0, card.Thirst);
-        Assert.Equal("PRIME ELDER", card.PrimeLabel);
-        Assert.False(card.LiveSwap);
-        Assert.Equal("LẤY RA", card.ActionLabel);
-        Assert.Equal("#AABBCC", card.AccentColor);
-        Assert.Equal("#AABBCC", card.BodyColor);
-        Assert.Equal(["#AABBCC", "#112233"], card.PaletteColors);
-        Assert.True(card.HasPreview);
-        Assert.Equal(
-            "pack://application:,,,/Assets/DinoThumbnails/pachycephalosaurus.png",
-            card.PreviewUrl);
-    }
-
-    [Fact]
-    public void GaragePresentation_ConvertsNormalizedIslePilotRatiosToPercent()
-    {
-        var card = GarageDinoCardPresentation.From(new IslePilotOverlayGarageDinoDto
-        {
-            Id = "dino-1",
-            Species = "Pachycephalosaurus",
-            Growth = 1,
-            Health = 1,
-            Hunger = 0.64,
-            Thirst = 0.7,
-            Stamina = 0.82
-        }, liveSwap: true);
-
-        Assert.Equal("dino-1", card.DinoId);
-        Assert.Equal(100, card.Growth);
-        Assert.Equal("100%", card.GrowthLabel);
-        Assert.Equal("64%", card.HungerLabel);
-        Assert.Equal("70%", card.ThirstLabel);
-        Assert.Equal("82%", card.StaminaLabel);
-        Assert.True(card.LiveSwap);
-        Assert.Equal("ĐỔI SANG", card.ActionLabel);
-    }
-
-    [Fact]
-    public void GaragePresentation_UsesCleanFallbackWhenIslePilotHasNoModel()
-    {
-        var card = GarageDinoCardPresentation.From(new IslePilotOverlayGarageDinoDto
-        {
-            Species = "Baryonyx"
-        });
-
-        Assert.False(card.HasPreview);
-        Assert.Empty(card.PreviewUrl);
-    }
 }

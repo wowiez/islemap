@@ -4,22 +4,19 @@ public static class VitalMath
 {
     public static double Percent(double? current, double? maximum, double? fallback = null)
     {
-        if (current is not null && maximum is > 0)
+        if (current is { } currentValue && double.IsFinite(currentValue) &&
+            maximum is > 0 && double.IsFinite(maximum.Value))
         {
-            return Math.Clamp(current.Value / maximum.Value * 100d, 0d, 100d);
+            return Math.Clamp(currentValue / maximum.Value * 100d, 0d, 100d);
         }
 
-        if (fallback is null)
+        if (fallback is null || !double.IsFinite(fallback.Value))
         {
             return 0d;
         }
 
-        var value = fallback.Value;
-        if (value is >= 0d and <= 1d)
-        {
-            value *= 100d;
-        }
-
-        return Math.Clamp(value, 0d, 100d);
+        // Providers already convert fractions to percentages. A fallback of 1
+        // means 1%, including when food or another vital falls below that value.
+        return Math.Clamp(fallback.Value, 0d, 100d);
     }
 }

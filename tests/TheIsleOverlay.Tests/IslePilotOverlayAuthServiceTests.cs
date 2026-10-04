@@ -135,4 +135,17 @@ public sealed class IslePilotOverlayAuthServiceTests
                 ? Task.FromResult(_response!)
                 : Task.FromException<HttpResponseMessage>(_exception);
     }
+
+    [Fact]
+    public void LoginUriFor_HostedServerPointsAtItsOwnDomain()
+    {
+        // The hosted flow opens exactly this URL in the sign-in window, so a
+        // JSON error page there comes from the server, not from the app.
+        Assert.Equal(
+            "https://3.sdvn.org/api/overlay/auth/steam",
+            IslePilotOverlayAuthService.LoginUriFor(new Uri("https://3.sdvn.org/")).AbsoluteUri);
+        Assert.Equal(
+            "https://islepilot.eu/api/overlay/auth/steam",
+            IslePilotOverlayAuthService.LoginUriFor(IslePilotOverlayOptions.DefaultServiceBaseUri).AbsoluteUri);
+    }
 }

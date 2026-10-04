@@ -188,10 +188,13 @@
                                                 BorderThickness="1" CornerRadius="5" Padding="12,8">
                                             <Grid>
                                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="22" /></Grid.ColumnDefinitions>
-                                                <TextBlock Text="{Binding SelectedItem.Name, RelativeSource={RelativeSource AncestorType=ComboBox}}"
-                                                           Foreground="#FFFFFF" FontFamily="Bahnschrift SemiCondensed"
-                                                           FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center"
-                                                           TextTrimming="CharacterEllipsis" />
+                                                <ContentPresenter Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                                  ContentTemplate="{Binding SelectionBoxItemTemplate, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                                  ContentTemplateSelector="{Binding ItemTemplateSelector, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                                  ContentStringFormat="{Binding SelectionBoxItemStringFormat, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                                  TextElement.Foreground="#FFFFFF" TextElement.FontFamily="Bahnschrift SemiCondensed"
+                                                                  TextElement.FontWeight="SemiBold" TextElement.FontSize="14"
+                                                                  VerticalAlignment="Center" />
                                                 <Path Grid.Column="1" Data="M 2 3 L 7 8 L 12 3" Stroke="#D9DBDE"
                                                       StrokeThickness="1.8" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                             </Grid>
@@ -288,7 +291,7 @@
                     <Button x:Name="MapNavButton" Style="{StaticResource NavButton}" Click="MapNavButton_Click">
                         <StackPanel Orientation="Horizontal"><Path Data="M1,3 L5,1 L11,3 L15,1 L15,13 L11,15 L5,13 L1,15 Z M5,1 L5,13 M11,3 L11,15" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.3" Width="14" Height="14" Stretch="Uniform" Margin="0,0,8,0" /><TextBlock Text="BẢN ĐỒ ĐẢO" /></StackPanel>
                     </Button>
-                    <Button x:Name="GarageNavButton" Style="{StaticResource NavButton}" Click="GarageNavButton_Click">
+                    <Button x:Name="GarageNavButton" Visibility="Collapsed" Style="{StaticResource NavButton}" Click="GarageNavButton_Click">
                         <StackPanel Orientation="Horizontal"><Path Data="M1,6 L8,1 L15,6 L15,15 L1,15 Z M4,15 L4,8 L12,8 L12,15 M6,11 L10,11" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.35" Width="14" Height="14" Stretch="Uniform" Margin="0,0,8,0" /><TextBlock Text="GARAGE" /></StackPanel>
                     </Button>
                     <Button x:Name="SkinEditorNavButton" Style="{StaticResource NavButton}" Click="SkinEditorNavButton_Click">
@@ -302,6 +305,9 @@
                     </Button>
                     <Button x:Name="SettingsNavButton" Style="{StaticResource NavButton}" Click="SettingsNavButton_Click">
                         <StackPanel Orientation="Horizontal"><Path Data="M8,1 A7,7 0 1 1 7.9,1 M8,5 A3,3 0 1 1 7.9,5" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.35" Width="14" Height="14" Stretch="Uniform" Margin="0,0,8,0" /><TextBlock Text="CÀI ĐẶT" /></StackPanel>
+                    </Button>
+                    <Button x:Name="KillFeedNavButton" Style="{StaticResource NavButton}" Click="KillFeedNavButton_Click">
+                        <StackPanel Orientation="Horizontal"><Path Data="M2,2 L14,14 M10,14 L14,14 L14,10 M14,2 L2,14 M2,10 L2,14 L6,14" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.5" Width="14" Height="14" Stretch="Uniform" Margin="0,0,8,0" /><TextBlock Text="KILL FEED" /></StackPanel>
                     </Button>
                 </StackPanel>
             </Border>
@@ -355,6 +361,7 @@
                             <Border Background="#B8131416" BorderBrush="#35373B" BorderThickness="1" CornerRadius="6" Padding="13" Margin="0,0,0,10"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="ALT + M" Foreground="#F1F2F3" FontFamily="Bahnschrift" FontWeight="Bold" /><TextBlock Grid.Column="1" Text="Mở / đóng bản đồ tương tác" Foreground="#96999E" /></Grid></Border>
                             <Border Background="#B8131416" BorderBrush="#35373B" BorderThickness="1" CornerRadius="6" Padding="13" Margin="0,0,10,0"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="ALT + / −" Foreground="#F1F2F3" FontFamily="Bahnschrift" FontWeight="Bold" /><TextBlock Grid.Column="1" Text="Zoom minimap" Foreground="#96999E" /></Grid></Border>
                             <Border Background="#B8131416" BorderBrush="#35373B" BorderThickness="1" CornerRadius="6" Padding="13"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="120" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="CTRL + SHIFT + O" Foreground="#F1F2F3" FontFamily="Bahnschrift" FontWeight="Bold" /><TextBlock Grid.Column="1" Text="Mở setting overlay" Foreground="#96999E" /></Grid></Border>
+                            <Border Background="#B8131416" BorderBrush="#35373B" BorderThickness="1" CornerRadius="6" Padding="13" Margin="0,10,10,0"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="CTRL + R" Foreground="#F1F2F3" FontFamily="Bahnschrift" FontWeight="Bold" /><TextBlock Grid.Column="1" Text="Xóa đường đi đã ghi" Foreground="#96999E" /></Grid></Border>
                         </UniformGrid>
                     </StackPanel>
                 </ScrollViewer>
@@ -362,6 +369,60 @@
                 <Grid x:Name="MapPage" Visibility="Collapsed" Margin="20">
                     <ContentControl x:Name="GuideMapHost" HorizontalContentAlignment="Stretch"
                                     VerticalContentAlignment="Stretch" />
+                </Grid>
+
+                <Grid x:Name="KillFeedPage" Visibility="Collapsed" Margin="24">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="SBTC ISLAND · KILL FEED" Foreground="#B6BCBE" FontSize="11" />
+                            <TextBlock Text="Nhật ký giao tranh" Foreground="#ECEDEF" FontFamily="Bahnschrift SemiCondensed" FontSize="28" Margin="0,4,0,6" />
+                            <TextBlock Text="Các trận gần nhất trên server · lọc theo loài của người hạ hoặc nạn nhân." Foreground="#93999D" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <ComboBox x:Name="KillFeedSpeciesFilter" Width="200" Margin="12,0,10,0" SelectionChanged="KillFeedSpeciesFilter_SelectionChanged" />
+                            <Button x:Name="KillFeedRefreshButton" Content="TẢI LẠI" Style="{StaticResource NavButton}" Click="KillFeedRefreshButton_Click" />
+                        </StackPanel>
+                    </Grid>
+                    <Grid Grid.Row="1" Margin="0,16,0,12">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <TextBlock x:Name="KillFeedStatus" Text="Mở tab để tải Kill Feed từ SBTC." Foreground="#93999D" TextWrapping="Wrap" Margin="0,0,12,0" />
+                        <TextBlock x:Name="KillFeedCount" Grid.Column="1" Foreground="#93999D" FontSize="11" />
+                    </Grid>
+                    <Grid Grid.Row="2" Margin="14,0,14,8">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="90" /><ColumnDefinition Width="*" /><ColumnDefinition Width="90" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                        <TextBlock Text="THỜI GIAN" Foreground="#7C858A" FontSize="10" />
+                        <TextBlock Grid.Column="1" Text="NGƯỜI HẠ" Foreground="#7C858A" FontSize="10" />
+                        <TextBlock Grid.Column="3" Text="NẠN NHÂN" Foreground="#7C858A" FontSize="10" />
+                    </Grid>
+                    <Grid Grid.Row="3">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <ItemsControl x:Name="KillFeedRows">
+                                <ItemsControl.ItemTemplate><DataTemplate>
+                                    <Border Background="#DD14191B" BorderBrush="#343D40" BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="90" /><ColumnDefinition Width="*" /><ColumnDefinition Width="90" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding Time}" Foreground="#A2ADB1" FontSize="12" VerticalAlignment="Center" />
+                                            <StackPanel Grid.Column="1" Margin="0,0,10,0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Killer}" Foreground="{Binding Accent}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                <TextBlock Text="{Binding KillerDetail}" Foreground="#929C9F" FontSize="12" Margin="0,4,0,0" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <TextBlock Text="→" Foreground="{Binding Accent}" FontSize="23" HorizontalAlignment="Center" />
+                                                <TextBlock Text="{Binding Cause}" Foreground="#929C9F" FontSize="10" HorizontalAlignment="Center" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="3" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Victim}" Foreground="#E0E5E7" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                <TextBlock Text="{Binding VictimDetail}" Foreground="#929C9F" FontSize="12" Margin="0,4,0,0" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate></ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                        <TextBlock x:Name="KillFeedEmpty" Visibility="Collapsed" Foreground="#929C9F" FontSize="16" TextWrapping="Wrap" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
                 </Grid>
 
                 <ScrollViewer x:Name="GaragePage" Visibility="Collapsed"
@@ -379,7 +440,7 @@
                                 <TextBlock Text="Dinosaur đã lưu" Foreground="#F2F3F4"
                                            FontFamily="Bahnschrift SemiCondensed" FontSize="30"
                                            FontWeight="Bold" Margin="0,3,0,2" />
-                                <TextBlock Text="Đồng bộ trực tiếp với IslePilot · có xác nhận trước khi cất hoặc lấy Dino"
+                                <TextBlock Text="Đồng bộ trực tiếp với SBTC Island · có xác nhận trước khi cất hoặc lấy Dino"
                                            Foreground="#898C91" FontSize="12" />
                             </StackPanel>
                             <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom">
@@ -572,9 +633,16 @@
                                         <Button Content="COPY JSON" Style="{StaticResource NavButton}" Padding="9,7" Margin="0,0,6,0" Click="SkinCopyJsonButton_Click" />
                                         <Button Content="PASTE JSON" Style="{StaticResource NavButton}" Padding="9,7" Margin="0" Click="SkinPasteJsonButton_Click" />
                                     </UniformGrid>
-                                    <TextBlock Text="SKIN-DRAFTS ĐÃ LƯU" Foreground="#E8EAE9" FontWeight="SemiBold" Margin="0,14,0,5" />
-                                    <Button x:Name="SkinShowAllDraftsButton" Content="SHOW ALL DRAFT" Style="{StaticResource NavButton}" Padding="8,5" HorizontalAlignment="Left" Click="SkinShowAllDraftsButton_Click" />
-                                    <ListBox x:Name="SkinDraftsList" Background="Transparent" BorderThickness="0" MaxHeight="120">
+                                    <TextBlock Text="ĐÃ LƯU · SBTC STUDIO" Foreground="#E8EAE9" FontWeight="SemiBold" Margin="0,14,0,5" />
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <Button x:Name="SkinShowAllDraftsButton" Content="CHỈ LOÀI HIỆN TẠI" Style="{StaticResource NavButton}" Padding="8,5" HorizontalAlignment="Left" Click="SkinShowAllDraftsButton_Click" />
+                                        <Button x:Name="SkinDraftsRefreshButton" Grid.Column="1" Content="TẢI LẠI" Style="{StaticResource NavButton}" Padding="8,5" Click="SkinDraftsRefreshButton_Click" />
+                                    </Grid>
+                                    <TextBlock x:Name="SkinDraftsStatusLabel" Text="Bấm TẢI LẠI để xem thiết kế đã lưu."
+                                               Foreground="#B9C8C1" TextWrapping="Wrap" FontSize="10" Margin="0,8,0,5" />
+                                    <ListBox x:Name="SkinDraftsList" Background="Transparent" BorderThickness="0" MaxHeight="220"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
                                         <ListBox.ItemContainerStyle>
                                             <Style TargetType="ListBoxItem">
                                                 <Setter Property="Padding" Value="4,3" />
@@ -604,18 +672,24 @@
                                             <DataTemplate>
                                                 <Grid Margin="2,1,2,1">
                                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <StackPanel VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Name}" Foreground="#B9C1BB" FontSize="10"
+                                                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}" Margin="0,0,0,4" />
+                                                        <TextBlock Text="{Binding Description}" Foreground="#87998B" FontSize="9" TextWrapping="Wrap" Margin="0,0,0,4" />
                                                         <ItemsControl ItemsSource="{Binding Colors}">
                                                             <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                                             <ItemsControl.ItemTemplate><DataTemplate><Border Width="15" Height="15" CornerRadius="3" Background="{Binding}" Margin="0,0,3,0"/></DataTemplate></ItemsControl.ItemTemplate>
                                                         </ItemsControl>
-                                                        <TextBlock Text="{Binding Name}" Foreground="#B9C1BB" FontSize="10" VerticalAlignment="Center" Margin="5,0,0,0" />
                                                     </StackPanel>
-                                                    <Button Grid.Column="1" Content="ÁP DỤNG" Tag="{Binding}" Style="{StaticResource NavButton}" Padding="9,5" Margin="14,2,2,2" Cursor="Hand" Click="SkinDraftApplyButton_Click" />
+                                                    <Button Grid.Column="1" Content="{Binding ActionLabel}" Tag="{Binding}" Style="{StaticResource NavButton}" Padding="9,5" Margin="10,2,2,2" Cursor="Hand" Click="SkinDraftApplyButton_Click" />
                                                 </Grid>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
                                     </ListBox>
+                                    <Separator Margin="0,12,0,6" Background="#3A443E" />
+                                    <TextBlock Text="LỆNH ÁP DỤNG TỚI GAME" Foreground="#E8EAE9" FontWeight="SemiBold" FontSize="10" Margin="0,3,0,0" />
+                                    <TextBlock x:Name="SkinAccessLabel" Text="Đang kiểm tra quyền studio…" Foreground="#B9C8C1" TextWrapping="Wrap" Margin="0,8,0,8" />
+                                    <Button Content="KIỂM TRA ĐÃ GỬI" Style="{StaticResource NavButton}" Click="SkinDeliveryCheckButton_Click" Margin="0,0,0,8" />
                                     <TextBlock x:Name="SkinEditorStatusLabel" Text="Mã hợp lệ có dạng #RRGGBB"
                                                Foreground="#7F8C84" FontSize="10" Margin="0,9,0,0" TextWrapping="Wrap" />
                                 </StackPanel>
@@ -636,7 +710,7 @@
                                        FontFamily="Bahnschrift SemiCondensed" FontWeight="SemiBold" FontSize="12" />
                             <TextBlock Text="Proximity voice" Foreground="#F2F3F4"
                                        FontFamily="Bahnschrift SemiCondensed" FontSize="27" FontWeight="Bold" Margin="0,3,0,1" />
-                            <TextBlock Text="Connect/Disconnect và âm thanh được xử lý trực tiếp bởi IslePilot. Lần đầu kết nối, hãy cho phép islepilot.eu sử dụng micro."
+                            <TextBlock Text="Connect/Disconnect và âm thanh được xử lý trực tiếp bởi SBTC Island. Lần đầu kết nối, hãy cho phép islepilot.eu sử dụng micro."
                                        Foreground="#898C91" FontSize="11" TextWrapping="Wrap" />
                         </StackPanel>
                         <Button Content="TẢI LẠI" Style="{StaticResource SettingsActionButton}"
@@ -747,6 +821,41 @@
                         <TextBlock Text="Nguồn nhanh được ưu tiên khi hoạt động; WS/REST vẫn tự động dự phòng khi dữ liệu chậm hoặc mất."
                                    Foreground="#95989D" FontSize="13" TextWrapping="Wrap" />
 
+                        <TextBlock Text="ĐIỂM VỊ TRÍ &amp; AI" Foreground="#D5D7DA"
+                                   FontFamily="Bahnschrift SemiCondensed" FontWeight="SemiBold" FontSize="13" Margin="0,24,0,10" />
+                        <Border Background="{StaticResource PanelBrush}" BorderBrush="#3E4045" BorderThickness="1"
+                                CornerRadius="8" Padding="18">
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="240" /><ColumnDefinition Width="55" /></Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Kích thước điểm vị trí" Foreground="#F0F1F2" FontWeight="SemiBold" />
+                                        <TextBlock Text="Áp dụng trên minimap, bản đồ lớn và bản đồ F8."
+                                                   Foreground="#85888D" Margin="0,4,16,0" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <Slider x:Name="GuidePlayerMarkerScaleSlider" Grid.Column="1" Minimum="50" Maximum="200" Value="100"
+                                            TickFrequency="5" IsSnapToTickEnabled="True" SmallChange="5" LargeChange="25" Margin="0,0,12,0"
+                                            VerticalAlignment="Center" ValueChanged="GuidePlayerMarkerScaleSlider_ValueChanged" />
+                                    <TextBlock x:Name="GuidePlayerMarkerScaleLabel" Grid.Column="2" Text="100%" Foreground="#FF7EB6"
+                                               HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold" />
+                                </Grid>
+                                <Border BorderBrush="#303236" BorderThickness="0,1,0,0" Margin="0,16,0,0" Padding="0,14,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="10" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="Thứ tự hiển thị AI" Foreground="#E1E2E4" FontWeight="SemiBold" />
+                                            <TextBlock Text="Khi trùng vị trí, icon con vật nằm dưới hoặc trên điểm của bạn."
+                                                       Foreground="#85888D" Margin="0,4,16,0" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <Button x:Name="GuideWildlifeBelowPlayerButton" Grid.Column="1" Content="DƯỚI ĐIỂM"
+                                                Style="{StaticResource SettingsActionButton}" Click="GuideWildlifeBelowPlayerButton_Click" />
+                                        <Button x:Name="GuideWildlifeAbovePlayerButton" Grid.Column="3" Content="TRÊN ĐIỂM"
+                                                Style="{StaticResource SettingsActionButton}" Click="GuideWildlifeAbovePlayerButton_Click" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
                         <TextBlock Text="VỊ TRÍ CỦA BẠN TRÊN BẢN ĐỒ" Foreground="#D5D7DA"
                                    FontFamily="Bahnschrift SemiCondensed" FontWeight="SemiBold" FontSize="13" Margin="0,24,0,10" />
                         <Border Background="{StaticResource PanelBrush}" BorderBrush="#3E4045" BorderThickness="1"
@@ -761,7 +870,12 @@
                                                    Foreground="#8F9297" Margin="0,4,16,0" TextWrapping="Wrap" />
                                         <TextBlock x:Name="NpcapStatusLabel" Text="Đang kiểm tra Npcap…"
                                                    Foreground="#E7B74E" Margin="0,7,16,0" FontWeight="SemiBold" />
-                                    </StackPanel>
+
+                                            <TextBlock x:Name="NpcapDiagnosticsLabel" Text=""
+                                                       Foreground="#6F7B84" FontSize="11" TextWrapping="Wrap" Margin="0,3,16,0" />
+
+                                            <Button x:Name="ZoneSnifferButton" Content="LẤY VÙNG BẢN ĐỒ TỪ ISLEPILOT WEB" Style="{StaticResource SettingsActionButton}" HorizontalAlignment="Left" Margin="0,8,0,0" Click="ZoneSnifferButton_Click" />
+</StackPanel>
                                     <Button x:Name="NpcapToggleButton" Grid.Column="1" Content="BẬT"
                                             Style="{StaticResource SettingsActionButton}" Margin="0,0,8,0"
                                             Click="NpcapToggleButton_Click" />
@@ -814,7 +928,7 @@
                                         <Button x:Name="GuidePathTrailToggleButton" Grid.Column="1" Content="BẬT"
                                                 Style="{StaticResource SettingsActionButton}"
                                                 Click="GuidePathTrailToggleButton_Click" />
-                                        <Button x:Name="GuideClearPathTrailButton" Grid.Column="3" Content="XÓA VỆT"
+                                        <Button x:Name="GuideClearPathTrailButton" Grid.Column="3" Content="XÓA VỆT · Ctrl+R"
                                                 Style="{StaticResource SettingsActionButton}"
                                                 Click="GuideClearPathTrailButton_Click" />
                                     </Grid>

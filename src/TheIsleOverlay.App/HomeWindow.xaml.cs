@@ -1,11 +1,13 @@
 using System.Net.Http;
 using System.Reflection;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using TheIsleOverlay.EraGaming;
 using TheIsleOverlay.IslePilot;
 using TheIsleOverlay.Pandora;
+using TheIsleOverlay.Sbtc;
 
 namespace TheIsleOverlay.App;
 
@@ -13,6 +15,7 @@ public partial class HomeWindow : Window
 {
     private readonly CancellationTokenSource _shutdown = new();
     private readonly GitHubUpdateService _updateService = new();
+    private readonly WebsiteSessionStore _websiteSessions = new(AppPaths.WebsiteSessions);
     private bool _connecting;
     private bool _updateOperationActive;
     private string? _availableUpdateVersion;
@@ -24,6 +27,7 @@ public partial class HomeWindow : Window
 
     private async void Window_Loaded(object sender, RoutedEventArgs e)
     {
+        RenderOwnSourceCount();
 
         if (string.Equals(
                 Environment.GetEnvironmentVariable("ISLELIVEMAP_DEV_AUTO_CONNECT"),
@@ -131,6 +135,33 @@ public partial class HomeWindow : Window
         }
     }
 
+    /// <summary>
+    /// Counts the servers that run their own website login, so the label cannot go stale
+    /// when a source is added (SBTC Island joined EraGaming, PANDORA and SDVN #3).
+    /// </summary>
+    private void RenderOwnSourceCount()
+    {
+        var count = TelemetrySourceDefinition.All.Count(source =>
+            source.Kind is TelemetrySourceKind.EraGaming
+                or TelemetrySourceKind.Pandora
+                or TelemetrySourceKind.SbtcIsland
+                or TelemetrySourceKind.IslePilotHosted);
+        OwnSourceCountLabel.Text = $"{count} NGUỒN RIÊNG";
+    }
+
+    private void GuestModeButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_connecting)
+        {
+            return;
+        }
+
+        var overlay = new MainWindow(guest: true) { };
+        Application.Current.MainWindow = overlay;
+        overlay.Show();
+        Close();
+    }
+
     private async void SourceButton_Click(object sender, RoutedEventArgs e)
     {
         if (_connecting || sender is not Button { Tag: string sourceId })
@@ -166,6 +197,17 @@ public partial class HomeWindow : Window
             {
                 SourceStatusLabel.Text = "Chưa nhận được phiên. Đăng nhập trong cửa sổ vừa mở rồi bấm KIỂM TRA PHIÊN.";
                 return;
+            }
+
+            // Keep the site session so this server can be listed as a saved account
+            // instead of being a one-off login.
+            try
+            {
+                await _websiteSessions.SaveAsync(source.Id, loginWindow.CookieValue, _shutdown.Token);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or OperationCanceledException)
+            {
+                // Failing to store the session must not stop the overlay from opening.
             }
 
             var overlay = new MainWindow(source, loginWindow.CookieValue);
@@ -213,6 +255,10 @@ public partial class HomeWindow : Window
         {
             return LoginSessionValidationState.Invalid;
         }
+        catch (SbtcIslandAuthenticationException)
+        {
+            return LoginSessionValidationState.Invalid;
+        }
         catch
         {
             // A slow or temporarily unavailable API must not destroy a valid
@@ -224,6 +270,7 @@ public partial class HomeWindow : Window
     private void SetSourceButtonsEnabled(bool enabled)
     {
         EraSourceButton.IsEnabled = enabled;
+        SbtcSourceButton.IsEnabled = enabled;
         PandoraSourceButton.IsEnabled = enabled;
     }
 

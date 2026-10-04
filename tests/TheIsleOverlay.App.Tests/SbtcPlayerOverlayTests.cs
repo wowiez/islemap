@@ -49,15 +49,18 @@ public sealed class SbtcPlayerOverlayTests
     }
 
     [Fact]
-    public void Create_IgnoresMarkersWithoutNameOrProjectedPosition()
+    public void Create_KeepsNamelessPinsButRejectsMissingOrInvalidPosition()
     {
         var markers = new[]
         {
             new MapMarkerTelemetry { SteamId = "missing-location", Label = "Player" },
-            new MapMarkerTelemetry { SteamId = "missing-label", MapLocation = new MapPoint(0.2, 0.3) }
+            new MapMarkerTelemetry { SteamId = "missing-label", MapLocation = new MapPoint(0.2, 0.3), Friend = true },
+            new MapMarkerTelemetry { SteamId = "invalid", Label = "Invalid", MapLocation = new MapPoint(double.NaN, 0.3) }
         };
 
-        Assert.Empty(SbtcPlayerOverlay.Create("SBTC ISLAND", markers));
+        var friend = Assert.Single(SbtcPlayerOverlay.Create("SBTC ISLAND", markers));
+        Assert.Equal("Người chơi", friend.Label);
+        Assert.True(friend.Friend);
     }
 
     private static MapMarkerTelemetry Marker(

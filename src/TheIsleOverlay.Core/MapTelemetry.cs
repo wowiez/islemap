@@ -14,6 +14,7 @@ public sealed record MapMarkerTelemetry
     public string? Label { get; init; }
     public bool Self { get; init; }
     public bool Group { get; init; }
+    public bool Friend { get; init; }
     public WorldLocation? Location { get; init; }
     public MapPoint? MapLocation { get; init; }
     public double? ExactMapHeadingDegrees { get; init; }
@@ -32,6 +33,7 @@ public sealed record MapPointOfInterestTelemetry
     public string? Icon { get; init; }
     public bool? Enabled { get; init; }
     public bool? HideLabel { get; init; }
+    public MapPoint? LabelLocation { get; init; }
     public IReadOnlyList<MapPoint> Points { get; init; } = [];
 }
 

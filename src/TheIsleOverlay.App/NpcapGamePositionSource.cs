@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -20,14 +21,29 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
         "TheIsle"
     ];
 
+    // Attribute updates can stop when mass plateaus. Only the selected actor's
+    // continuing server stream keeps its last validated value visible.
+    private const int WeightPublishIntervalMs = 250;
+    private const int WeightPublishTimeoutMs = 1500;
+    private const int WeightLogIntervalMs = 2000;
+    private const long MaximumWeightLogBytes = 8L * 1024 * 1024;
+
     private readonly CancellationTokenSource _shutdown = new();
     private readonly Dictionary<GameFlow, NpcapGamePacketDecoder> _decoders = [];
     private readonly NpcapPositionStabilizer _stabilizer = new();
     private Task? _captureTask;
     private NpcapSourceState _state;
     private long _lastPositionTick;
+    private long _lastWeightTick;
+    private long _lastWeightLogTick;
+    private NpcapWeightSample? _lastPublishedWeight;
     private GameFlow? _activeFlow;
+    private uint? _playerChannel;
+    private uint? _playerActorHandle;
+    private NpcapVitalSample? _lastPublishedVitals;
+    private GameFlow? _playerChannelFlow;
     private bool _seededFromClipboard;
+    private string? _weightDiagnostic;
 
     public NpcapGamePositionSource()
     {
@@ -39,6 +55,13 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
     public event Action<NpcapPositionSample>? PositionReceived;
     public event Action<NpcapSourceState>? StateChanged;
     public event Action? ServerFlowChanged;
+
+    /// <summary>
+    /// The validated mass of the selected player's actor. Null hides an unavailable,
+    /// stale or disconnected sample instead of substituting another float.
+    /// </summary>
+    public event Action<NpcapWeightSample?>? WeightReceived;
+    public event Action<NpcapVitalSample?>? VitalsReceived;
 
     public bool IsSupported => OperatingSystem.IsWindows() && File.Exists(NpcapLibrary);
     public NpcapSourceState State => _state;
@@ -67,6 +90,7 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
     public void Start()
     {
         if (!IsSupported || _captureTask is not null) return;
+        ResetWeightLog();
         SetState(NpcapSourceStatus.WaitingForGame, "Đang tìm game và kết nối UDP");
         _captureTask = Task.Run(() => CaptureLoopAsync(_shutdown.Token));
     }
@@ -96,6 +120,15 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
 
                 SetState(NpcapSourceStatus.Listening, "Đã bắt luồng game · đang chờ tọa độ");
                 _activeFlow = null;
+                _playerChannel = null;
+                _playerActorHandle = null;
+                _playerChannelFlow = null;
+                lock (_decoders) _decoders.Clear();
+                _lastPositionTick = 0;
+                _lastWeightTick = 0;
+                _weightDiagnostic = "KG: đang chờ kết nối game";
+                PublishWeight(null);
+                PublishVitals(null);
                 _stabilizer.Reset();
                 Capture(device, gameEndpoints, cancellationToken);
             }
@@ -155,12 +188,17 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
                 var lastProcessCheck = Environment.TickCount64;
                 var lastCaptureStatus = lastProcessCheck;
                 long gameDatagrams = 0;
+
+                // Diagnostic only: how many packets the card handed over at all. It tells
+                // "wrong adapter / no traffic" apart from "traffic seen, ports not matched".
+                long seenPackets = 0;
                 while (!cancellationToken.IsCancellationRequested)
                 {
                     var result = Native.pcap_next_ex(handle, out var headerPointer, out var dataPointer);
                     if (result < 0) return;
                     if (result > 0)
                     {
+                        seenPackets++;
                         var header = Marshal.PtrToStructure<Native.PcapPacketHeader>(headerPointer);
                         if (header.CapturedLength is > 0 and <= 65535)
                         {
@@ -172,7 +210,13 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
                                 TryReadUdpDatagram(frame, ports, out var flow, out var payload))
                             {
                                 gameDatagrams++;
-                                if (GetDecoder(flow).TryProcessGamePayload(payload, capturedAt, out var sample) &&
+                                var decoder = GetDecoder(flow);
+                                TrackStatistics(decoder, flow);
+                                var hasPosition = decoder.TryProcessGamePayload(payload, capturedAt, out var sample);
+                                // The current packet may be the one that identifies
+                                // the actor. Don't wait for another outbound packet.
+                                TrackStatistics(decoder, flow);
+                                if (hasPosition &&
                                     AcceptFlow(flow) &&
                                     _stabilizer.TryStabilize(
                                         sample with
@@ -187,8 +231,22 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
                                         $"Đang chạy · server {flow.RemoteAddress}:{flow.RemotePort}");
                                     PositionReceived?.Invoke(stabilized);
                                 }
+
+                                PublishWeightSample(decoder, flow, capturedAt);
+                                if (!flow.Inbound && hasPosition && decoder.LockedChannel is null)
+                                    UpdateWeightDiagnostic("KG: có tọa độ nhưng chưa đọc được kênh Dino");
                             }
                         }
+                    }
+
+                    // The readout must not keep showing a number the stream no longer
+                    // produces: on a quiet stream an empty update hides it.
+                    if (Environment.TickCount64 - _lastWeightTick > WeightPublishTimeoutMs)
+                    {
+                        _lastWeightTick = Environment.TickCount64;
+                        PublishWeight(null);
+                        PublishVitals(null);
+                        UpdateWeightDiagnostic("KG: chưa nhận được luồng server, chờ game gửi dữ liệu");
                     }
 
                     if (_lastPositionTick == 0 && Environment.TickCount64 - lastCaptureStatus > 2000)
@@ -196,7 +254,7 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
                         SetState(
                             NpcapSourceStatus.Listening,
                             gameDatagrams == 0
-                                ? "Đã mở card mạng · chưa nhận gói game"
+                                ? $"Đã mở card mạng · thấy {seenPackets} gói, chưa có gói nào khớp cổng game"
                                 : $"Đã nhận {gameDatagrams} gói UDP · đang tìm tọa độ");
                         lastCaptureStatus = Environment.TickCount64;
                     }
@@ -270,9 +328,122 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
         return true;
     }
 
+    /// <summary>
+    /// Server replication only says which actor moved, not whose statistics they are, so
+    /// the mass decoder follows the actor channel the client's own movement RPC named.
+    /// A server movement lock alone cannot identify the player after a reconnect or respawn.
+    /// </summary>
+    internal void TrackStatistics(NpcapGamePacketDecoder decoder, GameFlow flow)
+    {
+        var locked = decoder.LockedChannel;
+        if (!flow.Inbound)
+        {
+            if (decoder.HasLockedMovement)
+            {
+                _playerChannel = locked;
+                _playerActorHandle = decoder.MovementActorHandle;
+                _playerChannelFlow = locked is null ? null : flow;
+            }
+            else if (_playerChannelFlow is { } previousFlow && IsSameConnection(previousFlow, flow))
+                _playerActorHandle = null;
+            return;
+        }
+
+        decoder.StatisticsChannel = _playerChannelFlow is { } playerFlow && IsSameConnection(playerFlow, flow)
+            ? _playerChannel
+            : null;
+        decoder.StatisticsActorHandle = decoder.StatisticsChannel is not null ? _playerActorHandle : null;
+    }
+
+    internal static bool IsSameConnection(GameFlow first, GameFlow second) =>
+        first.LocalPort == second.LocalPort && first.RemoteAddress.Equals(second.RemoteAddress) &&
+        first.RemotePort == second.RemotePort;
+
+    private void PublishWeightSample(NpcapGamePacketDecoder decoder, GameFlow flow, DateTimeOffset capturedAt)
+    {
+        if (!flow.Inbound || _activeFlow is not { } active || !IsSameConnection(active, flow) ||
+            Environment.TickCount64 - _lastWeightTick < WeightPublishIntervalMs) return;
+        _lastWeightTick = Environment.TickCount64;
+        var sample = decoder.WeightSample(capturedAt);
+        PublishWeight(sample);
+        PublishVitals(decoder.VitalSample(capturedAt));
+        UpdateWeightDiagnostic(decoder.WeightDiagnostic(capturedAt));
+
+        if (sample is null || Environment.TickCount64 - _lastWeightLogTick < WeightLogIntervalMs) return;
+        _lastWeightLogTick = Environment.TickCount64;
+        AppendWeightLog(capturedAt, sample.Value);
+    }
+
+    private void PublishWeight(NpcapWeightSample? sample)
+    {
+        if (_lastPublishedWeight == sample) return;
+        _lastPublishedWeight = sample;
+        WeightReceived?.Invoke(sample);
+    }
+
+    private void PublishVitals(NpcapVitalSample? sample)
+    {
+        if (_lastPublishedVitals == sample) return;
+        _lastPublishedVitals = sample;
+        VitalsReceived?.Invoke(sample);
+    }
+
+    private void UpdateWeightDiagnostic(string message)
+    {
+        if (_weightDiagnostic == message) return;
+        _weightDiagnostic = message;
+        SetState(_state.Status, _state.Message);
+    }
+
+    private static void ResetWeightLog()
+    {
+        try
+        {
+            Directory.CreateDirectory(AppPaths.Root);
+            File.WriteAllText(
+                AppPaths.NpcapWeightLog,
+                $"# Kg từ attribute block đã xác thực · kg / channel / bit-offset / sample-age · {DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss}{Environment.NewLine}");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+        }
+    }
+
+    private static void AppendWeightLog(
+        DateTimeOffset capturedAt,
+        NpcapWeightSample sample)
+    {
+        try
+        {
+            var path = AppPaths.NpcapWeightLog;
+            var line = new StringBuilder(256);
+            line.Append(capturedAt.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture));
+            line.Append("  kg=").Append(sample.Kilograms.ToString("0.###", CultureInfo.InvariantCulture))
+                .Append(" channel=").Append(sample.Channel)
+                .Append(" bit=").Append(sample.BitOffset)
+                .Append(" age=").Append((capturedAt - sample.CapturedAt).TotalSeconds.ToString("0.0", CultureInfo.InvariantCulture))
+                .AppendLine("s");
+
+            if (File.Exists(path) && new FileInfo(path).Length > MaximumWeightLogBytes)
+            {
+                File.WriteAllText(path, $"# log cắt bớt lúc {DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss}{Environment.NewLine}");
+            }
+
+            File.AppendAllText(path, line.ToString());
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+        }
+    }
+
     private void SetState(NpcapSourceStatus status, string message)
     {
-        var next = new NpcapSourceState(status, message);
+        if (status is NpcapSourceStatus.Stopped or NpcapSourceStatus.WaitingForGame or NpcapSourceStatus.Faulted)
+        {
+            PublishWeight(null);
+            PublishVitals(null);
+        }
+        var next = new NpcapSourceState(status, message) { WeightDiagnostic = _weightDiagnostic };
         if (next == _state) return;
         _state = next;
         StateChanged?.Invoke(next);
@@ -303,13 +474,45 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
     {
         flow = default;
         payload = default;
-        if (frame.Length < 42) return false;
-        var etherType = BinaryPrimitives.ReadUInt16BigEndian(frame.AsSpan(12, 2));
-        var ipOffset = etherType == 0x8100 ? 18 : 14;
-        if (frame.Length < ipOffset + 28 || frame[ipOffset] >> 4 != 4 || frame[ipOffset + 9] != 17) return false;
+
+        // Most adapters hand over Ethernet frames, but a VPN/tunnel adapter - or Npcap
+        // in raw mode - hands over the IP datagram itself (link type 101), which is why a
+        // working capture could still never match a port: the ethernet type read at byte
+        // 12 was inside the IP header. Try the Ethernet layout first, then the bare IP
+        // and the loopback layout.
+        return TryReadUdpDatagramAt(frame, 14, localPorts, out flow, out payload) ||
+               TryReadUdpDatagramAt(frame, 0, localPorts, out flow, out payload) ||
+               TryReadUdpDatagramAt(frame, 4, localPorts, out flow, out payload);
+    }
+
+    private static bool TryReadUdpDatagramAt(
+        byte[] frame,
+        int ipOffset,
+        IReadOnlyCollection<int> localPorts,
+        out GameFlow flow,
+        out ReadOnlySpan<byte> payload)
+    {
+        flow = default;
+        payload = default;
+        if (ipOffset == 14 && frame.Length >= 18 &&
+            BinaryPrimitives.ReadUInt16BigEndian(frame.AsSpan(12, 2)) == 0x8100)
+        {
+            // VLAN-tagged Ethernet keeps the IP header four bytes further in.
+            ipOffset = 18;
+        }
+
+        if (frame.Length < ipOffset + 28 || frame[ipOffset] >> 4 != 4 || frame[ipOffset + 9] != 17)
+        {
+            return false;
+        }
+
         var ipHeaderLength = (frame[ipOffset] & 0x0f) * 4;
         var udpOffset = ipOffset + ipHeaderLength;
-        if (frame.Length < udpOffset + 8) return false;
+        if (frame.Length < udpOffset + 8)
+        {
+            return false;
+        }
+
         var sourcePort = BinaryPrimitives.ReadUInt16BigEndian(frame.AsSpan(udpOffset, 2));
         var destinationPort = BinaryPrimitives.ReadUInt16BigEndian(frame.AsSpan(udpOffset + 2, 2));
         var udpLength = BinaryPrimitives.ReadUInt16BigEndian(frame.AsSpan(udpOffset + 4, 2));
@@ -328,6 +531,7 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
         {
             return false;
         }
+
         payload = frame.AsSpan(udpOffset + 8, payloadLength);
         return true;
     }
@@ -561,6 +765,7 @@ public enum NpcapSourceStatus
 
 public sealed record NpcapSourceState(NpcapSourceStatus Status, string Message)
 {
+    public string? WeightDiagnostic { get; init; }
     public bool IsActive => Status is NpcapSourceStatus.WaitingForGame or
         NpcapSourceStatus.Listening or NpcapSourceStatus.Live;
 }

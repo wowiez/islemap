@@ -1,0 +1,37 @@
+<Window x:Class="TheIsleOverlay.App.IslePilotZoneSnifferWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="Lấy vùng bản đồ từ IslePilot" Width="1240" Height="880" MinWidth="920" MinHeight="640"
+        WindowStartupLocation="CenterOwner" Background="#0B1412" Foreground="#E9F4EE"
+        FontFamily="Segoe UI Variable Text" Loaded="Window_Loaded" Closed="Window_Closed">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="66" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Border Background="#111C1A" BorderBrush="#2A3A36" BorderThickness="0,0,0,1">
+            <Grid Margin="18,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="LẤY VÙNG BẢN ĐỒ TỪ ISLEPILOT" Foreground="#EAF3F0"
+                               FontFamily="Bahnschrift SemiCondensed" FontWeight="SemiBold" FontSize="16" />
+                    <TextBlock x:Name="SnifferStatusLabel"
+                               Text="Đăng nhập (nếu được hỏi), mở bản đồ của server có vùng, rồi để yên vài giây."
+                               Foreground="#8FA6A0" FontSize="11" Margin="0,2,0,0" TextWrapping="Wrap" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="OpenFolderButton" Content="MỞ THƯ MỤC" Padding="14,7" Margin="0,0,8,0"
+                            Background="#1B2A27" Foreground="#DCE7E3" BorderBrush="#31433F"
+                            BorderThickness="1" Cursor="Hand" Click="OpenFolderButton_Click" />
+                    <Button Content="ĐÓNG" Padding="14,7" Background="#1B2A27" Foreground="#DCE7E3"
+                            BorderBrush="#31433F" BorderThickness="1" Cursor="Hand" Click="CloseButton_Click" />
+                </StackPanel>
+            </Grid>
+        </Border>
+        <wv2:WebView2 x:Name="SnifferBrowser" Grid.Row="1" />
+    </Grid>
+</Window>

@@ -366,7 +366,7 @@ public sealed class IslePilotCredentialStore
         string? PersonaName = null);
 }
 
-internal static class WindowsDataProtection
+public static class WindowsDataProtection
 {
     private const uint CryptProtectUiForbidden = 0x1;
 

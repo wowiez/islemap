@@ -1,6 +1,8 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Net.Http;
 using System.Runtime.InteropServices;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -20,7 +22,11 @@ namespace TheIsleOverlay.App;
 public partial class MainWindow : Window
 {
     private static readonly Uri GatewayMapResourceUri = new("Assets/GatewayMap.webp", UriKind.Relative);
-    private static readonly Uri GatewayZonesResourceUri = new("Assets/GatewayZones.json", UriKind.Relative);
+    private static readonly Uri GatewayZonesResourceUri = new("/IsleLiveMap;component/Assets/GatewayZones.json", UriKind.Relative);
+
+    // The zone polygons the IslePilot map draws for this server, scraped from its own
+    // page: the same set for every server, so the overlay always has zones.
+    private static readonly Uri IslePilotZonesResourceUri = new("/IsleLiveMap;component/Assets/IslePilotZones.json", UriKind.Relative);
     private static readonly IReadOnlyDictionary<string, Uri> BundledSbtcZoneIcons =
         new Dictionary<string, Uri>(StringComparer.OrdinalIgnoreCase)
         {
@@ -43,6 +49,7 @@ public partial class MainWindow : Window
     private const int ZoomOutHotkeyId = 0x716;
     private const int LargeMapHotkeyId = 0x717;
     private const int GuideHotkeyId = 0x718;
+    private const int ClearTrailHotkeyId = 0x719;
     private const int WmNcHitTest = 0x0084;
     private const int WmHotkey = 0x0312;
     private const int HtTransparent = -1;
@@ -52,6 +59,7 @@ public partial class MainWindow : Window
     private const uint ModNoRepeat = 0x4000;
     private const uint KeyO = 0x4F;
     private const uint KeyM = 0x4D;
+    private const uint KeyR = 0x52;
     private const uint KeyF8 = 0x77;
     private const uint KeyOemPlus = 0xBB;
     private const uint KeyOemMinus = 0xBD;
@@ -65,12 +73,16 @@ public partial class MainWindow : Window
 
     private readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromSeconds(12) };
     private readonly CancellationTokenSource _shutdown = new();
+    private readonly bool _guest;
+    private double? _fractureDamagedValue;
+    private DateTimeOffset _fractureDamagedAt;
     private readonly TelemetrySourceDefinition? _requestedSource;
     private readonly string? _providedCookie;
     private readonly ITelemetrySession? _providedSession;
-    private readonly GuideGarageApi? _garageApi;
-    private readonly OverlayLayoutSettingsStore _layoutSettingsStore = new();
-    private readonly PlayerPathTrailStore _pathTrailStore = new();
+    private GuideGarageApi? _sbtcGarageApi;
+    private HttpClient? _sbtcApiHttpClient;
+    private readonly OverlayLayoutSettingsStore _layoutSettingsStore;
+    private readonly PlayerPathTrailStore _pathTrailStore;
     private readonly Dictionary<string, ImageSource> _sbtcZoneIconSources = new(StringComparer.Ordinal);
     private readonly HashSet<string> _sbtcZoneIconLoads = new(StringComparer.Ordinal);
     private readonly List<RotateTransform> _sbtcZoneLabelRotations = [];
@@ -82,6 +94,7 @@ public partial class MainWindow : Window
     private DispatcherTimer? _foregroundVisibilityTimer;
     private ClipboardCoordinateMonitor? _clipboardCoordinateMonitor;
     private NpcapGamePositionSource? _npcapPositionSource;
+    private readonly DinosaurVitalReadout _dinosaurVitals = new();
     private NpcapPositionSample? _npcapPosition;
     private MapProjectionTelemetry? _islePilotMapProjection;
     private NpcapSourceState _npcapState = new(NpcapSourceStatus.Unavailable, "Chưa cài Npcap");
@@ -120,6 +133,7 @@ public partial class MainWindow : Window
     private bool _zoomOutHotkeyRegistered;
     private bool _largeMapHotkeyRegistered;
     private bool _guideHotkeyRegistered;
+    private bool _clearTrailHotkeyRegistered;
     private IReadOnlyList<SbtcZoneFeature> _sbtcZoneFeatures = [];
     private IReadOnlyList<SbtcPlayerMarker> _sbtcPlayerMarkers = [];
     private string _sbtcZoneSignature = string.Empty;
@@ -151,33 +165,31 @@ public partial class MainWindow : Window
     private long _lastLargeMapToggleTick;
     private string? _activeSpeciesName;
     private bool _hiddenForExternalForeground;
+    private bool _overlayPositionRestored;
     private bool _restoreGuideAfterForeground;
     private bool _restoreLargeMapAfterForeground;
 
-    public MainWindow() : this(null, null, null, null, null)
+    public MainWindow() : this(null, null, null, null)
+    {
+    }
+
+    /// <summary>Map-only overlay: no telemetry account, position comes from the packets.</summary>
+    public MainWindow(bool guest) : this(null, null, null, null, guest)
+    {
+    }
+
+    internal MainWindow(bool guest, OverlayLayoutSettingsStore layoutSettingsStore, PlayerPathTrailStore pathTrailStore)
+        : this(null, null, null, null, guest, layoutSettingsStore, pathTrailStore)
     {
     }
 
     public MainWindow(TelemetrySourceDefinition? source, string? cookieValue)
-        : this(source, cookieValue, null, null, null)
+        : this(source, cookieValue, null, null)
     {
     }
 
     public MainWindow(ITelemetrySession telemetrySession, string displayName)
-        : this(telemetrySession, displayName, null)
-    {
-    }
-
-    public MainWindow(
-        ITelemetrySession telemetrySession,
-        string displayName,
-        GuideGarageApi? garageApi)
-        : this(
-            null,
-            null,
-            telemetrySession ?? throw new ArgumentNullException(nameof(telemetrySession)),
-            displayName,
-            garageApi)
+        : this(null, null, telemetrySession, displayName)
     {
     }
 
@@ -186,14 +198,19 @@ public partial class MainWindow : Window
         string? cookieValue,
         ITelemetrySession? telemetrySession,
         string? displayName,
-        GuideGarageApi? garageApi)
+        bool guest = false,
+        OverlayLayoutSettingsStore? layoutSettingsStore = null,
+        PlayerPathTrailStore? pathTrailStore = null)
     {
+        _layoutSettingsStore = layoutSettingsStore ?? new OverlayLayoutSettingsStore();
+        _pathTrailStore = pathTrailStore ?? new PlayerPathTrailStore();
+        _guest = guest;
         _requestedSource = source;
         _providedCookie = cookieValue;
         _providedSession = telemetrySession;
-        _garageApi = garageApi;
-        _usesIslePilotMap = source?.Kind is TelemetrySourceKind.IslePilot or TelemetrySourceKind.IslePilotHosted ||
-                            telemetrySession is not null;
+        // Every web-overlay source drives the same live map: without this, Npcap never
+        // starts for a source that is not IslePilot and the marker stops moving.
+        _usesIslePilotMap = UsesLiveOverlayMap(source) || telemetrySession is not null;
         if (!string.IsNullOrWhiteSpace(displayName))
         {
             _configuredSource = displayName;
@@ -213,6 +230,8 @@ public partial class MainWindow : Window
         ApplyMapZoom(_mapZoom, persist: false);
         ApplyMapStyle(_mapStyle, persist: false);
         ApplyMapRotationPreference(_rotateMap, persist: false);
+        ApplyMapMarkerSettings(_layoutSettings.PlayerMarkerScale, _layoutSettings.WildlifeAbovePlayer, persist: false);
+        ApplyMapLayerFilters(_layoutSettings.ShowMapZones, _layoutSettings.ShowWildlife, persist: false);
         ApplyAutoDetectLiveMapPreference(_autoDetectLiveMap, persist: false);
         RenderPrimeTasks(null);
         UpdatePathTrailButtonState();
@@ -250,6 +269,21 @@ public partial class MainWindow : Window
             Dispatcher);
         _foregroundVisibilityTimer.Start();
         RefreshForegroundVisibility();
+
+        if (_guest)
+        {
+            // Guest mode: the map and the packet position, nothing that needs an account.
+            _usesIslePilotMap = true;
+            LoadMap();
+            StartNpcapPositionSource();
+            SetConnectionState("CHẾ ĐỘ KHÁCH", WaitingBrush);
+            SpeciesLabel.Text = "CHƯA CÓ DINO · CHỈ XEM BẢN ĐỒ";
+            PlayerNameLabel.Text = "GUEST · MAP ONLY";
+            MapStateLabel.Text = "BẢN ĐỒ + VỊ TRÍ TỪ PACKET (NPCAP)";
+            UpdatedLabel.Text = "KHÁCH · CHỈ XEM BẢN ĐỒ";
+            SetTelemetryOpacity(0.55d);
+            return;
+        }
 
         if (!TryConfigureTelemetrySession())
         {
@@ -308,7 +342,7 @@ public partial class MainWindow : Window
 
     private void ConfigureTelemetrySession(TelemetrySourceDefinition source, string cookieValue)
     {
-        _usesIslePilotMap = source.Kind is TelemetrySourceKind.IslePilot or TelemetrySourceKind.IslePilotHosted;
+        _usesIslePilotMap = UsesLiveOverlayMap(source);
         var provider = source.CreateProvider(_httpClient, cookieValue);
         _telemetrySession = new PollingTelemetrySession(
             provider,
@@ -380,8 +414,10 @@ public partial class MainWindow : Window
             snapshot.SessionState,
             snapshot.RequestStatus);
         var activeServer = snapshot.PlayerOnline ? snapshot.Player?.Server : null;
+        var mapServer = activeServer ??
+            (SbtcZoneOverlay.IsSbtcServer(snapshot.Source) ? "SBTC Island" : null);
         UpdateSbtcZoneData(
-            activeServer,
+            mapServer,
             snapshot.Map?.PointsOfInterest,
             snapshot.Map?.PointsOfInterest is { Count: > 0 });
         UpdateSbtcPlayerData(activeServer, snapshot.Map?.Markers);
@@ -439,6 +475,7 @@ public partial class MainWindow : Window
                 (_lastActiveSpecies is not null && !string.Equals(_lastActiveSpecies, currentSpecies, StringComparison.OrdinalIgnoreCase)))
             {
                 ClearPathTrail();
+                _dinosaurVitals.UpdateWeight(null);
             }
             _lastActiveServer = currentServer;
             _lastActiveSpecies = currentSpecies;
@@ -451,14 +488,13 @@ public partial class MainWindow : Window
             SpeciesLabel.Text = FriendlySpecies(player.Class);
             PlayerNameLabel.Text = string.IsNullOrWhiteSpace(player.Name) ? "ACTIVE PLAYER" : player.Name;
 
-            var growth = exact?.Growth ?? player.GrowthPercent;
+            var growth = player.GrowthPercent;
             GrowthLabel.Text = $"{NormalizePercent(growth):0.#}%";
 
-            RenderVital(HealthBar, HealthValue, exact?.Health, exact?.MaxHealth, player.HealthPercent);
-            RenderVital(StaminaBar, StaminaValue, exact?.Stamina, exact?.MaxStamina, player.StaminaPercent);
+            _dinosaurVitals.UpdatePlayer(player);
+            var health = RenderDinosaurVitals();
 
-            RenderVital(HungerBar, HungerValue, exact?.Hunger, exact?.MaxHunger, player.HungerPercent);
-            RenderVital(WaterBar, WaterValue, exact?.Thirst, exact?.MaxThirst, player.ThirstPercent);
+            SetFractureRow(player.FracturePercent);
 
             UpdatedLabel.Text = $"SYNC {(snapshot.UpdatedAt ?? DateTimeOffset.Now).ToLocalTime():HH:mm:ss}";
             RequestStatusLabel.Text = PositionSourceStatus(activityStatus);
@@ -467,10 +503,10 @@ public partial class MainWindow : Window
                 player.Name ?? "ACTIVE PLAYER",
                 player.Server ?? _configuredSource,
                 NormalizePercent(growth),
-                VitalPercent(exact?.Health, exact?.MaxHealth, player.HealthPercent),
-                VitalPercent(exact?.Stamina, exact?.MaxStamina, player.StaminaPercent),
-                VitalPercent(exact?.Hunger ?? exact?.FoodValue, exact?.MaxHunger ?? exact?.MaxFoodValue, player.HungerPercent),
-                VitalPercent(exact?.Thirst, exact?.MaxThirst, player.ThirstPercent),
+                health.Percent ?? 0d,
+                _dinosaurVitals.Stamina(DateTimeOffset.UtcNow).Percent ?? 0d,
+                _dinosaurVitals.Hunger(DateTimeOffset.UtcNow).Percent ?? 0d,
+                _dinosaurVitals.Thirst(DateTimeOffset.UtcNow).Percent ?? 0d,
                 snapshot.UpdatedAt ?? DateTimeOffset.Now,
                 player.ServerId,
                 player.Female);
@@ -536,6 +572,11 @@ public partial class MainWindow : Window
         UpdateMovementHeading(player.Location);
     }
 
+    private static bool UsesLiveOverlayMap(TelemetrySourceDefinition? source) =>
+        source?.Kind is TelemetrySourceKind.IslePilot
+            or TelemetrySourceKind.IslePilotHosted
+            or TelemetrySourceKind.SbtcIsland;
+
     private void StartNpcapPositionSource()
     {
         if (!_usesIslePilotMap || !_layoutSettings.NpcapEnabled || _npcapPositionSource is not null) return;
@@ -559,6 +600,16 @@ public partial class MainWindow : Window
         {
             if (ReferenceEquals(_npcapPositionSource, source)) ApplyNpcapPosition(sample);
         }, DispatcherPriority.Render);
+        source.WeightReceived += sample => Dispatcher.BeginInvoke(() =>
+        {
+            if (ReferenceEquals(_npcapPositionSource, source)) UpdateWeight(sample);
+        }, DispatcherPriority.Background);
+        source.VitalsReceived += sample => Dispatcher.BeginInvoke(() =>
+        {
+            if (!ReferenceEquals(_npcapPositionSource, source)) return;
+            _dinosaurVitals.UpdateVitals(sample);
+            RenderDinosaurVitals();
+        }, DispatcherPriority.Background);
         source.ServerFlowChanged += () => Dispatcher.BeginInvoke(() =>
         {
             if (ReferenceEquals(_npcapPositionSource, source)) ClearPathTrail();
@@ -572,7 +623,81 @@ public partial class MainWindow : Window
         _npcapPositionSource = null;
         if (clearPosition) _npcapPosition = null;
         if (source is null) return;
+        HideWeight();
         await source.DisposeAsync();
+    }
+
+    /// <summary>
+    /// Uses the validated mass of the selected actor to update percentage-only health.
+    /// </summary>
+    private void UpdateWeight(NpcapWeightSample? sample)
+    {
+        _dinosaurVitals.UpdateWeight(sample);
+        RenderDinosaurVitals();
+    }
+
+    private void HideWeight()
+    {
+        _dinosaurVitals.UpdateWeight(null);
+        _dinosaurVitals.UpdateVitals(null);
+        RenderDinosaurVitals();
+    }
+
+    private DinosaurHealthValues RenderDinosaurVitals()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var health = _dinosaurVitals.Health(now);
+        var hunger = _dinosaurVitals.Hunger(now);
+        var water = _dinosaurVitals.Thirst(now);
+        var stamina = _dinosaurVitals.Stamina(now);
+        // Percentages use the longer fracture-style track; pairs reserve
+        // fixed room for numbers. Digit count never changes either layout.
+        HealthValueColumn.Width = new GridLength(HasVitalPair(health) ? 64d : 32d);
+        RenderPacketVital(HungerBar, HungerValue, hunger, HungerValueColumn);
+        RenderPacketVital(WaterBar, WaterValue, water, WaterValueColumn);
+        RenderPacketVital(StaminaBar, StaminaValue, stamina, StaminaValueColumn);
+        HealthBar.Value = health.Percent ?? 0d;
+        var waitingForHealthMaximum = health.Current is not null && health.Maximum is null;
+        HealthBar.Visibility = Visibility.Visible;
+        HealthValue.Text = health is { Current: { } current, Maximum: { } maximum }
+            ? $"{current.ToString("0", CultureInfo.InvariantCulture)} / {maximum.ToString("0", CultureInfo.InvariantCulture)}"
+            : health.Percent is { } percent
+                ? $"{percent.ToString("0", CultureInfo.InvariantCulture)}%"
+                : "- / -";
+        HealthValue.ToolTip = waitingForHealthMaximum
+            ? $"Đã nhận máu hiện tại: {health.Current:0.#}. Đang chờ game gửi máu tối đa."
+            : health.FromWeight
+            ? "Máu ước tính từ KG × % máu / 100 · 1 kg = 1 HP tối đa"
+            : "Máu hiện tại / máu tối đa";
+        if (_guidePlayerOverview is { } overview)
+        {
+            _guidePlayerOverview = overview with
+            {
+                Health = health.Percent ?? 0d,
+                Food = _dinosaurVitals.Hunger(now).Percent ?? 0d,
+                Water = _dinosaurVitals.Thirst(now).Percent ?? 0d,
+                Stamina = _dinosaurVitals.Stamina(now).Percent ?? 0d
+            };
+            _guideWindow?.UpdatePlayerOverview(_guidePlayerOverview);
+        }
+        return health;
+    }
+
+    private static bool HasVitalPair(DinosaurHealthValues values) =>
+        values.Current is not null && values.Maximum is not null;
+
+    private static void RenderPacketVital(System.Windows.Controls.ProgressBar bar, System.Windows.Controls.TextBlock label, DinosaurHealthValues values, System.Windows.Controls.ColumnDefinition valueColumn)
+    {
+        valueColumn.Width = new GridLength(HasVitalPair(values) ? 64d : 32d);
+        bar.Value = values.Percent ?? 0d;
+        var waitingForMaximum = values.Current is not null && values.Maximum is null;
+        bar.Visibility = Visibility.Visible;
+        label.ToolTip = waitingForMaximum
+            ? $"Đã nhận giá trị hiện tại: {values.Current:0.#}. Đang chờ game gửi giá trị tối đa."
+            : null;
+        label.Text = values is { Current: { } current, Maximum: { } max }
+            ? $"{current.ToString("0.#", CultureInfo.InvariantCulture)} / {max.ToString("0.#", CultureInfo.InvariantCulture)}"
+            : values.Percent is { } percent ? $"{percent:0.#}%" : "- / -";
     }
 
     private async Task RestartNpcapPositionSourceAsync()
@@ -844,6 +969,10 @@ public partial class MainWindow : Window
         SbtcZoneRotationTransform.Angle = mapAngle;
         SbtcZoneDecorationRotationTransform.BeginAnimation(RotateTransform.AngleProperty, null);
         SbtcZoneDecorationRotationTransform.Angle = mapAngle;
+        SbtcMapPoiRotationTransform.BeginAnimation(RotateTransform.AngleProperty, null);
+        SbtcMapPoiRotationTransform.Angle = mapAngle;
+        SbtcWildlifeRotationTransform.BeginAnimation(RotateTransform.AngleProperty, null);
+        SbtcWildlifeRotationTransform.Angle = mapAngle;
         RouteRotationTransform.BeginAnimation(RotateTransform.AngleProperty, null);
         RouteRotationTransform.Angle = mapAngle;
         SbtcPlayerRotationTransform.BeginAnimation(RotateTransform.AngleProperty, null);
@@ -881,14 +1010,84 @@ public partial class MainWindow : Window
             : $"{percent:0.#}%";
     }
 
+    // The site's dino card carries more than the four bars: oxygen and blood levels, a
+    // life stage, fracture health, bleeding stacks and the three diet sliders. They are
+    // shown as one compact line so the overlay matches what the server itself displays.
+    // Servers that report fracture health (SBTC Island) get the bone icon: it sits
+    // greyed while the skeleton is intact and turns red with the remaining percentage
+    // when it is not. Other servers send no such field, so the row stays hidden.
+    private void SetFractureRow(double? fracturePercent)
+    {
+        // The site occasionally reports 100% between damaged samples. Hold the damaged
+        // value for a short window so the bar does not flip while the leg is still
+        // broken; a value that really heals stays at 100% past the window.
+        var now = DateTimeOffset.UtcNow;
+        if (fracturePercent is { } reported && reported < 99.5d)
+        {
+            _fractureDamagedValue = reported;
+            _fractureDamagedAt = now;
+        }
+        else if (_fractureDamagedValue is { } held && now - _fractureDamagedAt < TimeSpan.FromSeconds(12))
+        {
+            fracturePercent = held;
+        }
+        else
+        {
+            _fractureDamagedValue = null;
+        }
+
+        if (fracturePercent is not { } percent)
+        {
+            FractureRow.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        // Same shape as the vitals above: white bone, bar, percentage on the right.
+        var broken = percent < 99.5d;
+        FractureRow.Visibility = Visibility.Visible;
+        FractureIcon.ToolTip = broken ? "Xương đang nứt" : "Xương bình thường";
+        FractureBar.Value = Math.Clamp(percent, 0d, 100d);
+        FractureBar.Foreground = broken
+            ? (Brush)new BrushConverter().ConvertFromString("#E0655E")!
+            : (Brush)new BrushConverter().ConvertFromString("#C9D4D0")!;
+        FractureValue.Text = $"{percent:0.#}%";
+        FractureValue.Foreground = broken
+            ? (Brush)new BrushConverter().ConvertFromString("#E79088")!
+            : (Brush)new BrushConverter().ConvertFromString("#D6DEDA")!;
+    }
+
+    private static string ConditionText(PlayerTelemetry player)
+    {
+        var parts = new List<string>();
+        if (player.BloodPercent is { } blood) parts.Add($"MÁU {blood:0.#}%");
+        if (player.Nutrition is { } diet)
+        {
+            var values = new List<string>();
+            if (diet.Carb is { } carb) values.Add($"C{carb:0.#}");
+            if (diet.Protein is { } protein) values.Add($"P{protein:0.#}");
+            if (diet.Lipid is { } lipid) values.Add($"L{lipid:0.#}");
+            if (values.Count > 0) parts.Add($"DIET {string.Join(' ', values)}");
+        }
+
+        if (player.BleedingStacks is > 0 and { } bleeding) parts.Add($"CHẢY MÁU {bleeding}");
+        if (!string.IsNullOrWhiteSpace(player.LifeStage)) parts.Add(player.LifeStage!.ToUpperInvariant());
+        if (player.ElderStacks is > 0 and { } stacks) parts.Add($"ELDER {stacks}");
+        return string.Join(" · ", parts);
+    }
+
     private void ClearVitals()
     {
+        _dinosaurVitals.UpdatePlayer(null);
         HealthBar.Value = StaminaBar.Value = HungerBar.Value = WaterBar.Value = 0;
-        HealthValue.Text = StaminaValue.Text = HungerValue.Text = WaterValue.Text = "— / —";
+        HealthValue.Text = StaminaValue.Text = HungerValue.Text = WaterValue.Text = "- / -";
         GrowthLabel.Text = "—";
+        FractureRow.Visibility = Visibility.Collapsed;
         CoordinateLabel.Text = "X —  Y —  Z —";
         UpdatedLabel.Text = "—";
         RequestStatusLabel.Text = string.Empty;
+        // Native game packets remain independent of a temporarily unavailable
+        // website player record. Capture disconnection clears them at the source.
+        RenderDinosaurVitals();
     }
 
     private void ShowTelemetryUnavailable(
@@ -1027,6 +1226,18 @@ public partial class MainWindow : Window
         Canvas.SetTop(SbtcZoneDecorationLayer, top);
         SbtcZoneDecorationRotationTransform.CenterX = viewportWidth / 2d - left;
         SbtcZoneDecorationRotationTransform.CenterY = viewportHeight / 2d - top;
+        SbtcMapPoiLayer.Width = imageWidth;
+        SbtcMapPoiLayer.Height = imageHeight;
+        Canvas.SetLeft(SbtcMapPoiLayer, left);
+        Canvas.SetTop(SbtcMapPoiLayer, top);
+        SbtcMapPoiRotationTransform.CenterX = viewportWidth / 2d - left;
+        SbtcMapPoiRotationTransform.CenterY = viewportHeight / 2d - top;
+        SbtcWildlifeLayer.Width = imageWidth;
+        SbtcWildlifeLayer.Height = imageHeight;
+        Canvas.SetLeft(SbtcWildlifeLayer, left);
+        Canvas.SetTop(SbtcWildlifeLayer, top);
+        SbtcWildlifeRotationTransform.CenterX = viewportWidth / 2d - left;
+        SbtcWildlifeRotationTransform.CenterY = viewportHeight / 2d - top;
         if (_sbtcZoneFeatures.Count > 0 &&
             (Math.Abs(_renderedZoneWidth - imageWidth) > 0.1d ||
              Math.Abs(_renderedZoneHeight - imageHeight) > 0.1d))
@@ -1287,6 +1498,8 @@ public partial class MainWindow : Window
         yield return DrinkingWaterPanTransform;
         yield return SbtcZonePanTransform;
         yield return SbtcZoneDecorationPanTransform;
+        yield return SbtcMapPoiPanTransform;
+        yield return SbtcWildlifePanTransform;
         yield return PathTrailPanTransform;
         yield return RoutePanTransform;
         yield return SbtcPlayerPanTransform;
@@ -1476,13 +1689,7 @@ public partial class MainWindow : Window
 
     private void ClearPathTrailButton_Click(object sender, RoutedEventArgs e)
     {
-        _pathTrailStore.Clear();
-        if (_lastMapWorldLeft is { } left && _lastMapWorldTop is { } top)
-        {
-            RenderPathTrailOverlay(left, top);
-        }
-        _largeMapWindow?.UpdatePathTrail(_pathTrailStore.GetPoints(), _layoutSettings.ShowPathTrail);
-        _guideWindow?.UpdatePathTrail(_pathTrailStore.GetPoints(), _layoutSettings.ShowPathTrail);
+        ClearPathTrail();
     }
 
     private void UpdatePathTrailButtonState()
@@ -1523,6 +1730,9 @@ public partial class MainWindow : Window
         }
 
         var mapWindow = new LargeMapWindow(MapImage.Source) { Owner = this };
+        mapWindow.UpdateMapMarkerSettings(_layoutSettings.PlayerMarkerScale, _layoutSettings.WildlifeAbovePlayer);
+        mapWindow.UpdateMapLayerFilters(_layoutSettings.ShowMapZones, _layoutSettings.ShowWildlife);
+        mapWindow.MapLayerFiltersChanged += MapWindow_MapLayerFiltersChanged;
         mapWindow.DestinationChanged += LargeMapWindow_DestinationChanged;
         mapWindow.Closed += LargeMapWindow_Closed;
         _largeMapWindow = mapWindow;
@@ -1532,6 +1742,7 @@ public partial class MainWindow : Window
             _sbtcZoneFeatures,
             _sbtcPlayerMarkers);
         mapWindow.UpdatePathTrail(_pathTrailStore.GetPoints(), _layoutSettings.ShowPathTrail);
+        mapWindow.ClearPathTrailRequested += ClearPathTrail;
         mapWindow.ShowCentered();
     }
 
@@ -1547,6 +1758,8 @@ public partial class MainWindow : Window
         if (_largeMapWindow is not null)
         {
             _largeMapWindow.DestinationChanged -= LargeMapWindow_DestinationChanged;
+            _largeMapWindow.MapLayerFiltersChanged -= MapWindow_MapLayerFiltersChanged;
+            _largeMapWindow.ClearPathTrailRequested -= ClearPathTrail;
             _largeMapWindow.Closed -= LargeMapWindow_Closed;
             _largeMapWindow = null;
         }
@@ -1568,6 +1781,11 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (_sbtcGarageApi is null && _requestedSource?.Kind == TelemetrySourceKind.SbtcIsland && !string.IsNullOrWhiteSpace(_providedCookie))
+        {
+            _sbtcApiHttpClient = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromMinutes(2) };
+            _sbtcGarageApi = SbtcGuideGarageApi.Create(_sbtcApiHttpClient, _requestedSource, _providedCookie);
+        }
         var guideWindow = new GuideWindow(
             _activeSpeciesName,
             MapImage.Source,
@@ -1576,18 +1794,23 @@ public partial class MainWindow : Window
             _sbtcZoneFeatures,
             _sbtcPlayerMarkers,
             _guidePlayerOverview,
-            _garageApi,
+            _sbtcGarageApi,
             _layoutSettings.NpcapEnabled,
             true,
             _npcapState,
             _layoutSettings.AutoHideOutsideGame)
         { Owner = this };
+        guideWindow.UpdateMapMarkerSettings(_layoutSettings.PlayerMarkerScale, _layoutSettings.WildlifeAbovePlayer);
+        guideWindow.UpdateMapLayerFilters(_layoutSettings.ShowMapZones, _layoutSettings.ShowWildlife);
+        guideWindow.MapLayerFiltersChanged += MapWindow_MapLayerFiltersChanged;
+        guideWindow.MapMarkerSettingsChanged += GuideWindow_MapMarkerSettingsChanged;
         guideWindow.DestinationChanged += GuideWindow_DestinationChanged;
         guideWindow.NpcapEnabledChanged += GuideWindow_NpcapEnabledChanged;
         guideWindow.AutoHideOutsideGameChanged += GuideWindow_AutoHideOutsideGameChanged;
         guideWindow.PathTrailToggleRequested += GuideWindow_PathTrailToggleRequested;
         guideWindow.ClearPathTrailRequested += GuideWindow_ClearPathTrailRequested;
         guideWindow.RetryNpcapRequested += GuideWindow_RetryNpcapRequested;
+        guideWindow.ZoneSnifferRequested += GuideWindow_ZoneSnifferRequested;
         guideWindow.DownloadNpcapRequested += GuideWindow_DownloadNpcapRequested;
         guideWindow.Closed += GuideWindow_Closed;
         _guideWindow = guideWindow;
@@ -1600,12 +1823,15 @@ public partial class MainWindow : Window
     {
         if (_guideWindow is not null)
         {
+            _guideWindow.MapMarkerSettingsChanged -= GuideWindow_MapMarkerSettingsChanged;
+            _guideWindow.MapLayerFiltersChanged -= MapWindow_MapLayerFiltersChanged;
             _guideWindow.DestinationChanged -= GuideWindow_DestinationChanged;
             _guideWindow.NpcapEnabledChanged -= GuideWindow_NpcapEnabledChanged;
             _guideWindow.AutoHideOutsideGameChanged -= GuideWindow_AutoHideOutsideGameChanged;
             _guideWindow.PathTrailToggleRequested -= GuideWindow_PathTrailToggleRequested;
             _guideWindow.ClearPathTrailRequested -= GuideWindow_ClearPathTrailRequested;
             _guideWindow.RetryNpcapRequested -= GuideWindow_RetryNpcapRequested;
+            _guideWindow.ZoneSnifferRequested -= GuideWindow_ZoneSnifferRequested;
             _guideWindow.DownloadNpcapRequested -= GuideWindow_DownloadNpcapRequested;
             _guideWindow.Closed -= GuideWindow_Closed;
             _guideWindow = null;
@@ -1627,13 +1853,7 @@ public partial class MainWindow : Window
 
     private void GuideWindow_ClearPathTrailRequested()
     {
-        _pathTrailStore.Clear();
-        if (_lastMapWorldLeft is { } left && _lastMapWorldTop is { } top)
-        {
-            RenderPathTrailOverlay(left, top);
-        }
-        _largeMapWindow?.UpdatePathTrail(_pathTrailStore.GetPoints(), _layoutSettings.ShowPathTrail);
-        _guideWindow?.UpdatePathTrail(_pathTrailStore.GetPoints(), _layoutSettings.ShowPathTrail);
+        ClearPathTrail();
     }
 
 
@@ -1658,6 +1878,13 @@ public partial class MainWindow : Window
         _layoutSettings = _layoutSettings with { AutoHideOutsideGame = enabled };
         SaveOverlayLayout();
         RefreshForegroundVisibility();
+    }
+
+    private void GuideWindow_ZoneSnifferRequested()
+    {
+        var window = new IslePilotZoneSnifferWindow { Owner = this };
+        window.Show();
+        _guideWindow?.UpdateSnifferTarget(window.OutputDirectory);
     }
 
     private async void GuideWindow_RetryNpcapRequested()
@@ -1727,7 +1954,7 @@ public partial class MainWindow : Window
             var center = new Point(
                 player.Location.Left * imageWidth,
                 player.Location.Top * imageHeight);
-            var color = player.Group ? BrushFrom("#E879F9") : BrushFrom("#34D399");
+            var color = player.Group && !player.Friend ? BrushFrom("#E879F9") : BrushFrom("#34D399");
             FrameworkElement marker;
             if (player.HeadingDegrees is { } heading)
             {
@@ -1827,12 +2054,21 @@ public partial class MainWindow : Window
         IReadOnlyList<MapPointOfInterestTelemetry>? pointsOfInterest,
         bool hasHostZones)
     {
+        // SBTC supplies its own POIs and live wildlife. Other hosts retain the
+        // bundled map catalogue, which is also the fallback when SBTC has no feed.
         var features = SbtcZoneOverlay.Create(
             serverName,
-            pointsOfInterest,
+            SbtcZoneOverlay.IsSbtcServer(serverName) ? pointsOfInterest : null,
             _bundledSbtcZones,
             _usesIslePilotMap,
             hasHostZones);
+
+        // Calibration aid: whatever the server sent is written out once, so a zone set
+        // can be checked (or embedded) without a packet capture or a browser session.
+        if (features.Count > 0)
+        {
+            DumpZones(features, serverName);
+        }
         var signature = SbtcZoneOverlay.Signature(features);
         if (string.Equals(signature, _sbtcZoneSignature, StringComparison.Ordinal))
         {
@@ -1845,9 +2081,10 @@ public partial class MainWindow : Window
         _renderedZoneHeight = 0d;
         SbtcZoneLayer.Children.Clear();
         SbtcZoneDecorationLayer.Children.Clear();
+        SbtcMapPoiLayer.Children.Clear();
+        SbtcWildlifeLayer.Children.Clear();
         _sbtcZoneLabelRotations.Clear();
-        SbtcZoneLayer.Visibility = features.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        SbtcZoneDecorationLayer.Visibility = SbtcZoneLayer.Visibility;
+        RefreshMapLayerVisibility();
         _largeMapWindow?.UpdateZones(features);
         _guideWindow?.UpdateZones(features);
         if (IsLoaded)
@@ -1858,20 +2095,52 @@ public partial class MainWindow : Window
 
     private static IReadOnlyList<SbtcZoneFeature> LoadBundledSbtcZones()
     {
+        foreach (var uri in new[] { IslePilotZonesResourceUri, GatewayZonesResourceUri })
+        {
+            try
+            {
+                var resource = Application.GetResourceStream(uri);
+                if (resource is null)
+                {
+                    continue;
+                }
+
+                using var stream = resource.Stream;
+                var zones = GatewayZoneCatalog.Load(stream);
+                if (zones.Count > 0)
+                {
+                    return zones;
+                }
+            }
+            catch (Exception exception) when (exception is IOException or InvalidDataException or System.Text.Json.JsonException)
+            {
+                // Fall through to the next catalogue.
+            }
+        }
+
+        return [];
+    }
+
+    private static DateTimeOffset _lastZoneDumpAt;
+
+    private static void DumpZones(IReadOnlyList<SbtcZoneFeature> features, string? serverName)
+    {
+        if (DateTimeOffset.UtcNow - _lastZoneDumpAt < TimeSpan.FromMinutes(1))
+        {
+            return;
+        }
+
+        _lastZoneDumpAt = DateTimeOffset.UtcNow;
         try
         {
-            var resource = Application.GetResourceStream(GatewayZonesResourceUri);
-            if (resource is null)
-            {
-                return [];
-            }
-
-            using var stream = resource.Stream;
-            return GatewayZoneCatalog.Load(stream);
+            var payload = System.Text.Json.JsonSerializer.Serialize(
+                new { server = serverName, savedAt = DateTimeOffset.UtcNow, zones = features },
+                new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(AppPaths.ZoneDump, payload);
         }
-        catch
+        catch (IOException)
         {
-            return [];
+            // Best effort only.
         }
     }
 
@@ -1879,12 +2148,30 @@ public partial class MainWindow : Window
     {
         SbtcZoneLayer.Children.Clear();
         SbtcZoneDecorationLayer.Children.Clear();
+        SbtcMapPoiLayer.Children.Clear();
+        SbtcWildlifeLayer.Children.Clear();
         _sbtcZoneLabelRotations.Clear();
         _renderedZoneWidth = imageWidth;
         _renderedZoneHeight = imageHeight;
 
         foreach (var feature in _sbtcZoneFeatures)
         {
+            if (feature.Kind == SbtcZoneKind.Wildlife)
+            {
+                var point = feature.Points[0];
+                var rotation = new RotateTransform(-(_rotateMap ? MapHeading.MapRotationForHeadingUp(_headingDegrees) : 0d));
+                _sbtcZoneLabelRotations.Add(rotation);
+                var animal = SbtcWildlifeMarker.Create(feature.Name, feature.Color, 17d);
+                animal.RenderTransformOrigin = new Point(0.5d, 0.5d);
+                animal.RenderTransform = rotation;
+                Canvas.SetLeft(animal, point.Left * imageWidth - animal.Width / 2d);
+                Canvas.SetTop(animal, point.Top * imageHeight - animal.Height / 2d);
+                SbtcWildlifeLayer.Children.Add(animal);
+                continue;
+            }
+            var region = SbtcZoneOverlay.IsFilterableZone(feature.Kind);
+            var shapeLayer = region ? SbtcZoneLayer : SbtcMapPoiLayer;
+            var decorationLayer = region ? SbtcZoneDecorationLayer : SbtcMapPoiLayer;
             var points = new PointCollection(feature.Points.Select(point =>
                 new Point(point.Left * imageWidth, point.Top * imageHeight)));
             var stroke = ZoneStroke(feature);
@@ -1895,7 +2182,7 @@ public partial class MainWindow : Window
             var hasOfficialIcon = TryGetSbtcZoneIcon(feature.Icon, out var iconSource);
             if (isPolygon && points.Count >= 3)
             {
-                SbtcZoneLayer.Children.Add(new Polygon
+                shapeLayer.Children.Add(new Polygon
                 {
                     Points = points,
                     Stroke = stroke,
@@ -1905,7 +2192,7 @@ public partial class MainWindow : Window
                     IsHitTestVisible = false
                 });
             }
-            else if (!hasOfficialIcon)
+            else if (!hasOfficialIcon && feature.Shape != "label")
             {
                 var center = new Point(
                     points.Average(point => point.X),
@@ -1924,7 +2211,7 @@ public partial class MainWindow : Window
                 };
                 Canvas.SetLeft(marker, center.X - radius);
                 Canvas.SetTop(marker, center.Y - radius);
-                SbtcZoneLayer.Children.Add(marker);
+                shapeLayer.Children.Add(marker);
             }
 
             if (hasOfficialIcon)
@@ -1943,7 +2230,7 @@ public partial class MainWindow : Window
                 };
                 Canvas.SetLeft(icon, center.X - radius);
                 Canvas.SetTop(icon, center.Y - radius);
-                SbtcZoneDecorationLayer.Children.Add(icon);
+                decorationLayer.Children.Add(icon);
             }
 
         }
@@ -1979,14 +2266,15 @@ public partial class MainWindow : Window
                 }
             };
             label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            var isPolygon = string.Equals(zoneLabel.Shape, "polygon", StringComparison.OrdinalIgnoreCase) ||
+            var isPolygon = zoneLabel.Shape == "label" || string.Equals(zoneLabel.Shape, "polygon", StringComparison.OrdinalIgnoreCase) ||
                             string.IsNullOrWhiteSpace(zoneLabel.Shape);
             var labelCenterY = isPolygon
                 ? center.Y
                 : center.Y - Math.Max(3d, (zoneLabel.Size ?? 0.008d) * imageWidth) - 10d;
             Canvas.SetLeft(label, center.X - label.DesiredSize.Width / 2d);
             Canvas.SetTop(label, labelCenterY - label.DesiredSize.Height / 2d);
-            SbtcZoneDecorationLayer.Children.Add(label);
+            var layer = SbtcZoneOverlay.IsFilterableZone(zoneLabel.Kind) ? SbtcZoneDecorationLayer : SbtcMapPoiLayer;
+            layer.Children.Add(label);
         }
     }
 
@@ -1994,7 +2282,7 @@ public partial class MainWindow : Window
     {
         SbtcZoneKind.Sanctuary => BrushFrom("#42DDB1"),
         SbtcZoneKind.Migration => BrushFrom("#FFA91F"),
-        SbtcZoneKind.Patrol => BrushFrom("#A97BF3"),
+        SbtcZoneKind.Patrol => BrushFrom(SbtcZoneOverlay.PatrolColor),
         SbtcZoneKind.Location => BrushFrom("#E6ECF2"),
         _ => BrushFrom("#B8A8D8")
     };
@@ -2006,7 +2294,7 @@ public partial class MainWindow : Window
     {
         SbtcZoneKind.Sanctuary => BrushFrom("#2842DDB1"),
         SbtcZoneKind.Migration => BrushFrom("#2EFFA91F"),
-        SbtcZoneKind.Patrol => BrushFrom("#28A97BF3"),
+        SbtcZoneKind.Patrol => BrushFrom("#28" + SbtcZoneOverlay.PatrolColor[1..]),
         SbtcZoneKind.Location => BrushFrom("#18E6ECF2"),
         _ => BrushFrom("#20B8A8D8")
     };
@@ -2121,21 +2409,10 @@ public partial class MainWindow : Window
         ConnectionDot.Fill = brush;
     }
 
-    private static double NormalizePercent(double? value)
-    {
-        if (value is null) return 0d;
-        return Math.Clamp(value.Value is >= 0d and <= 1d ? value.Value * 100d : value.Value, 0d, 100d);
-    }
+    private static double NormalizePercent(double? value) => VitalMath.Percent(null, null, value);
 
-    private static double VitalPercent(double? current, double? maximum, double? fallback)
-    {
-        if (current is { } currentValue && maximum is > 0d)
-        {
-            return Math.Clamp(currentValue / maximum.Value * 100d, 0d, 100d);
-        }
-
-        return NormalizePercent(fallback);
-    }
+    private static double VitalPercent(double? current, double? maximum, double? fallback) =>
+        VitalMath.Percent(current, maximum, fallback);
 
     private static string FriendlySpecies(string? className)
     {
@@ -2198,6 +2475,8 @@ public partial class MainWindow : Window
         ApplyOverlayScale(OverlayLayoutRules.DefaultScale, persist: false);
         ApplyMapZoom(OverlayLayoutRules.DefaultMapZoom, persist: false);
         ApplyMapStyle(OverlayLayoutRules.DefaultMapStyle, persist: false);
+        ApplyMapMarkerSettings(OverlayLayoutRules.DefaultPlayerMarkerScale, wildlifeAbovePlayer: false, persist: false);
+        ApplyMapLayerFilters(showZones: true, showWildlife: true, persist: false);
         _showMap = true;
         _showActivity = true;
         _showPrimeTasks = false;
@@ -2480,67 +2759,36 @@ public partial class MainWindow : Window
     private void RestoreOverlayPosition()
     {
         UpdateLayout();
-        var primaryWorkArea = SystemParameters.WorkArea;
-        Left = _layoutSettings.Left
-            ?? Math.Max(primaryWorkArea.Left, primaryWorkArea.Right - ActualWidth - 24d);
-        Top = _layoutSettings.Top ?? primaryWorkArea.Top + 70d;
+        var defaultPosition = OverlayWindowPlacement.DefaultPosition(
+            new Size(Math.Max(1d, ActualWidth), Math.Max(1d, ActualHeight)),
+            OverlayWindowPlacement.ReadDisplayAreas(this));
+        Left = _layoutSettings.Left ?? defaultPosition.X;
+        Top = _layoutSettings.Top ?? defaultPosition.Y;
         KeepOverlayVisible();
+        _layoutSettings = _layoutSettings with { Left = Left, Top = Top };
+        _overlayPositionRestored = true;
     }
 
     private void KeepOverlayVisible()
     {
-        const double minimumVisible = 80d;
-        var virtualLeft = SystemParameters.VirtualScreenLeft;
-        var virtualTop = SystemParameters.VirtualScreenTop;
-        var virtualWidth = SystemParameters.VirtualScreenWidth;
-        var virtualHeight = SystemParameters.VirtualScreenHeight;
-        if (virtualWidth <= 0d || virtualHeight <= 0d)
+        if (WindowState != WindowState.Normal || ActualWidth <= 0d || ActualHeight <= 0d)
         {
             return;
         }
 
-        var width = Math.Max(1d, ActualWidth);
-        var height = Math.Max(1d, ActualHeight);
-        Left = KeepCoordinateVisible(
-            Left,
-            width,
-            virtualLeft,
-            virtualWidth,
-            minimumVisible);
-        Top = KeepCoordinateVisible(
-            Top,
-            height,
-            virtualTop,
-            virtualHeight,
-            minimumVisible);
-    }
-
-    private static double KeepCoordinateVisible(
-        double coordinate,
-        double windowSize,
-        double virtualStart,
-        double virtualSize,
-        double minimumVisible)
-    {
-        if (!double.IsFinite(coordinate))
-        {
-            return virtualStart;
-        }
-
-        if (windowSize <= virtualSize)
-        {
-            return Math.Clamp(coordinate, virtualStart, virtualStart + virtualSize - windowSize);
-        }
-
-        var visible = Math.Min(minimumVisible, virtualSize);
-        return Math.Clamp(
-            coordinate,
-            virtualStart - windowSize + visible,
-            virtualStart + virtualSize - visible);
+        var position = OverlayWindowPlacement.KeepVisible(
+            new Point(Left, Top),
+            new Size(ActualWidth, ActualHeight),
+            OverlayWindowPlacement.ReadDisplayAreas(this));
+        Left = position.X;
+        Top = position.Y;
     }
 
     private void SaveOverlayLayout()
     {
+        // A renderer/test can construct and close an unshown window. Its NaN
+        // coordinates and zero size must never replace the user's saved placement.
+        if (!_overlayPositionRestored) return;
         KeepOverlayVisible();
         _layoutSettings = OverlayLayoutRules.Normalize(_layoutSettings with
         {
@@ -2552,8 +2800,8 @@ public partial class MainWindow : Window
             RotateMap = _rotateMap,
             AutoDetectLiveMap = _autoDetectLiveMap,
             ShowPrimeTasks = _showPrimeTasks,
-            Left = Left,
-            Top = Top
+            Left = WindowState == WindowState.Normal ? Left : _layoutSettings.Left,
+            Top = WindowState == WindowState.Normal ? Top : _layoutSettings.Top
         });
         _layoutSettingsStore.Save(_layoutSettings);
     }
@@ -2685,13 +2933,22 @@ public partial class MainWindow : Window
             ToggleGuideWindow();
             handled = true;
         }
+        else if (message == WmHotkey && wParam.ToInt32() == ClearTrailHotkeyId)
+        {
+            // Focus can change between registration and delivery. Never clear
+            // the game trail for Ctrl+R pressed in another application.
+            if (ForegroundAppVisibility.ShouldShowOverlay()) ClearPathTrail();
+            handled = true;
+        }
 
         return IntPtr.Zero;
     }
 
     private void RefreshForegroundVisibility()
     {
-        var shouldShow = !_layoutSettings.AutoHideOutsideGame || ForegroundAppVisibility.ShouldShowOverlay();
+        var gameOrOverlayForeground = ForegroundAppVisibility.ShouldShowOverlay();
+        UpdateClearTrailHotkey(gameOrOverlayForeground);
+        var shouldShow = !_layoutSettings.AutoHideOutsideGame || gameOrOverlayForeground;
         if (!shouldShow && !_hiddenForExternalForeground)
         {
             _restoreGuideAfterForeground = _guideWindow?.IsVisible == true;
@@ -2707,10 +2964,23 @@ public partial class MainWindow : Window
         {
             _hiddenForExternalForeground = false;
             WindowState = WindowState.Normal;
+            KeepOverlayVisible();
             if (_restoreGuideAfterForeground) _guideWindow?.Show();
             if (_restoreLargeMapAfterForeground) _largeMapWindow?.ShowCentered();
             _restoreGuideAfterForeground = false;
             _restoreLargeMapAfterForeground = false;
+        }
+    }
+
+    private void UpdateClearTrailHotkey(bool gameOrOverlayForeground)
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        if (gameOrOverlayForeground && !_clearTrailHotkeyRegistered)
+            _clearTrailHotkeyRegistered = RegisterHotKey(handle, ClearTrailHotkeyId, ModControl | ModNoRepeat, KeyR);
+        else if (!gameOrOverlayForeground && _clearTrailHotkeyRegistered)
+        {
+            UnregisterHotKey(handle, ClearTrailHotkeyId);
+            _clearTrailHotkeyRegistered = false;
         }
     }
 
@@ -2743,8 +3013,10 @@ public partial class MainWindow : Window
         if (_zoomOutHotkeyRegistered) UnregisterHotKey(handle, ZoomOutHotkeyId);
         if (_largeMapHotkeyRegistered) UnregisterHotKey(handle, LargeMapHotkeyId);
         if (_guideHotkeyRegistered) UnregisterHotKey(handle, GuideHotkeyId);
+        if (_clearTrailHotkeyRegistered) UnregisterHotKey(handle, ClearTrailHotkeyId);
         _windowSource?.RemoveHook(WindowMessageHook);
         _httpClient.Dispose();
+        _sbtcApiHttpClient?.Dispose();
         _shutdown.Dispose();
     }
 

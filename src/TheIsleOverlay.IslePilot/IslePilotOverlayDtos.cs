@@ -174,6 +174,7 @@ public sealed record IslePilotOverlayGaragePaletteDto
 
 public sealed record IslePilotOverlaySkinDraftsDto
 {
+    public string? Message { get; init; }
     [JsonConverter(typeof(ResilientSkinDraftListConverter))]
     public IReadOnlyList<IslePilotOverlaySkinDraftDto> Drafts { get; init; } = [];
 }

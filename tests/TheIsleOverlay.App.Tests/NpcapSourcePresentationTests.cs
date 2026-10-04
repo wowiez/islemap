@@ -44,12 +44,21 @@ public sealed class NpcapSourcePresentationTests
         Assert.Equal("NPCAP · OFF", NpcapSourcePresentation.StatusText(false, NpcapSourceStatus.Live));
 
     [Theory]
-    [InlineData(NpcapSourceStatus.WaitingForGame)]
-    [InlineData(NpcapSourceStatus.Listening)]
     [InlineData(NpcapSourceStatus.Live)]
     [InlineData(NpcapSourceStatus.Stopped)]
-    public void AutomaticStates_DoNotOfferAConfusingManualRestart(NpcapSourceStatus status) =>
+    public void RunningAndSwitchedOffStates_DoNotOfferAManualRestart(NpcapSourceStatus status) =>
         Assert.False(NpcapSourcePresentation.ShouldShowAction(true, status));
+
+    [Theory]
+    [InlineData(NpcapSourceStatus.WaitingForGame)]
+    [InlineData(NpcapSourceStatus.Listening)]
+    public void AStuckCapture_OffersTheDriverRestart(NpcapSourceStatus status)
+    {
+        // The capture can sit in CONNECTING with the card open and never produce a
+        // position; restarting the driver is the only fix the user has.
+        Assert.True(NpcapSourcePresentation.ShouldShowAction(true, status));
+        Assert.Equal("BẬT LẠI DRIVER", NpcapSourcePresentation.ActionText(status));
+    }
 
     [Theory]
     [InlineData(NpcapSourceStatus.Unavailable, "TẢI NPCAP")]
