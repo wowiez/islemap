@@ -37,6 +37,16 @@ try {
   assert.equal((await request(a,'presence',body(),true)).friends.length,0);
   await request(b,'friends',{action:'accept',userId:a.userId});
   await until(a,s=>s.friends[0]?.position?.x===.4);
+  a.socket.send(JSON.stringify({type:'presence',data:body('sdvn3')}));
+  b.socket.send(JSON.stringify({type:'presence',data:body('[SEA/VN]-SDVN-#3-X3')}));
+  await until(a,s=>s.context?.server==='sdvn3'&&s.friends[0]?.sameServer===true&&s.friends[0]?.position!==null);
+  await until(b,s=>s.context?.server==='[sea/vn]-sdvn-#3-x3'&&s.friends[0]?.sameServer===true);
+  b.socket.send(JSON.stringify({type:'presence',data:body('SDVN #2')}));
+  await until(a,s=>s.friends[0]?.sameServer===false&&s.friends[0]?.position===null);
+  const renamed=await request(b,'account',{action:'rename',name:'Người Bạn '+suffix});
+  assert.equal(renamed.userId,b.userId); assert.equal(renamed.friendCode,b.friendCode);
+  await until(a,s=>s.friends[0]?.name==='Người Bạn '+suffix);
+  a.socket.send(JSON.stringify({type:'presence',data:body()}));
   b.socket.send(JSON.stringify({type:'presence',data:body('other')}));
   await until(a,s=>s.friends[0]?.sameServer===false&&s.friends[0]?.position===null);
   b.socket.send(JSON.stringify({type:'presence',data:body('sbtc',false)}));
@@ -51,5 +61,5 @@ try {
   b.socket.send(JSON.stringify({type:'presence',data:body()})); a.socket.send(JSON.stringify({type:'presence',data:body()}));
   await until(a,s=>s.friends[0]?.position?.x===.4); b.socket.close();
   await until(a,s=>s.friends[0]?.online===false);
-  console.log('Live HTTP + WebSocket checks passed: legacy signatures, pending privacy, accept, different server, sharing off, push movement, immediate unfriend, 10s expiry, disconnect.');
+  console.log('Live HTTP + WebSocket checks passed: SDVN aliases, distinct servers, Unicode rename push, legacy signatures, consent, sharing off, movement, unfriend, expiry, disconnect.');
 } finally { for(const a of actors)a.socket?.close(); clearTimeout(deadline); }

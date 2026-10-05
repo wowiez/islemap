@@ -14,6 +14,7 @@ public partial class MainWindow
     private DateTimeOffset _friendRetryAfter;
     private DateTimeOffset _friendPresenceReceivedAt;
     private FriendContext? _friendReceivedContext;
+    private string? _friendGameServer;
     private IReadOnlyList<FriendPresence> _overlayFriendPresence = [];
     private IReadOnlyList<SbtcPlayerMarker> _serverPlayerMarkers = [];
     private int _friendFailures;
@@ -35,13 +36,13 @@ public partial class MainWindow
     private FriendContext? CurrentFriendContext()
     {
         // Never share a stale last-known point from the menu or after disconnect.
-        if (_guidePlayerOverview is not { } overview || string.IsNullOrWhiteSpace(overview.Server)) return null;
+        if (_guidePlayerOverview is not { } overview || string.IsNullOrWhiteSpace(_friendGameServer)) return null;
         var now = DateTimeOffset.UtcNow;
         var freshWeb = now - overview.UpdatedAt < TimeSpan.FromSeconds(10);
         var freshPacket = CurrentNpcapStatus == NpcapSourceStatus.Live && _npcapPosition is { } sample && now - sample.CapturedAt < TimeSpan.FromSeconds(10);
         if (!freshWeb && !freshPacket) return null;
         // A server's real identity is independent of the telemetry provider used.
-        var server = overview.Server.Trim().Normalize().ToLowerInvariant();
+        var server = FriendServerIdentity.Normalize(_friendGameServer);
         return new FriendContext(server);
     }
     private async Task SyncFriendsAsync()

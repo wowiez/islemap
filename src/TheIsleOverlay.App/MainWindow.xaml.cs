@@ -501,6 +501,8 @@ public partial class MainWindow : Window
 
             UpdatedLabel.Text = $"SYNC {(snapshot.UpdatedAt ?? DateTimeOffset.Now).ToLocalTime():HH:mm:ss}";
             RequestStatusLabel.Text = PositionSourceStatus(activityStatus);
+            // Friend visibility uses only the reported game server, never the selected provider label.
+            _friendGameServer = player.Server;
             _guidePlayerOverview = new GuidePlayerOverview(
                 FriendlySpecies(player.Class),
                 player.Name ?? "ACTIVE PLAYER",

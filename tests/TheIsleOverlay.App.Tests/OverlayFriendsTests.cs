@@ -10,6 +10,63 @@ namespace TheIsleOverlay.App.Tests;
 
 public sealed class OverlayFriendsTests
 {
+    [Theory]
+    [InlineData(" SDVN #3 ")]
+    [InlineData("[SEA/VN]-SDVN-#3-X3")]
+    [InlineData("SDVN #3 X3 GROW")]
+    [InlineData("sdvn3123123123")]
+    [InlineData("3.sdvn.org")]
+    public void Sdvn3Aliases_ShareOneIdentity(string name) => Assert.Equal("sdvn3", FriendServerIdentity.Normalize(name));
+
+    [Theory]
+    [InlineData("SDVN #1")]
+    [InlineData("SDVN #2")]
+    [InlineData("SDVN #30")]
+    [InlineData("SDVN")]
+    [InlineData("Other SDVN #3 server")]
+    public void OtherServers_AreNotMergedIntoSdvn3(string name) => Assert.NotEqual("sdvn3", FriendServerIdentity.Normalize(name));
+
+    [Theory]
+    [InlineData("SBTC Island", "sbtc")]
+    [InlineData(" PANDORA ", "pandora")]
+    [InlineData("Some  Other Server", "some other server")]
+    public void AllServers_CompareReportedNames(string left, string right) => Assert.Equal(FriendServerIdentity.Normalize(left), FriendServerIdentity.Normalize(right));
+
+    [Fact]
+    public void DistinctServers_RemainDistinct() => Assert.NotEqual(FriendServerIdentity.Normalize("DinoVietNam"), FriendServerIdentity.Normalize("DinoVietNam Premium"));
+
+    [Fact]
+    public async Task UnicodeRename_PersistsNameAndKeepsIdentityAndRecovery()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "IsleLiveMap-tests-" + Guid.NewGuid().ToString("N"));
+        var path = Path.Combine(directory, "identity.dat");
+        try
+        {
+            using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            var original = new FriendIdentity("user", "device", "Old Name", "Code", key.ExportPkcs8PrivateKeyPem(), "secret");
+            new FriendIdentityStore(path).Save(original);
+            using var client = new OverlayFriendsClient(path, new RenameHandler());
+            client.LoadIdentity();
+            await client.RenameAsync("Kháng Nguyễn", CancellationToken.None);
+            Assert.Equal(original with { Name = "Kháng Nguyễn" }, client.Identity);
+            Assert.Equal(client.Identity, new FriendIdentityStore(path).Load());
+        }
+        finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
+    }
+    private sealed class RenameHandler : HttpMessageHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            using var envelope = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(cancellationToken));
+            using var payload = JsonDocument.Parse(envelope.RootElement.GetProperty("payload").GetString()!);
+            Assert.Equal("rename", payload.RootElement.GetProperty("action").GetString());
+            Assert.Equal("Kháng Nguyễn", payload.RootElement.GetProperty("name").GetString());
+            Assert.Equal("user", request.Headers.GetValues("X-ILM-User").Single());
+            return new(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new { userId = "user", name = "Kháng Nguyễn", friendCode = "Code" }), Encoding.UTF8, "application/json") };
+        }
+    }
+
+
     [Fact]
     public void FriendDistance_UsesCalibratedMeters_AndNeverShowsHiddenOrOtherServerPosition()
     {

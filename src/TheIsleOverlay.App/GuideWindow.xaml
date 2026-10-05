@@ -337,7 +337,7 @@
                         <TextBlock Text="Kết bạn cần chấp thuận · chỉ hiện vị trí khi cùng server · vị trí tự ẩn sau 10 giây mất cập nhật" Foreground="#9A9DA2" Margin="0,8,0,18" TextWrapping="Wrap" />
                         <StackPanel x:Name="FriendsActions">
                             <StackPanel x:Name="FriendSetupPanel">
-                                <TextBlock Text="Tên duy nhất (2–32 ký tự, không phân biệt hoa/thường)" Foreground="White" />
+                                <TextBlock Text="Tên duy nhất (2–32 ký tự, hỗ trợ tiếng Việt có dấu, không phân biệt hoa/thường)" Foreground="White" TextWrapping="Wrap" />
                                 <TextBox x:Name="FriendNewName" Style="{StaticResource HexInput}" MaxLength="32" Margin="0,6,0,8" />
                                 <Button Content="TẠO TÀI KHOẢN OVERLAY" Style="{StaticResource NavButton}" Click="FriendCreate_Click" HorizontalAlignment="Left" />
                                 <TextBlock Text="Đã có tài khoản? Nhập mã khôi phục từ máy cũ. Khôi phục sẽ đăng xuất máy cũ và cấp mã dự phòng mới." Foreground="#9A9DA2" Margin="0,20,0,8" TextWrapping="Wrap" />
@@ -346,7 +346,7 @@
                             </StackPanel>
                             <StackPanel x:Name="FriendAccountPanel" Visibility="Collapsed">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBox x:Name="FriendNameInput" Style="{StaticResource HexInput}" Width="240" MaxLength="32" />
+                                    <TextBox x:Name="FriendNameInput" Style="{StaticResource HexInput}" FontFamily="Segoe UI" Width="240" MaxLength="32" ToolTip="Tên có dấu được hỗ trợ. Đổi tên vẫn giữ bạn bè và mã kết bạn." />
                                     <Button Content="ĐỔI TÊN" Style="{StaticResource NavButton}" Click="FriendRename_Click" Margin="8,0,0,0" />
                                 </StackPanel>
                                 <TextBlock x:Name="FriendCodeLabel" Foreground="#9FD8B5" FontSize="17" Margin="0,12,0,10" />

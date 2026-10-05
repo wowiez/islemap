@@ -1,3 +1,10 @@
+# Isle Live Map 1.9.7
+
+- Chuẩn hóa tên/mã SDVN #3 và SBTC khi so sánh server của bạn bè, giữ các server khác nhau tách riêng.
+- Dùng server thực tế từ telemetry để chia sẻ vị trí, không suy ra server từ dropdown nguồn dữ liệu.
+- Làm rõ hỗ trợ tên tiếng Việt có dấu; đổi tên giữ nguyên danh tính, bạn bè, mã kết bạn và mã khôi phục.
+- Kiểm tra WebSocket trực tiếp cho tên server khác định dạng và tên bạn bè đổi khi đang online.
+
 # Isle Live Map 1.9.6
 
 - Chuyển API bạn bè sang `southtampanailsfl.com/api/islemap/`, giữ danh tính và mã khôi phục hiện có. Backend PHP chạy trong Docker; tài khoản và quan hệ lưu ở SQLite ngoài thư mục web.

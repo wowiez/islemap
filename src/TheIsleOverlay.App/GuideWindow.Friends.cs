@@ -73,7 +73,7 @@ public partial class GuideWindow
     private async void FriendRefresh_Click(object sender, RoutedEventArgs e) => await RunFriendAction(async () => await LoadFriendsAsync());
     private async void FriendShare_Click(object sender, RoutedEventArgs e) => await RunFriendAction(async () =>
     {
-        // Turning off is immediate locally; if offline Redis expires the old position within 10s.
+        // Turning off is immediate locally; if offline the server expires the old position within 10s.
         _friendsClient!.Sharing = !_friendsClient.Sharing;
         UpdateFriendAccount();
         if (_friendSync is not null) await _friendSync();

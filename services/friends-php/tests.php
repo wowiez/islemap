@@ -24,6 +24,27 @@ call($service,$b,'presence',position()); check(call($service,$a,'presence',posit
 denied(fn()=>call($service,$a,'friends',['action'=>'accept','userId'=>$b['userId']]),404);
 call($service,$b,'friends',['action'=>'accept','userId'=>$a['userId']]);
 check(call($service,$a,'presence',position(),'/api/')['friends'][0]['position']['x']===0.4,'Legacy signed path failed');
+foreach (['SDVN #3','[SEA/VN]-SDVN-#3-X3','SDVN #3 X3 GROW','sdvn3123123123','3.sdvn.org'] as $alias) {
+    call($service,$b,'presence',position($alias)); $snapshot=call($service,$a,'presence',position('sdvn3'));
+    check($snapshot['friends'][0]['sameServer']&&$snapshot['friends'][0]['position']!==null,'SDVN #3 alias mismatch');
+    check(call($service,$b,'presence',position($alias))['context']['server']===mb_strtolower($alias),'Legacy socket context changed');
+}
+foreach (['SDVN #1','SDVN #2','SDVN #30','SDVN','Other SDVN #3 server'] as $other) {
+    call($service,$b,'presence',position($other)); check(call($service,$a,'presence',position('sdvn3'))['friends'][0]['position']===null,'Different SDVN server leaked');
+}
+foreach ([['SBTC Island','sbtc'],[' PANDORA ','pandora'],['DinoVietNam','dinovietnam'],['Some  Other Server','some other server']] as [$left,$right]) {
+    call($service,$b,'presence',position($left)); check(call($service,$a,'presence',position($right))['friends'][0]['sameServer'],'Other same-server mismatch');
+}
+call($service,$b,'presence',position('DinoVietNam Premium')); check(!call($service,$a,'presence',position('DinoVietNam'))['friends'][0]['sameServer'],'Premium merged with regular server');
+// Renaming keeps the account, recovery key, device and friendships, including Unicode NFC uniqueness.
+$before=$service->store->user($b['userId']);
+$renamed=call($service,$b,'account',['action'=>'rename','name'=>"Kha\u{0301}ng"]);
+check($renamed['name']==='Kháng'&&$renamed['userId']===$b['userId']&&$renamed['friendCode']===$b['friendCode'],'Unicode rename changed identity');
+$after=$service->store->user($b['userId']); check($before['devices']===$after['devices']&&$before['recoveryHash']===$after['recoveryHash'],'Rename changed keys');
+check($service->presence[$b['userId']]['name']==='Kháng','Live map name stale after rename');
+check(call($service,$a,'friends',['action'=>'list'])['friends'][0]['name']==='Kháng','Friend list name stale');
+denied(fn()=>call($service,$a,'account',['action'=>'rename','name'=>"KHA\u{0301}NG"]),409);
+check($service->store->user($a['userId'])['name']==='Bạn A','Rejected rename changed account');
 call($service,$b,'presence',position('other')); check(call($service,$a,'presence',position())['friends'][0]['position']===null,'Cross server leak');
 call($service,$b,'presence',position('sbtc',false)); check(call($service,$a,'presence',position())['friends'][0]['position']===null,'Sharing off leak');
 call($service,$b,'presence',position()); $now+=10000; $service->prune($now); check(call($service,$a,'presence',position())['friends'][0]['online']===false,'TTL failed');

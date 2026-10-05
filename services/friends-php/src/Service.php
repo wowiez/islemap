@@ -118,9 +118,16 @@ final class Service {
         $own=$this->presence[$id]??null; $result=[];
         foreach ($this->friends[$id]['ids'] as $other) {
             $p=$this->presence[$other]??null; $online=$p && $now-$p['at']>=0 && $now-$p['at']<10000;
-            $same=$online && $own && $own['server']!==null && $p['server']===$own['server'] && $p['map']===$own['map'];
+            $same=$online && $own && $own['server']!==null && $p['server']!==null && self::serverIdentity($p['server'])===self::serverIdentity($own['server']) && $p['map']===$own['map'];
             $result[]=['userId'=>$other,'online'=>(bool)$online,'name'=>$online?$p['name']:null,'species'=>$online?$p['species']:null,'position'=>$same&&$p['sharing']?$p['position']:null,'at'=>$online?$p['at']:null,'sameServer'=>(bool)$same];
         }
         return ['serverTime'=>$now,'friends'=>$result,'context'=>$own&&$own['server']!==null?['server'=>$own['server'],'map'=>$own['map']]:null];
+    }
+    public static function serverIdentity(string $server): string {
+        $normalized=preg_replace('/\s+/u',' ',trim(mb_strtolower(\Normalizer::normalize($server))));
+        $compact=preg_replace('/[^\p{L}\p{N}]/u','',$normalized);
+        if (in_array($compact,['sdvn3','sdvn3123123123','sdvn3x3','sdvn3x3grow','seavnsdvn3x3'],true)||$normalized==='3.sdvn.org') return 'sdvn3';
+        if (in_array($compact,['sbtc','sbtcisland'],true)) return 'sbtc';
+        return $normalized;
     }
 }

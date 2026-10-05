@@ -75,11 +75,16 @@ public sealed class OverlayFriendsClient : IDisposable
     }
     public async Task RenameAsync(string name, CancellationToken token)
     {
-        var response = await SendAsync<AccountResponse>("account", new { action = "rename", name }, true, token);
-        var identity = Identity! with { Name = response.Name };
-        _store.Save(identity);
-        Identity = identity;
-        IdentityChanged?.Invoke();
+        await _accountGate.WaitAsync(token);
+        try
+        {
+            var response = await SendAsync<AccountResponse>("account", new { action = "rename", name }, true, token);
+            var identity = Identity! with { Name = response.Name };
+            _store.Save(identity);
+            Identity = identity;
+            IdentityChanged?.Invoke();
+        }
+        finally { _accountGate.Release(); }
     }
     public async Task<FriendSnapshot> FriendsAsync(string action, string? value, CancellationToken token, bool byName = false)
     {
