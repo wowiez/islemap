@@ -2,6 +2,8 @@
 
 Vercel Node.js functions + MongoDB Atlas + Redis. No database credentials are shipped in the desktop client.
 
+Since 1.9.6, production sets `ISLEMAP_ORIGIN=https://southtampanailsfl.com/api/islemap/` and uses this project only as a compatibility bridge. Requests retain their signed payload and device headers; new desktop clients use the [PHP/SQLite backend](../friends-php/README.md) directly with WebSockets. MongoDB remains intact as a migration rollback source. The old clients still consume Vercel requests until upgraded.
+
 ## Deploy
 
 Production API: `https://wowie-theisle.vercel.app`. The initial deployment uses Vercel Drop with the files in this folder zipped at the archive root (omit `.env*` and `node_modules`), project Root Directory empty, framework Other, output `public`, build `npm test`, install `npm ci --ignore-scripts`, Node.js 22.x. Existing Vercel environment variables supply the database connections.

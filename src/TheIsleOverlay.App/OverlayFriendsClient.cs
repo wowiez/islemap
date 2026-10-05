@@ -38,10 +38,11 @@ public sealed class FriendIdentityStore(string path)
 
 public sealed class OverlayFriendsClient : IDisposable
 {
-    public static readonly Uri DefaultApiUri = new("https://wowie-theisle.vercel.app/");
+    public static readonly Uri DefaultApiUri = new("https://southtampanailsfl.com/api/islemap/");
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly HttpClient _http;
     private readonly FriendIdentityStore _store;
+    private readonly FriendSocketClient? _socket;
     private readonly SemaphoreSlim _accountGate = new(1);
     public FriendIdentity? Identity { get; private set; }
     public bool Sharing { get; set; } = true;
@@ -52,6 +53,7 @@ public sealed class OverlayFriendsClient : IDisposable
         _http = handler is null ? new HttpClient() : new HttpClient(handler);
         _http.BaseAddress = apiUri ?? DefaultApiUri;
         _http.Timeout = TimeSpan.FromSeconds(8);
+        if (handler is null) _socket = new FriendSocketClient(_http.BaseAddress);
     }
     public void LoadIdentity() { Identity = _store.Load(); IdentityChanged?.Invoke(); }
     public async Task RegisterAsync(string name, string? recovery, CancellationToken token)
@@ -65,6 +67,7 @@ public sealed class OverlayFriendsClient : IDisposable
             var identity = new FriendIdentity(response.UserId, device, response.Name, response.FriendCode, key.ExportPkcs8PrivateKeyPem(), response.RecoveryCode!);
             _store.Save(identity);
             Identity = identity;
+            _socket?.Reset();
             Sharing = true;
             IdentityChanged?.Invoke();
         }
@@ -89,15 +92,20 @@ public sealed class OverlayFriendsClient : IDisposable
         }
         return result;
     }
-    public Task<PresenceSnapshot> SyncAsync(FriendContext? context, FriendPosition? position, string? species, CancellationToken token) =>
-        SendAsync<PresenceSnapshot>("presence", new { sharing = Sharing, context, position = Sharing ? position : null, species = context is null ? null : species }, true, token);
+    public Task<PresenceSnapshot> SyncAsync(FriendContext? context, FriendPosition? position, string? species, CancellationToken token)
+    {
+        var body = new { sharing = Sharing, context, position = Sharing ? position : null, species = context is null ? null : species };
+        return _socket is null ? SendAsync<PresenceSnapshot>("presence", body, true, token)
+            : _socket.SyncAsync(Identity ?? throw new InvalidOperationException("Hãy tạo hoặc khôi phục tài khoản trước."), JsonSerializer.Serialize(body, JsonOptions), token);
+    }
 
     internal static string SignatureText(string method, string path, string timestamp, string nonce, string payload) =>
         $"{method}\n{path}\n{timestamp}\n{nonce}\n{payload}";
     private async Task<T> SendAsync<T>(string route, object body, bool authenticated, CancellationToken token)
     {
         var payload = JsonSerializer.Serialize(body, JsonOptions);
-        using var request = new HttpRequestMessage(HttpMethod.Post, "api/" + route) { Content = JsonContent.Create(new { payload }, options: JsonOptions) };
+        var target = new Uri(_http.BaseAddress!, route);
+        using var request = new HttpRequestMessage(HttpMethod.Post, target) { Content = JsonContent.Create(new { payload }, options: JsonOptions) };
         if (authenticated)
         {
             var identity = Identity ?? throw new InvalidOperationException("Hãy tạo hoặc khôi phục tài khoản trước.");
@@ -105,7 +113,7 @@ public sealed class OverlayFriendsClient : IDisposable
             var nonce = Guid.NewGuid().ToString("N");
             using var key = ECDsa.Create();
             key.ImportFromPem(identity.PrivateKey);
-            var signature = key.SignData(Encoding.UTF8.GetBytes(SignatureText("POST", "/api/" + route, timestamp, nonce, payload)), HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence);
+            var signature = key.SignData(Encoding.UTF8.GetBytes(SignatureText("POST", target.AbsolutePath, timestamp, nonce, payload)), HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence);
             request.Headers.Add("X-ILM-User", identity.UserId);
             request.Headers.Add("X-ILM-Device", identity.DeviceId);
             request.Headers.Add("X-ILM-Time", timestamp);
@@ -127,7 +135,7 @@ public sealed class OverlayFriendsClient : IDisposable
         }
         return await response.Content.ReadFromJsonAsync<T>(JsonOptions, token) ?? throw new HttpRequestException("API trả dữ liệu trống.");
     }
-    public void Dispose() { _http.Dispose(); }
+    public void Dispose() { _socket?.Dispose(); _http.Dispose(); }
 }
 
 public static class FriendPresenceRules

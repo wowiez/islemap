@@ -5,6 +5,19 @@ on:
   pull_request:
 
 jobs:
+  friends-php:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: docker build -t islemap-php-test services/friends-php
+      - run: docker run --rm islemap-php-test php tests.php
+      - run: docker run -d --name islemap-qa --tmpfs /data -p 127.0.0.1:18090:8080 -p 127.0.0.1:18091:8081 islemap-php-test
+      - run: node services/friends-php/smoke.mjs http://127.0.0.1:18090/api/islemap/ ws://127.0.0.1:18091/api/islemap/ws
+      - if: always()
+        run: docker rm -f islemap-qa
   windows:
     runs-on: windows-latest
     steps:

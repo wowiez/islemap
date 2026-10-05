@@ -1,3 +1,10 @@
+# Isle Live Map 1.9.6
+
+- Chuyển API bạn bè sang `southtampanailsfl.com/api/islemap/`, giữ danh tính và mã khôi phục hiện có. Backend PHP chạy trong Docker; tài khoản và quan hệ lưu ở SQLite ngoài thư mục web.
+- Vị trí bạn bè dùng một kết nối WebSocket thay cho HTTP polling mỗi giây. Gửi khi dữ liệu đổi, tối đa mỗi giây; đứng yên heartbeat mỗi 5 giây. Server gom cập nhật và chỉ gửi tới bạn đã chấp thuận cùng server/bản đồ.
+- Vị trí hết hạn sau 10 giây; tắt chia sẻ, đổi server, hủy kết bạn hoặc khôi phục tài khoản cập nhật quyền ngay. Mạng lỗi tự kết nối lại có backoff; máy nhận chậm không tích lũy tọa độ cũ.
+- API Vercel chuyển tiếp request của client cũ sang backend mới, giữ chữ ký và tài khoản; client cũ vẫn tiêu thụ request Vercel tới khi nâng cấp.
+
 # Isle Live Map 1.9.5
 
 - Bạn bè hiển thị tên kèm khoảng cách, loài ở dòng dưới; bỏ ONLINE và dòng trạng thái lặp. Danh sách dùng thẻ rõ ràng, cập nhật từng nhãn thay vì dựng lại toàn bộ danh sách mỗi giây.

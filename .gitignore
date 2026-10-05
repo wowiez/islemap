@@ -8,6 +8,8 @@ obj/
 .env.*
 !.env.example
 node_modules/
+vendor/
+services/mongodb.txt
 .vercel/
 artifacts/
 screenshots/

@@ -1,0 +1,5 @@
+{
+  "name": "islelivemap/friends-server",
+  "description": "Self-hosted PHP API and WebSocket presence for IsleLiveMap",
+  "require": { "php": "^8.3", "ext-pdo": "*", "ext-pdo_sqlite": "*", "ext-openssl": "*", "ext-intl": "*", "ext-mbstring": "*", "workerman/workerman": "^5.1" }
+}

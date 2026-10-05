@@ -102,7 +102,7 @@ public sealed class OverlayFriendsTests
             Assert.True(key.VerifyData(Encoding.UTF8.GetBytes(canonical), Convert.FromBase64String(Header("X-ILM-Signature")), HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence));
             Assert.DoesNotContain("PRIVATE KEY", payload);
             Assert.DoesNotContain("secret", payload);
-            if (request.RequestUri.AbsolutePath == "/api/friends")
+            if (request.RequestUri.AbsolutePath == "/api/islemap/friends")
             {
                 using var body = JsonDocument.Parse(payload);
                 Assert.Equal("Name With More Than 12 Chars", body.RootElement.GetProperty("name").GetString());

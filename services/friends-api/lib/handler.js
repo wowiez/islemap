@@ -1,12 +1,15 @@
 import { storage } from './storage.js';
 import { execute } from './service.js';
 import { ApiError } from './rules.js';
+import { forward } from './bridge.js';
 
 export function handler(route) {
   return async (req, res) => {
     res.setHeader('Cache-Control', 'private, no-store');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     try {
+      if (process.env.ISLEMAP_MAINTENANCE === '1') return res.status(503).json({ error: 'Đang chuyển dữ liệu, vui lòng thử lại sau.' });
+      if (process.env.ISLEMAP_ORIGIN) return await forward(route, req, res, process.env.ISLEMAP_ORIGIN);
       if (route === 'health') {
         const store = await storage();
         await Promise.all([store.redis.ping(), store.users.findOne({}, { projection: { _id: 1 } })]);
