@@ -78,7 +78,7 @@ dotnet build .\TheIsleOverlay.sln --configuration Release
 Build installer:
 
 ```powershell
-.\scripts\Package-Release.ps1 -Version 1.8.1
+.\scripts\Package-Release.ps1 -Version 1.9.5
 ```
 
 Output nằm trong `artifacts/distribution`.
@@ -131,3 +131,13 @@ Texture nền Gateway được nhúng vào ứng dụng. Các provider chỉ l�
 ## License
 
 [MIT](LICENSE) — sử dụng, kiểm tra và đóng góp tự do; vui lòng giữ thông báo bản quyền.
+
+
+## Bạn bè overlay
+
+F8 → **Bạn bè**: tạo tên duy nhất, gửi lời mời bằng tên hoặc mã kết bạn. Người nhận phải chấp thuận; có từ chối/hủy lời mời và hủy kết bạn.
+Chia sẻ vị trí mặc định bật khi mở app và có nút tắt. Chỉ bạn cùng server/bản đồ được xem vị trí; tọa độ tự ẩn sau 10 giây không cập nhật.
+Nhãn có tên, khoảng cách và loài. Điểm bạn bè dùng cùng thiết lập kích thước điểm vị trí; danh sách hỗ trợ tối đa 500 bạn bè/lời mời.
+Khóa thiết bị được mã hóa bằng Windows DPAPI trong AppData. Lưu mã khôi phục riêng để chuyển máy mà giữ tài khoản/bạn bè; không chia sẻ mã này.
+API mặc định `https://wowie-theisle.vercel.app/`. Xem [tài liệu API](services/friends-api/README.md) để tự triển khai, thời hạn Redis và giới hạn gói free.
+Vùng bản đồ và nước có asset offline trong bộ cài. Kill Feed mặc định tắt, có thể bật trong setting và cập nhật 5 giây/lần.

@@ -11,6 +11,7 @@ public sealed record OverlayLayoutSettings
     public string MapStyle { get; init; } = OverlayLayoutRules.DefaultMapStyle;
     public double PlayerMarkerScale { get; init; } = OverlayLayoutRules.DefaultPlayerMarkerScale;
     public bool WildlifeAbovePlayer { get; init; }
+    public bool ShowMapKillFeed { get; init; }
     public bool ShowMapZones { get; init; } = true;
     public bool ShowWildlife { get; init; } = true;
     public bool ShowMap { get; init; } = true;

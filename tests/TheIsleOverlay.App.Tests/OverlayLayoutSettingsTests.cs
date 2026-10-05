@@ -91,6 +91,7 @@ public sealed class OverlayLayoutSettingsTests
             Assert.True(store.Load().AutoHideOutsideGame);
             Assert.Equal(1d, store.Load().PlayerMarkerScale);
             Assert.False(store.Load().WildlifeAbovePlayer);
+            Assert.False(store.Load().ShowMapKillFeed);
             Assert.True(store.Load().ShowMapZones);
             Assert.True(store.Load().ShowWildlife);
 
@@ -101,6 +102,7 @@ public sealed class OverlayLayoutSettingsTests
                 MapStyle = "SQUARE",
                 PlayerMarkerScale = 1.65d,
                 WildlifeAbovePlayer = true,
+                ShowMapKillFeed = true,
                 ShowMapZones = false,
                 ShowWildlife = false,
                 ShowMap = false,
@@ -121,6 +123,7 @@ public sealed class OverlayLayoutSettingsTests
             Assert.Equal(OverlayLayoutRules.SquareMapStyle, restored.MapStyle);
             Assert.Equal(1.65d, restored.PlayerMarkerScale);
             Assert.True(restored.WildlifeAbovePlayer);
+            Assert.True(restored.ShowMapKillFeed);
             Assert.False(restored.ShowMapZones);
             Assert.False(restored.ShowWildlife);
             Assert.False(restored.ShowMap);

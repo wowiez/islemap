@@ -14,9 +14,13 @@ public static class MapOverlayPresentation
     public static string PlayerLabel(
         string name,
         MapPoint playerLocation,
-        MapPoint? currentLocation) => currentLocation is { } current
-        ? $"{name} ({Distance(current, playerLocation)})"
-        : name;
+        MapPoint? currentLocation)
+    {
+        if (currentLocation is not { } current) return name;
+        var lineBreak = name.IndexOf('\n');
+        return lineBreak < 0 ? $"{name} ({Distance(current, playerLocation)})"
+            : $"{name[..lineBreak]} · {Distance(current, playerLocation)}{name[lineBreak..]}";
+    }
 
     public static string RequestStatus(
         TelemetrySessionState sessionState,

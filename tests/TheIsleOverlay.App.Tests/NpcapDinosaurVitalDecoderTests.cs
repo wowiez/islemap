@@ -210,6 +210,99 @@ public sealed class NpcapDinosaurVitalDecoderTests
         Assert.Null(inbound.VitalSample(At.AddSeconds(4)));
     }
 
+    [Fact]
+    public async Task ConfirmedActor_SurvivesQuietMovementGapWithoutLosingCapacity()
+    {
+        await using var source = new NpcapGamePositionSource();
+        var outbound = new NpcapGamePacketDecoder();
+        var inbound = new NpcapGamePacketDecoder();
+        var flow = new NpcapGamePositionSource.GameFlow(55000, IPAddress.Parse("192.0.2.10"), 7777, false);
+        for (var frame = 0; frame < 6; frame++)
+        {
+            outbound.TryProcessGamePayload(NpcapDinosaurWeightDecoderTests.Packet(16, 2, Move(0x1000, frame)), At.AddMilliseconds(frame * 200), out _);
+            source.TrackStatistics(outbound, flow);
+        }
+        source.TrackStatistics(inbound, flow with { Inbound = true });
+        inbound.ObserveStatistics(Attributes(0x1006, (21, 50.4f), (22, 50.4f), (0, 15.5f), (1, 16.6f)), At.AddSeconds(1));
+        for (var frame = 25; frame < 31; frame++)
+        {
+            var now = At.AddMilliseconds(frame * 200);
+            outbound.TryProcessGamePayload(NpcapDinosaurWeightDecoderTests.Packet(16, 2, Move(0x1000, frame)), now, out _);
+            source.TrackStatistics(outbound, flow);
+            source.TrackStatistics(inbound, flow with { Inbound = true });
+            Assert.Equal(0x1000u, inbound.StatisticsActorHandle);
+            Assert.Equal(50.4, inbound.VitalSample(now)!.Vitals.MaxHealth!.Value, 4);
+        }
+        // A later sparse update must retain the original capacity keyframe.
+        inbound.ObserveStatistics(Attributes(0x1006, (0, 14.2f)), At.AddSeconds(7));
+        Assert.Equal(16.6, inbound.VitalSample(At.AddSeconds(7))!.Vitals.MaxHunger!.Value, 4);
+        Assert.Equal(14.2, inbound.VitalSample(At.AddSeconds(7))!.Vitals.Hunger!.Value, 4);
+    }
+
+    [Fact]
+    public async Task ConfirmedActor_UnreadableHandleDoesNotRevokeOwnership()
+    {
+        await using var source = new NpcapGamePositionSource();
+        var outbound = new NpcapGamePacketDecoder();
+        var flow = new NpcapGamePositionSource.GameFlow(55000, IPAddress.Parse("192.0.2.10"), 7777, false);
+        for (var frame = 0; frame < 6; frame++)
+        {
+            outbound.TryProcessGamePayload(NpcapDinosaurWeightDecoderTests.Packet(16, 2, Move(0x1000, frame)), At.AddMilliseconds(frame * 200), out _);
+            source.TrackStatistics(outbound, flow);
+        }
+        var unreadable = Move(0x1000, 6);
+        for (var bit = 101; bit < 118; bit++) unreadable.Payload[bit / 8] &= (byte)~(1 << (bit % 8));
+        outbound.TryProcessGamePayload(NpcapDinosaurWeightDecoderTests.Packet(16, 2, unreadable), At.AddSeconds(1.2), out _);
+        source.TrackStatistics(outbound, flow);
+        Assert.Equal(0x1000u, outbound.MovementActorHandle);
+        var inbound = new NpcapGamePacketDecoder();
+        source.TrackStatistics(inbound, flow with { Inbound = true });
+        Assert.Equal(0x1000u, inbound.StatisticsActorHandle);
+    }
+
+    [Fact]
+    public async Task ShortPacketSilence_HoldsValuesButLongDisconnectionClearsThem()
+    {
+        await using var source = new NpcapGamePositionSource();
+        var events = new List<NpcapVitalSample?>();
+        source.VitalsReceived += events.Add;
+        typeof(NpcapGamePositionSource).GetMethod("SetState", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(source, [NpcapSourceStatus.Live, "Synthetic connected capture"]);
+        var sample = new NpcapVitalSample(0x1000, At, new() { Health = 50.4, MaxHealth = 50.4 });
+        typeof(NpcapGamePositionSource).GetMethod("PublishVitals", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(source, [sample]);
+        source.HandleStatisticsSilence(1600);
+        source.HandleStatisticsSilence(5000);
+        Assert.Single(events);
+        Assert.Equal(sample, events[0]);
+        source.HandleStatisticsSilence(15001);
+        Assert.Equal(2, events.Count);
+        Assert.Null(events[1]);
+    }
+
+    [Fact]
+    public void AncillaryUdpPorts_DoNotRestartTheActiveGameCapture()
+    {
+        Assert.False(NpcapGamePositionSource.RequiresCaptureRestart([55000, 55001], [55000, 55002, 55003], 55000));
+        Assert.False(NpcapGamePositionSource.RequiresCaptureRestart([55000, 55001], [55000], 55000));
+        Assert.True(NpcapGamePositionSource.RequiresCaptureRestart([55000, 55001], [55001], 55000));
+        Assert.True(NpcapGamePositionSource.RequiresCaptureRestart([55000], [], 55000));
+        Assert.True(NpcapGamePositionSource.RequiresCaptureRestart([55000], [55000, 55001], null));
+        Assert.False(NpcapGamePositionSource.RequiresCaptureRestart([55000, 55001], [55001, 55000], null));
+    }
+
+    [Fact]
+    public void RealChannelClose_ClearsConfirmedActorEvenWhileMovementLayoutIsUnlocked()
+    {
+        var decoder = new NpcapGamePacketDecoder();
+        for (var frame = 0; frame < 6; frame++)
+            decoder.TryProcessGamePayload(NpcapDinosaurWeightDecoderTests.Packet(16, 2, Move(0x1000, frame)), At.AddMilliseconds(frame * 200), out _);
+        Assert.Equal(0x1000u, decoder.MovementActorHandle);
+        decoder.TryProcessGamePayload(NpcapDinosaurWeightDecoderTests.Packet(16, 2, Move(0x1000, 25)), At.AddSeconds(5), out _);
+        Assert.Equal(0x1000u, decoder.MovementActorHandle);
+        decoder.TryProcessGamePayload(NpcapDinosaurWeightDecoderTests.Packet(16, 2,
+            new NpcapGamePacketDecoder.ParsedBunch(2, 0, []) { Close = true }), At.AddSeconds(5.1), out _);
+        Assert.Null(decoder.MovementActorHandle);
+    }
+
     private static NpcapGamePacketDecoder.ParsedBunch Move(uint handle, int frame)
     {
         var writer = new TestBitWriter();

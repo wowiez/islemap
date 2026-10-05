@@ -25,6 +25,7 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
     // continuing server stream keeps its last validated value visible.
     private const int WeightPublishIntervalMs = 250;
     private const int WeightPublishTimeoutMs = 1500;
+    private const int StatisticsDisconnectTimeoutMs = 15000;
     private const int WeightLogIntervalMs = 2000;
     private const long MaximumWeightLogBytes = 8L * 1024 * 1024;
 
@@ -239,15 +240,7 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
                         }
                     }
 
-                    // The readout must not keep showing a number the stream no longer
-                    // produces: on a quiet stream an empty update hides it.
-                    if (Environment.TickCount64 - _lastWeightTick > WeightPublishTimeoutMs)
-                    {
-                        _lastWeightTick = Environment.TickCount64;
-                        PublishWeight(null);
-                        PublishVitals(null);
-                        UpdateWeightDiagnostic("KG: chưa nhận được luồng server, chờ game gửi dữ liệu");
-                    }
+                    HandleStatisticsSilence(Environment.TickCount64);
 
                     if (_lastPositionTick == 0 && Environment.TickCount64 - lastCaptureStatus > 2000)
                     {
@@ -262,7 +255,7 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
                     if (Environment.TickCount64 - lastProcessCheck > 3000)
                     {
                         var current = FindGameUdpEndpoints();
-                        if (current.Count == 0 || !ports.SequenceEqual(current.Select(endpoint => endpoint.Port).Distinct().Order())) return;
+                        if (RequiresCaptureRestart(ports, current.Select(endpoint => endpoint.Port).Distinct().ToArray(), _activeFlow?.LocalPort)) return;
                         lastProcessCheck = Environment.TickCount64;
                     }
                 }
@@ -338,6 +331,12 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
         var locked = decoder.LockedChannel;
         if (!flow.Inbound)
         {
+            // A temporary channel-less movement fallback cannot revoke a
+            // confirmed Iris actor on this same connection. Legacy, unconfirmed
+            // channel ownership still clears as before.
+            if (locked is null && _playerActorHandle is { } actor &&
+                decoder.MovementActorHandle == actor && _playerChannelFlow is { } ownedFlow &&
+                IsSameConnection(ownedFlow, flow)) return;
             if (decoder.HasLockedMovement)
             {
                 _playerChannel = locked;
@@ -359,6 +358,16 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
         first.LocalPort == second.LocalPort && first.RemoteAddress.Equals(second.RemoteAddress) &&
         first.RemotePort == second.RemotePort;
 
+    internal static bool RequiresCaptureRestart(IReadOnlyList<int> capturedPorts, IReadOnlyList<int> currentPorts, int? activePort)
+    {
+        if (currentPorts.Count == 0) return true;
+        // Voice and other ancillary UDP sockets may open/close while the same
+        // game connection stays alive. They do not require resetting its actor
+        // keyframes or reinstalling a filter that already covers its port.
+        if (activePort is { } port) return !currentPorts.Contains(port);
+        return !capturedPorts.Order().SequenceEqual(currentPorts.Order());
+    }
+
     private void PublishWeightSample(NpcapGamePacketDecoder decoder, GameFlow flow, DateTimeOffset capturedAt)
     {
         if (!flow.Inbound || _activeFlow is not { } active || !IsSameConnection(active, flow) ||
@@ -372,6 +381,19 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
         if (sample is null || Environment.TickCount64 - _lastWeightLogTick < WeightLogIntervalMs) return;
         _lastWeightLogTick = Environment.TickCount64;
         AppendWeightLog(capturedAt, sample.Value);
+    }
+
+    internal void HandleStatisticsSilence(long nowTick)
+    {
+        var silence = nowTick - _lastWeightTick;
+        if (silence <= WeightPublishTimeoutMs) return;
+        UpdateWeightDiagnostic("KG: luồng server đang im, chờ packet tiếp theo");
+        // Retain the last validated sample across short packet gaps. A real
+        // close/source reset still clears immediately; a silent connection is
+        // bounded so old values cannot remain indefinitely after disconnection.
+        if (silence <= StatisticsDisconnectTimeoutMs) return;
+        PublishWeight(null);
+        PublishVitals(null);
     }
 
     private void PublishWeight(NpcapWeightSample? sample)

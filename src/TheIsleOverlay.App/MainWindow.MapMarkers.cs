@@ -25,6 +25,7 @@ public partial class MainWindow
             WildlifeAbovePlayerButton.Background = BrushFrom(wildlifeAbovePlayer ? "#3A1D514B" : "#151D1B");
         }
         finally { _updatingMapMarkerSettings = false; }
+        if (_sbtcPlayerMarkers.Count > 0) RenderSbtcPlayerOverlay(SbtcPlayerLayer.Width, SbtcPlayerLayer.Height);
         _largeMapWindow?.UpdateMapMarkerSettings(_layoutSettings.PlayerMarkerScale, wildlifeAbovePlayer);
         _guideWindow?.UpdateMapMarkerSettings(_layoutSettings.PlayerMarkerScale, wildlifeAbovePlayer);
         if (persist) _layoutSettingsStore.Save(_layoutSettings);

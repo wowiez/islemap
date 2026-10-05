@@ -309,10 +309,77 @@
                     <Button x:Name="KillFeedNavButton" Style="{StaticResource NavButton}" Click="KillFeedNavButton_Click">
                         <StackPanel Orientation="Horizontal"><Path Data="M2,2 L14,14 M10,14 L14,14 L14,10 M14,2 L2,14 M2,10 L2,14 L6,14" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.5" Width="14" Height="14" Stretch="Uniform" Margin="0,0,8,0" /><TextBlock Text="KILL FEED" /></StackPanel>
                     </Button>
+                    <Button x:Name="FriendsNavButton" Style="{StaticResource NavButton}" Click="FriendsNavButton_Click" Content="BẠN BÈ" />
                 </StackPanel>
             </Border>
 
             <Grid Grid.Row="2">
+                <ScrollViewer x:Name="FriendsPage" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <ScrollViewer.Resources>
+                        <Style TargetType="ScrollBar">
+                            <Setter Property="Width" Value="8" />
+                            <Setter Property="Background" Value="#171D20" />
+                            <Setter Property="Template"><Setter.Value>
+                                <ControlTemplate TargetType="ScrollBar">
+                                    <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                            <Track.DecreaseRepeatButton><RepeatButton Command="{x:Static ScrollBar.PageUpCommand}" Opacity="0" /></Track.DecreaseRepeatButton>
+                                            <Track.Thumb><Thumb Background="#525E64"><Thumb.Template><ControlTemplate TargetType="Thumb"><Border Background="{TemplateBinding Background}" CornerRadius="4" /></ControlTemplate></Thumb.Template></Thumb></Track.Thumb>
+                                            <Track.IncreaseRepeatButton><RepeatButton Command="{x:Static ScrollBar.PageDownCommand}" Opacity="0" /></Track.IncreaseRepeatButton>
+                                        </Track>
+                                    </Border>
+                                </ControlTemplate>
+                            </Setter.Value></Setter>
+                        </Style>
+                    </ScrollViewer.Resources>
+                    <StackPanel Margin="24">
+                        <TextBlock Text="BẠN BÈ OVERLAY" Foreground="White" FontSize="24" FontFamily="Bahnschrift SemiCondensed" />
+                        <TextBlock Text="Kết bạn cần chấp thuận · chỉ hiện vị trí khi cùng server · vị trí tự ẩn sau 10 giây mất cập nhật" Foreground="#9A9DA2" Margin="0,8,0,18" TextWrapping="Wrap" />
+                        <StackPanel x:Name="FriendsActions">
+                            <StackPanel x:Name="FriendSetupPanel">
+                                <TextBlock Text="Tên duy nhất (2–32 ký tự, không phân biệt hoa/thường)" Foreground="White" />
+                                <TextBox x:Name="FriendNewName" Style="{StaticResource HexInput}" MaxLength="32" Margin="0,6,0,8" />
+                                <Button Content="TẠO TÀI KHOẢN OVERLAY" Style="{StaticResource NavButton}" Click="FriendCreate_Click" HorizontalAlignment="Left" />
+                                <TextBlock Text="Đã có tài khoản? Nhập mã khôi phục từ máy cũ. Khôi phục sẽ đăng xuất máy cũ và cấp mã dự phòng mới." Foreground="#9A9DA2" Margin="0,20,0,8" TextWrapping="Wrap" />
+                                <PasswordBox x:Name="FriendRecoveryInput" Background="#17191B" Foreground="White" Padding="8" />
+                                <Button Content="KHÔI PHỤC TÀI KHOẢN" Style="{StaticResource NavButton}" Click="FriendRecover_Click" HorizontalAlignment="Left" Margin="0,8,0,0" />
+                            </StackPanel>
+                            <StackPanel x:Name="FriendAccountPanel" Visibility="Collapsed">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBox x:Name="FriendNameInput" Style="{StaticResource HexInput}" Width="240" MaxLength="32" />
+                                    <Button Content="ĐỔI TÊN" Style="{StaticResource NavButton}" Click="FriendRename_Click" Margin="8,0,0,0" />
+                                </StackPanel>
+                                <TextBlock x:Name="FriendCodeLabel" Foreground="#9FD8B5" FontSize="17" Margin="0,12,0,10" />
+                                <WrapPanel>
+                                    <Button Content="COPY MÃ KẾT BẠN" Style="{StaticResource NavButton}" Click="FriendCopyCode_Click" />
+                                    <Button Content="LƯU MÃ KHÔI PHỤC" Style="{StaticResource NavButton}" Click="FriendBackup_Click" />
+                                    <Button x:Name="FriendShareButton" Content="CHIA SẺ VỊ TRÍ: BẬT" Style="{StaticResource NavButton}" Click="FriendShare_Click" />
+                                </WrapPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,18,0,12">
+                                    <ComboBox x:Name="FriendInviteLookup" SelectedIndex="0" Width="85" Margin="0,0,8,0" VerticalContentAlignment="Center" Foreground="Black" Background="#D9DBDE">
+                                        <ComboBoxItem Content="Tên" /><ComboBoxItem Content="Mã" />
+                                    </ComboBox>
+                                    <TextBox x:Name="FriendInviteCode" Style="{StaticResource HexInput}" Width="240" MaxLength="32" ToolTip="Nhập tên tài khoản hoặc mã kết bạn theo lựa chọn bên trái" />
+                                    <Button Content="GỬI LỜI MỜI" Style="{StaticResource NavButton}" Click="FriendInvite_Click" Margin="8,0,8,0" />
+                                    <Button Content="TẢI LẠI" Style="{StaticResource NavButton}" Click="FriendRefresh_Click" />
+                                </StackPanel>
+                                <TextBlock x:Name="FriendsStatus" Foreground="#9FD8B5" Margin="0,0,0,12" TextWrapping="Wrap" />
+                                <TextBlock x:Name="FriendCountLabel" Foreground="#929C9F" FontSize="11" Margin="0,10,0,12" />
+                                <ListBox x:Name="FriendRows" MaxHeight="420" Background="Transparent" BorderThickness="0"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                         ScrollViewer.CanContentScroll="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                            <Setter Property="Padding" Value="0" />
+                                            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><ContentPresenter /></ControlTemplate></Setter.Value></Setter>
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                </ListBox>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
                 <ScrollViewer x:Name="OverviewPage" VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="24">
                         <TextBlock Text="TỔNG QUAN" Foreground="{StaticResource AccentBrush}"
@@ -854,6 +921,17 @@
                                     </Grid>
                                 </Border>
                             </StackPanel>
+                        </Border>
+
+                        <Border Background="#171E1B" BorderBrush="#35443C" BorderThickness="1" CornerRadius="4" Padding="14" Margin="0,16,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="120" /></Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="KILL FEED TRÊN MAP" Foreground="#D5D7DA" FontWeight="SemiBold" />
+                                    <TextBlock Text="Hiện cạnh minimap · cập nhật mỗi 5 giây · mặc định tắt" Foreground="#93999D" FontSize="11" Margin="0,4,12,0" />
+                                </StackPanel>
+                                <Button x:Name="GuideMapKillFeedButton" Grid.Column="1" Content="TẮT" Style="{StaticResource SettingsActionButton}" Click="GuideMapKillFeedButton_Click" />
+                            </Grid>
                         </Border>
 
                         <TextBlock Text="VỊ TRÍ CỦA BẠN TRÊN BẢN ĐỒ" Foreground="#D5D7DA"

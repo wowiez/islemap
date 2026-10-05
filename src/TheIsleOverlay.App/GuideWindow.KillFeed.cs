@@ -26,6 +26,21 @@ public sealed record KillFeedRowPresentation(string Time, string Killer, string 
 
 public partial class GuideWindow
 {
+    public event Action<bool>? MapKillFeedEnabledChanged;
+    private bool _showMapKillFeed;
+
+    public void UpdateMapKillFeedSetting(bool enabled)
+    {
+        _showMapKillFeed = enabled;
+        GuideMapKillFeedButton.Content = enabled ? "BẬT" : "TẮT";
+    }
+
+    private void GuideMapKillFeedButton_Click(object sender, RoutedEventArgs e)
+    {
+        UpdateMapKillFeedSetting(!_showMapKillFeed);
+        MapKillFeedEnabledChanged?.Invoke(_showMapKillFeed);
+    }
+
     private const string AllKillFeedSpecies = "TẤT CẢ LOÀI";
     private readonly HttpClient _killFeedHttp = new() { Timeout = Timeout.InfiniteTimeSpan };
     private SbtcKillFeedClient? _killFeedClient;
@@ -42,7 +57,7 @@ public partial class GuideWindow
         KillFeedSpeciesFilter.ItemsSource = new[] { AllKillFeedSpecies };
         KillFeedSpeciesFilter.SelectedIndex = 0;
         _updatingKillFeedSpecies = false;
-        _killFeedTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
+        _killFeedTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         _killFeedTimer.Tick += async (_, _) => await RefreshKillFeedAsync();
         IsVisibleChanged += (_, _) => UpdateKillFeedPolling();
     }
@@ -63,7 +78,7 @@ public partial class GuideWindow
         if (IsVisible && KillFeedPage.Visibility == Visibility.Visible)
         {
             _killFeedTimer.Start();
-            if (_killFeedLastSuccess is null || DateTimeOffset.UtcNow - _killFeedLastSuccess >= TimeSpan.FromSeconds(30))
+            if (_killFeedLastSuccess is null || DateTimeOffset.UtcNow - _killFeedLastSuccess >= TimeSpan.FromSeconds(5))
                 _ = RefreshKillFeedAsync();
         }
         else
@@ -126,7 +141,7 @@ public partial class GuideWindow
         KillFeedCount.Text = $"{feed.Rows.Count} BẢN GHI GẦN NHẤT";
         KillFeedEmpty.Visibility = feed.Rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         KillFeedEmpty.Text = "Chưa có bản ghi cho loài đã chọn.";
-        KillFeedStatus.Text = $"Cập nhật {loadedAt.ToLocalTime():HH:mm:ss} · tự cập nhật mỗi 30 giây khi mở tab.";
+        KillFeedStatus.Text = $"Cập nhật {loadedAt.ToLocalTime():HH:mm:ss} · tự cập nhật mỗi 5 giây khi mở tab.";
         KillFeedStatus.Foreground = BrushFrom("#8FC7A5");
     }
 

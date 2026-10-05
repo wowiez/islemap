@@ -20,6 +20,22 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: services/friends-api/package-lock.json
+
+      - name: Test friends API
+        shell: pwsh
+        working-directory: services/friends-api
+        run: |
+          npm ci --ignore-scripts
+          if ($LASTEXITCODE -ne 0) { throw 'API dependency install failed.' }
+          npm test
+          if ($LASTEXITCODE -ne 0) { throw 'API tests failed.' }
+
       - name: Validate tag and project version
         shell: pwsh
         run: |

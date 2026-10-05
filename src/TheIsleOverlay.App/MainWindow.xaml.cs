@@ -235,11 +235,14 @@ public partial class MainWindow : Window
         ApplyAutoDetectLiveMapPreference(_autoDetectLiveMap, persist: false);
         RenderPrimeTasks(null);
         UpdatePathTrailButtonState();
+        InitializeMapKillFeed();
         ApplyPanelVisibility(persist: false);
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
+        InitializeFriends();
+        UpdateMapKillFeedPolling();
         PlayerMarker.Visibility = Visibility.Collapsed;
         DirectionNeedle.Opacity = 0.45d;
         _clipboardCoordinateMonitor = new ClipboardCoordinateMonitor(Dispatcher, ApplyClipboardLocation);
@@ -1800,7 +1803,10 @@ public partial class MainWindow : Window
             _npcapState,
             _layoutSettings.AutoHideOutsideGame)
         { Owner = this };
+        if (_friends is not null) guideWindow.ConnectFriends(_friends, SyncFriendsAsync);
         guideWindow.UpdateMapMarkerSettings(_layoutSettings.PlayerMarkerScale, _layoutSettings.WildlifeAbovePlayer);
+        guideWindow.UpdateMapKillFeedSetting(_layoutSettings.ShowMapKillFeed);
+        guideWindow.MapKillFeedEnabledChanged += GuideWindow_MapKillFeedEnabledChanged;
         guideWindow.UpdateMapLayerFilters(_layoutSettings.ShowMapZones, _layoutSettings.ShowWildlife);
         guideWindow.MapLayerFiltersChanged += MapWindow_MapLayerFiltersChanged;
         guideWindow.MapMarkerSettingsChanged += GuideWindow_MapMarkerSettingsChanged;
@@ -1823,6 +1829,7 @@ public partial class MainWindow : Window
     {
         if (_guideWindow is not null)
         {
+            _guideWindow.MapKillFeedEnabledChanged -= GuideWindow_MapKillFeedEnabledChanged;
             _guideWindow.MapMarkerSettingsChanged -= GuideWindow_MapMarkerSettingsChanged;
             _guideWindow.MapLayerFiltersChanged -= MapWindow_MapLayerFiltersChanged;
             _guideWindow.DestinationChanged -= GuideWindow_DestinationChanged;
@@ -1920,7 +1927,12 @@ public partial class MainWindow : Window
         string? serverName,
         IReadOnlyList<MapMarkerTelemetry>? markers)
     {
-        var players = SbtcPlayerOverlay.Create(serverName, markers, _usesIslePilotMap);
+        _serverPlayerMarkers = SbtcPlayerOverlay.Create(serverName, markers, _usesIslePilotMap);
+        ApplyOverlayFriendMarkers();
+    }
+
+    private void ApplyCombinedPlayerMarkers(IReadOnlyList<SbtcPlayerMarker> players)
+    {
         var signature = SbtcPlayerOverlay.Signature(players);
         if (string.Equals(signature, _sbtcPlayerSignature, StringComparison.Ordinal))
         {
@@ -1985,8 +1997,10 @@ public partial class MainWindow : Window
                 };
             }
 
-            Canvas.SetLeft(marker, center.X - marker.Width / 2d);
-            Canvas.SetTop(marker, center.Y - marker.Height / 2d);
+            var friendScale = player.Friend ? _layoutSettings.PlayerMarkerScale : 1d;
+            marker.LayoutTransform = new ScaleTransform(friendScale, friendScale);
+            Canvas.SetLeft(marker, center.X - marker.Width * friendScale / 2d);
+            Canvas.SetTop(marker, center.Y - marker.Height * friendScale / 2d);
             SbtcPlayerLayer.Children.Add(marker);
 
             var labelRotation = new RotateTransform
@@ -2007,20 +2021,28 @@ public partial class MainWindow : Window
                 Child = new TextBlock
                 {
                     Text = MapOverlayPresentation.PlayerLabel(
-                        player.Label,
+                        imageWidth < MapViewport.Width * 2.5d ? player.Label.Split('\n')[0] : player.Label,
                         player.Location,
                         CurrentMapPoint()),
                     Foreground = Brushes.White,
                     FontFamily = new FontFamily("Bahnschrift SemiCondensed"),
                     FontSize = 10d,
                     FontWeight = FontWeights.SemiBold,
-                    MaxWidth = 120d,
+                    MaxWidth = player.Friend ? 180d : 120d,
                     TextTrimming = TextTrimming.CharacterEllipsis
                 }
             };
             label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             Canvas.SetLeft(label, center.X - label.DesiredSize.Width / 2d);
-            Canvas.SetTop(label, center.Y - marker.Height / 2d - label.DesiredSize.Height - 4d);
+            var labelTop = center.Y - marker.Height * friendScale / 2d - label.DesiredSize.Height - 4d;
+            if (CurrentMapPoint() is { } own)
+            {
+                var ownRadius = PlayerMarker.Width * _layoutSettings.PlayerMarkerScale / 2d;
+                var ownBounds = new Rect(own.Left * imageWidth - ownRadius, own.Top * imageHeight - ownRadius, ownRadius * 2d, ownRadius * 2d);
+                if (ownBounds.IntersectsWith(new Rect(Canvas.GetLeft(label), labelTop, label.DesiredSize.Width, label.DesiredSize.Height)))
+                    labelTop = ownBounds.Top - label.DesiredSize.Height - 4d;
+            }
+            Canvas.SetTop(label, labelTop);
             SbtcPlayerLayer.Children.Add(label);
         }
     }
@@ -2161,7 +2183,7 @@ public partial class MainWindow : Window
                 var point = feature.Points[0];
                 var rotation = new RotateTransform(-(_rotateMap ? MapHeading.MapRotationForHeadingUp(_headingDegrees) : 0d));
                 _sbtcZoneLabelRotations.Add(rotation);
-                var animal = SbtcWildlifeMarker.Create(feature.Name, feature.Color, 17d);
+                var animal = SbtcWildlifeMarker.Create(feature.Name, feature.Color, Math.Clamp(17d * imageWidth / (MapViewport.Width * 4d), 6d, 17d));
                 animal.RenderTransformOrigin = new Point(0.5d, 0.5d);
                 animal.RenderTransform = rotation;
                 Canvas.SetLeft(animal, point.Left * imageWidth - animal.Width / 2d);
@@ -2235,7 +2257,9 @@ public partial class MainWindow : Window
 
         }
 
-        foreach (var zoneLabel in SbtcZoneOverlay.CreateLabels(_sbtcZoneFeatures))
+        var occupiedLabels = new List<Rect>();
+        var focus = CurrentMapPoint() ?? new MapPoint(.5d, .5d);
+        foreach (var zoneLabel in SbtcZoneOverlay.CreateLabels(_sbtcZoneFeatures).OrderBy(label => GatewayMapProjection.DistanceMeters(focus, label.Center)))
         {
             var center = new Point(
                 zoneLabel.Center.Left * imageWidth,
@@ -2248,6 +2272,8 @@ public partial class MainWindow : Window
             _sbtcZoneLabelRotations.Add(labelRotation);
             var label = new Border
             {
+                Tag = "MapZoneLabel",
+                Visibility = SbtcZoneOverlay.IsFilterableZone(zoneLabel.Kind) || _layoutSettings.ShowMapZones ? Visibility.Visible : Visibility.Collapsed,
                 Background = Brushes.Transparent,
                 BorderBrush = stroke,
                 BorderThickness = new Thickness(0d, 0d, 0d, 1d),
@@ -2273,9 +2299,18 @@ public partial class MainWindow : Window
                 : center.Y - Math.Max(3d, (zoneLabel.Size ?? 0.008d) * imageWidth) - 10d;
             Canvas.SetLeft(label, center.X - label.DesiredSize.Width / 2d);
             Canvas.SetTop(label, labelCenterY - label.DesiredSize.Height / 2d);
+            var bounds = new Rect(center.X - label.DesiredSize.Width / 2d - 3d,
+                labelCenterY - label.DesiredSize.Height / 2d - 3d, label.DesiredSize.Width + 6d, label.DesiredSize.Height + 6d);
+            if (occupiedLabels.Any(existing => existing.IntersectsWith(bounds)))
+            {
+                label.Tag = "MapZoneLabelSuppressed";
+                label.Visibility = Visibility.Collapsed;
+            }
+            else occupiedLabels.Add(bounds);
             var layer = SbtcZoneOverlay.IsFilterableZone(zoneLabel.Kind) ? SbtcZoneDecorationLayer : SbtcMapPoiLayer;
             layer.Children.Add(label);
         }
+        RefreshMapLayerVisibility();
     }
 
     private static Brush ZoneStroke(SbtcZoneKind kind) => kind switch
@@ -2480,6 +2515,7 @@ public partial class MainWindow : Window
         _showMap = true;
         _showActivity = true;
         _showPrimeTasks = false;
+        SetMapKillFeedEnabled(false);
         RenderPrimeTasks(null);
         ApplyMapRotationPreference(rotateMap: true, persist: false);
         ApplyAutoDetectLiveMapPreference(autoDetectLiveMap: true, persist: false);
@@ -2723,6 +2759,7 @@ public partial class MainWindow : Window
         MapActivitySpacer.Visibility = _showMap && _showActivity
             ? Visibility.Visible
             : Visibility.Collapsed;
+        UpdateMapKillFeedPolling();
         MapVisibilityButton.Content = _showMap ? "MAP · ON" : "MAP · OFF";
         ActivityVisibilityButton.Content = _showActivity ? "ACTIVITY · ON" : "ACTIVITY · OFF";
         MapVisibilityButton.Background = _showMap ? BrushFrom("#3A1D514B") : Brushes.Transparent;
@@ -2990,6 +3027,8 @@ public partial class MainWindow : Window
 
     private async void Window_Closed(object? sender, EventArgs e)
     {
+        DisposeFriends();
+        DisposeMapKillFeed();
         _foregroundVisibilityTimer?.Stop();
         _largeMapWindow?.ClosePermanently();
         _guideWindow?.Close();

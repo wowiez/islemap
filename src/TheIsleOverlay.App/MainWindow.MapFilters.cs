@@ -19,6 +19,9 @@ public partial class MainWindow
             _sbtcZoneFeatures.Any(feature => SbtcZoneOverlay.IsFilterableZone(feature.Kind))
             ? Visibility.Visible : Visibility.Collapsed;
         SbtcZoneDecorationLayer.Visibility = SbtcZoneLayer.Visibility;
+        var detailed = _renderedZoneWidth <= 0 || _renderedZoneWidth >= MapViewport.Width * 2.5d;
+        foreach (var label in SbtcMapPoiLayer.Children.OfType<FrameworkElement>().Concat(SbtcZoneDecorationLayer.Children.OfType<FrameworkElement>()).Where(item => Equals(item.Tag, "MapZoneLabel")))
+            label.Visibility = _layoutSettings.ShowMapZones && detailed ? Visibility.Visible : Visibility.Collapsed;
         DrinkingWaterImage.Visibility = Visibility.Visible;
         SbtcMapPoiLayer.Visibility = _sbtcZoneFeatures.Any(feature =>
             feature.Kind != SbtcZoneKind.Wildlife && !SbtcZoneOverlay.IsFilterableZone(feature.Kind))

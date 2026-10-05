@@ -36,6 +36,7 @@ internal sealed class NpcapGamePacketDecoder
     private NpcapVitalSample? _vitalSample;
     private uint? _statisticsActorHandle;
     private uint? _movementActorHandle;
+    private uint? _movementActorChannel;
     private uint? _candidateActorHandle;
     private int _actorEvidence;
     private DateTimeOffset _actorEvidenceAt;
@@ -106,7 +107,13 @@ internal sealed class NpcapGamePacketDecoder
                     if (_weightSample is { } previous && previous.Channel == fragment.Channel) _weightSample = null;
                     foreach (var key in _pendingVitals.Keys.Where(key => key.Channel == fragment.Channel).ToArray()) _pendingVitals.Remove(key);
                     if (_statisticsChannel == fragment.Channel) _vitalSample = null;
-                    if (_lockedCandidate?.Channel == fragment.Channel) _movementActorHandle = null;
+                    if (_lockedCandidate?.Channel == fragment.Channel || _movementActorChannel == fragment.Channel)
+                    {
+                        _movementActorHandle = null;
+                        _movementActorChannel = null;
+                        _candidateActorHandle = null;
+                        _actorEvidence = 0;
+                    }
                 }
                 if (!_bunchAssembler.TryAssemble(fragment, capturedAt, out var bunch)) continue;
                 if (!decoded && TryDecodeMovement(bunch, capturedAt, out var decodedSample))
@@ -291,20 +298,31 @@ internal sealed class NpcapGamePacketDecoder
         if (_lockedCandidate is not { } locked || locked.Channel != bunch.Channel) return;
         if (!NpcapDinosaurVitalDecoder.TryReadMovementHandle(bunch.Payload, bunch.PayloadBits, locked.Offset, out var handle))
         {
-            _movementActorHandle = null;
-            _candidateActorHandle = null;
-            _actorEvidence = 0;
+            // An unreadable RPC is not evidence that the player changed actor.
+            // Keep a confirmed identity until a close, reset or different handle.
             return;
         }
         if (capturedAt <= _actorEvidenceAt) return;
+        if (_movementActorHandle == handle)
+        {
+            // Quiet movement gaps do not revoke a confirmed object identity.
+            _movementActorChannel = bunch.Channel;
+            _actorEvidenceAt = capturedAt;
+            return;
+        }
         if (_candidateActorHandle != handle || capturedAt - _actorEvidenceAt > TimeSpan.FromSeconds(3))
         {
             _candidateActorHandle = handle;
             _actorEvidence = 0;
             _movementActorHandle = null;
+            _movementActorChannel = null;
         }
         _actorEvidenceAt = capturedAt;
-        if (++_actorEvidence >= 2) _movementActorHandle = handle;
+        if (++_actorEvidence >= 2)
+        {
+            _movementActorHandle = handle;
+            _movementActorChannel = bunch.Channel;
+        }
     }
 
     private void ObserveVitals(ParsedBunch bunch, DateTimeOffset capturedAt)
@@ -382,6 +400,7 @@ internal sealed class NpcapGamePacketDecoder
                 if (changedActor)
                 {
                     _movementActorHandle = null;
+                    _movementActorChannel = null;
                     _candidateActorHandle = null;
                     _actorEvidence = 0;
                     _lockedCandidate = null;

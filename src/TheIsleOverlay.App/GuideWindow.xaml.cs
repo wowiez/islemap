@@ -1020,12 +1020,12 @@ public partial class GuideWindow : Window
 
     private void ShowPage(FrameworkElement page, Button activeButton)
     {
-        foreach (var candidate in new FrameworkElement[] { OverviewPage, MapPage, GaragePage, SkinEditorPage, VoicePage, MutationPage, KillFeedPage, SettingsPage })
+        foreach (var candidate in new FrameworkElement[] { OverviewPage, MapPage, GaragePage, SkinEditorPage, VoicePage, MutationPage, KillFeedPage, SettingsPage, FriendsPage })
         {
             candidate.Visibility = candidate == page ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        foreach (var button in new[] { OverviewNavButton, MapNavButton, GarageNavButton, SkinEditorNavButton, VoiceNavButton, MutationNavButton, KillFeedNavButton, SettingsNavButton })
+        foreach (var button in new[] { OverviewNavButton, MapNavButton, GarageNavButton, SkinEditorNavButton, VoiceNavButton, MutationNavButton, KillFeedNavButton, SettingsNavButton, FriendsNavButton })
         {
             var active = button == activeButton;
             button.Foreground = BrushFrom(active ? "#111214" : "#9A9DA2");

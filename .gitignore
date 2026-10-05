@@ -5,6 +5,10 @@ obj/
 *.user
 *.suo
 .env
+.env.*
+!.env.example
+node_modules/
+.vercel/
 artifacts/
 screenshots/
 .playwright-cli/

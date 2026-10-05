@@ -25,6 +25,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <Border x:Name="MapPanel" Grid.Row="0" Height="304" Background="Transparent" ClipToBounds="False">
@@ -330,7 +331,33 @@
             </Grid>
         </Border>
 
-        <Border x:Name="SettingsPanel" Grid.Row="4" Visibility="Collapsed"
+        <Border x:Name="MapKillFeedPanel" Grid.Row="4" Width="{Binding Width, ElementName=ActivityPanel}" HorizontalAlignment="Center"
+                Visibility="Collapsed" Margin="0,8,0,0" Padding="8,6"
+                Background="{StaticResource HudPatternBrush}" BorderBrush="#555A604D" BorderThickness="1" CornerRadius="4">
+            <Border.LayoutTransform>
+                <ScaleTransform ScaleX="{Binding ScaleX, ElementName=ActivityReadabilityScaleTransform}"
+                                ScaleY="{Binding ScaleY, ElementName=ActivityReadabilityScaleTransform}" />
+            </Border.LayoutTransform>
+            <StackPanel>
+                <Grid Margin="0,0,0,5">
+                    <TextBlock Text="KILL FEED · SBTC" Foreground="#E7B74E" FontFamily="Bahnschrift" FontSize="10" />
+                    <TextBlock x:Name="MapKillFeedStatus" Text="Đang tải…" HorizontalAlignment="Right" Foreground="#98A49D" FontSize="8" />
+                </Grid>
+                <ItemsControl x:Name="MapKillFeedRows">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="0,3,0,3">
+                                <TextBlock Text="{Binding Summary}" Foreground="#EEF3E8" FontFamily="Bahnschrift" FontSize="10" TextTrimming="CharacterEllipsis" ToolTip="{Binding Summary}" />
+                                <TextBlock Text="{Binding Detail}" Foreground="#98A49D" FontFamily="Bahnschrift" FontSize="8.5" TextTrimming="CharacterEllipsis" ToolTip="{Binding Detail}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock x:Name="MapKillFeedEmpty" Text="Đang tải Kill Feed…" Foreground="#98A49D" FontSize="9" TextWrapping="Wrap" />
+            </StackPanel>
+        </Border>
+
+        <Border x:Name="SettingsPanel" Grid.Row="5" Visibility="Collapsed"
                 Margin="0,8,0,0" Padding="9,7"
                 Background="{StaticResource HudPatternBrush}" BorderBrush="#655A604D" BorderThickness="1"
                 CornerRadius="4">
@@ -404,12 +431,19 @@
                     <Button x:Name="SquareStyleButton" Grid.Column="3" Style="{StaticResource ChromeButton}" Content="SQUARE" Padding="8,4" Click="SquareStyleButton_Click" />
                 </Grid>
 
-                <Grid Grid.Row="5" Margin="0,8,0,0">
+                <StackPanel Grid.Row="5" Margin="0,8,0,0">
+                <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /><ColumnDefinition Width="5" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                     <TextBlock Text="VISIBLE" Foreground="#D5DDD5" FontFamily="Bahnschrift SemiCondensed" FontSize="10" VerticalAlignment="Center" />
                     <Button x:Name="MapVisibilityButton" Grid.Column="1" Style="{StaticResource ChromeButton}" Content="MAP · ON" Padding="8,4" Click="MapVisibilityButton_Click" />
                     <Button x:Name="ActivityVisibilityButton" Grid.Column="3" Style="{StaticResource ChromeButton}" Content="ACTIVITY · ON" Padding="8,4" Click="ActivityVisibilityButton_Click" />
                 </Grid>
+                <Grid Margin="0,7,0,0">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <TextBlock Text="KILL FEED" Foreground="#D5DDD5" FontFamily="Bahnschrift SemiCondensed" FontSize="10" VerticalAlignment="Center" />
+                    <Button x:Name="MapKillFeedToggleButton" Grid.Column="1" Style="{StaticResource ChromeButton}" Content="KILL FEED · OFF" Padding="8,4" Click="MapKillFeedToggleButton_Click" ToolTip="Hiện Kill Feed SBTC cạnh minimap · cập nhật mỗi 5 giây" />
+                </Grid>
+                </StackPanel>
 
                 <Grid Grid.Row="6" Margin="0,8,0,0">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>

@@ -23,6 +23,7 @@ public sealed class MapOverlayPresentationTests
             "Raptor (123 m)",
             MapOverlayPresentation.PlayerLabel("Raptor", teammate, current));
         Assert.Equal("Raptor", MapOverlayPresentation.PlayerLabel("Raptor", teammate, null));
+        Assert.Equal("Raptor · 123 m\nPtera", MapOverlayPresentation.PlayerLabel("Raptor\nPtera", teammate, current));
     }
 
     [Theory]

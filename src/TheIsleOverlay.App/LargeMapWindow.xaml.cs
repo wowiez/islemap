@@ -61,6 +61,8 @@ public partial class LargeMapWindow : Window
         MapZonesFilterButton.IsChecked = showZones;
         MapWildlifeFilterButton.IsChecked = showWildlife;
         LargeZoneLayer.Visibility = showZones ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var label in LargeMapPoiLayer.Children.OfType<FrameworkElement>().Where(item => Equals(item.Tag, "MapZoneLabel")))
+            label.Visibility = showZones ? Visibility.Visible : Visibility.Collapsed;
         LargeDrinkingWaterImage.Visibility = Visibility.Visible;
         LargeWildlifeLayer.Visibility = showWildlife ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -78,6 +80,7 @@ public partial class LargeMapWindow : Window
         _playerMarkerScale = OverlayLayoutRules.NormalizePlayerMarkerScale(playerMarkerScale);
         Panel.SetZIndex(LargeWildlifeLayer, wildlifeAbovePlayer ? 6 : 2);
         RenderRouteAndMarkers();
+        RenderPlayers();
     }
 
     private void QuickClearTrailButton_Click(object sender, RoutedEventArgs e) =>
@@ -315,6 +318,8 @@ public partial class LargeMapWindow : Window
             var accent = ZoneBrush(zoneLabel.Kind, 0xFF);
             var label = new Border
             {
+                Tag = "MapZoneLabel",
+                Visibility = SbtcZoneOverlay.IsFilterableZone(zoneLabel.Kind) || MapZonesFilterButton.IsChecked == true ? Visibility.Visible : Visibility.Collapsed,
                 Background = BrushFrom("#C70A1110"),
                 BorderBrush = accent,
                 BorderThickness = new Thickness(0d, 0d, 0d, 2d),
@@ -474,8 +479,10 @@ public partial class LargeMapWindow : Window
             }
 
             marker.IsHitTestVisible = false;
-            Canvas.SetLeft(marker, center.X - marker.Width / 2d);
-            Canvas.SetTop(marker, center.Y - marker.Height / 2d);
+            var friendScale = player.Friend ? _playerMarkerScale : 1d;
+            marker.LayoutTransform = new ScaleTransform(friendScale, friendScale);
+            Canvas.SetLeft(marker, center.X - marker.Width * friendScale / 2d);
+            Canvas.SetTop(marker, center.Y - marker.Height * friendScale / 2d);
             LargePlayerLayer.Children.Add(marker);
 
             var label = new Border
@@ -502,7 +509,7 @@ public partial class LargeMapWindow : Window
             };
             label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             Canvas.SetLeft(label, center.X - label.DesiredSize.Width / 2d);
-            Canvas.SetTop(label, center.Y - marker.Height / 2d - label.DesiredSize.Height - 5d);
+            Canvas.SetTop(label, center.Y - marker.Height * friendScale / 2d - label.DesiredSize.Height - 5d);
             LargePlayerLayer.Children.Add(label);
         }
     }

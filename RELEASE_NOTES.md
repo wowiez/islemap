@@ -1,3 +1,37 @@
+# Isle Live Map 1.9.5
+
+- Bạn bè hiển thị tên kèm khoảng cách, loài ở dòng dưới; bỏ ONLINE và dòng trạng thái lặp. Danh sách dùng thẻ rõ ràng, cập nhật từng nhãn thay vì dựng lại toàn bộ danh sách mỗi giây.
+- Điểm bạn bè trên minimap, map lớn và F8 thay đổi cùng thiết lập kích thước điểm vị trí. Kill Feed rộng bằng Activity và cùng tỷ lệ khi resize.
+- Minimap xem toàn đảo tự ẩn tên vùng/địa danh để tránh chồng chữ, giảm kích thước AI và dùng nhãn bạn bè gọn; zoom vào sẽ hiện tên trở lại. Vùng tím/vàng và nước vẫn giữ theo bộ lọc.
+- API đọc tối đa 500 bạn bè trong một MGET. Redis chỉ giữ một vị trí mới nhất mỗi tài khoản trong 10 giây, nonce được gom theo tài khoản với hạn 120 giây; bộ đếm giới hạn hết hạn sau 60 giây hoặc tối đa 1 giờ. MongoDB giữ danh tính và quan hệ bạn bè lâu dài.
+- Kiểm tra danh sách 500 bạn bè, quyền xem vị trí, dữ liệu hết hạn, chống replay, khoảng cách và hai mức zoom. Gói Redis free vẫn có giới hạn kết nối, tốc độ và băng thông; không cam kết 500 người đồng thời ở chu kỳ 1 giây.
+
+# Isle Live Map 1.9.4
+
+- Gửi lời mời bằng tên duy nhất hoặc mã kết bạn, có lựa chọn Tên/Mã để tránh nhầm khi tên trông giống mã. Tên không phân biệt hoa/thường và được chuẩn hóa Unicode.
+- Ràng buộc tên duy nhất ở MongoDB cho cả tạo tài khoản và đổi tên; tên trùng báo lỗi, không thay đổi tài khoản hiện có. Tài khoản cũ giữ ID/bạn bè; tên trùng trước đây được thêm hậu tố ID.
+- Chia sẻ vị trí mặc định bật mỗi lần mở app; vẫn cho tắt trong F8, khi tắt không gửi tọa độ. Chỉ bạn đã chấp thuận cùng server/bản đồ được nhận vị trí.
+
+# Isle Live Map 1.9.3
+
+- Thêm F8 → Bạn bè: bắt đặt tên khi tạo tài khoản, mã kết bạn, lời mời cần chấp thuận, từ chối/hủy lời mời và hủy kết bạn.
+- Chia sẻ vị trí mặc định tắt mỗi lần khởi động. Khi tắt không gửi tọa độ lên API. Sync mỗi giây, không chồng request; mạng lỗi backoff và tự ẩn vị trí hết hạn 10 giây.
+- Chỉ hiện vị trí bạn đã chấp thuận cùng server/bản đồ; nhãn trên map có tên, loài và ONLINE. Trạng thái online/offline có trong tab Bạn bè.
+- Khóa ký thiết bị và mã khôi phục mã hóa Windows DPAPI trong AppData. Chuyển máy bằng mã khôi phục giữ nguyên tài khoản/bạn bè, thu hồi máy cũ và đổi mã dự phòng.
+- API Vercel tại `wowie-theisle.vercel.app`, source ở `services/friends-api`: MongoDB lưu tài khoản/bạn bè, Redis lưu presence tạm; xác thực chữ ký, chống replay và giới hạn lời mời. Đã kiểm tra health và luồng online với tài khoản giả lập riêng.
+
+# Isle Live Map 1.9.2
+
+- Không khởi động lại bộ bắt packet chỉ vì cổng UDP phụ thay đổi, miễn cổng kết nối game đang dùng vẫn còn.
+- Giữ khóa actor đã xác nhận khi packet movement tạm ngắt hoặc không đọc được handle; cùng handle sau khoảng im không làm mất số hiện tại / tối đa. Vẫn xóa khi có handle khác, đóng kênh hoặc reset luồng.
+- Giữ mẫu đã xác nhận qua khoảng ngắt packet ngắn thay vì xóa sau 1,5 giây; luồng server im quá 15 giây sẽ xóa dữ liệu để tránh giữ số sau mất kết nối.
+- Có regression test cho khoảng ngắt movement, handle không đọc được, max không gửi lại và mất kết nối dài; giữ kiểm tra đổi Dino / respawn và từ chối kết nối khác.
+
+# Isle Live Map 1.9.1
+
+- Tắt vùng sẽ ẩn cả tên vùng, kể cả nhãn riêng từ API, trên minimap, map lớn và map trong F8. Nước vẫn hiển thị.
+- Thêm Kill Feed SBTC cạnh minimap với 5 bản ghi mới nhất; bật/tắt trong setting HUD hoặc F8, lưu lựa chọn và mặc định tắt. Khi bật cập nhật mỗi 5 giây, không chồng request; tắt sẽ dừng tải. Giữ dữ liệu cũ khi mạng lỗi và thử lại. Tab Kill Feed F8 cũng cập nhật mỗi 5 giây.
+
 # Isle Live Map 1.9.0
 
 - Đọc máu, food, nước và stamina hiện tại / tối đa từ packet; khi chưa đủ dữ liệu dùng phần trăm web, thiếu cả hai thì hiện `- / -`. Thanh phần trăm dài như bone, cặp số có cột riêng và tất cả số căn phải.
