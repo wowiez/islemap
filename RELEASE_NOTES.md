@@ -1,3 +1,9 @@
+# Isle Live Map 1.9.8
+
+- Chia sẻ vị trí bạn bè chỉ với Npcap, kể cả khi web không có dữ liệu Dino hoặc server không hỗ trợ web.
+- Gắn IP/cổng server của luồng game vào tọa độ Npcap. Hai endpoint khác nhau vẫn tách riêng dù trùng tên server; dữ liệu hết hạn hoặc ngắt capture vẫn tự ẩn vị trí.
+- Bổ sung tên đầy đủ SDVN #3 X3 Grow vào danh sách tên tương đương.
+
 # Isle Live Map 1.9.7
 
 - Chuẩn hóa tên/mã SDVN #3 và SBTC khi so sánh server của bạn bè, giữ các server khác nhau tách riêng.

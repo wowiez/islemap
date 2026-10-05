@@ -37,6 +37,13 @@ try {
   assert.equal((await request(a,'presence',body(),true)).friends.length,0);
   await request(b,'friends',{action:'accept',userId:a.userId});
   await until(a,s=>s.friends[0]?.position?.x===.4);
+  const packetOnly=body('udp:192.0.2.10:7777'); packetOnly.context.endpoint='udp:192.0.2.10:7777';
+  const withWeb=body('[SEA/VN]-SDVN-#3-X3 Grow'); withWeb.context.endpoint=packetOnly.context.endpoint;
+  a.socket.send(JSON.stringify({type:'presence',data:packetOnly}));
+  b.socket.send(JSON.stringify({type:'presence',data:withWeb}));
+  await until(a,s=>s.context?.endpoint===packetOnly.context.endpoint&&s.friends[0]?.sameServer&&s.friends[0]?.position!==null);
+  b.socket.send(JSON.stringify({type:'presence',data:{...withWeb,context:{...withWeb.context,endpoint:'udp:192.0.2.10:7778'}}}));
+  await until(a,s=>s.friends[0]?.sameServer===false&&s.friends[0]?.position===null);
   a.socket.send(JSON.stringify({type:'presence',data:body('sdvn3')}));
   b.socket.send(JSON.stringify({type:'presence',data:body('[SEA/VN]-SDVN-#3-X3')}));
   await until(a,s=>s.context?.server==='sdvn3'&&s.friends[0]?.sameServer===true&&s.friends[0]?.position!==null);

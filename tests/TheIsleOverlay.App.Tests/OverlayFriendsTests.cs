@@ -13,6 +13,7 @@ public sealed class OverlayFriendsTests
     [Theory]
     [InlineData(" SDVN #3 ")]
     [InlineData("[SEA/VN]-SDVN-#3-X3")]
+    [InlineData("[SEA/VN]-SDVN-#3-X3 Grow")]
     [InlineData("SDVN #3 X3 GROW")]
     [InlineData("sdvn3123123123")]
     [InlineData("3.sdvn.org")]
@@ -34,6 +35,20 @@ public sealed class OverlayFriendsTests
 
     [Fact]
     public void DistinctServers_RemainDistinct() => Assert.NotEqual(FriendServerIdentity.Normalize("DinoVietNam"), FriendServerIdentity.Normalize("DinoVietNam Premium"));
+
+    [Fact]
+    public void PacketOnlyContext_WorksWithoutWebAndExpiresAfterDisconnect()
+    {
+        var now = DateTimeOffset.UtcNow;
+        const string endpoint = "udp:192.0.2.10:7777";
+        Assert.Equal(new FriendContext(endpoint, Endpoint: endpoint), FriendServerIdentity.Resolve(null, null, endpoint, now, true, now));
+        Assert.Null(FriendServerIdentity.Resolve(null, null, endpoint, now, false, now));
+        Assert.Null(FriendServerIdentity.Resolve(null, null, endpoint, now.AddSeconds(-10), true, now));
+        Assert.Null(FriendServerIdentity.Resolve(null, null, endpoint, now.AddSeconds(1), true, now));
+        Assert.Null(FriendServerIdentity.Resolve(null, null, null, now, true, now));
+        Assert.Equal(new FriendContext(endpoint, Endpoint: endpoint), FriendServerIdentity.Resolve("Old server", now.AddSeconds(-20), endpoint, now, true, now));
+        Assert.Equal(new FriendContext("sdvn3", Endpoint: endpoint), FriendServerIdentity.Resolve("[SEA/VN]-SDVN-#3-X3 Grow", now, endpoint, now, true, now));
+    }
 
     [Fact]
     public async Task UnicodeRename_PersistsNameAndKeepsIdentityAndRecovery()

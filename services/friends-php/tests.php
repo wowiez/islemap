@@ -24,7 +24,7 @@ call($service,$b,'presence',position()); check(call($service,$a,'presence',posit
 denied(fn()=>call($service,$a,'friends',['action'=>'accept','userId'=>$b['userId']]),404);
 call($service,$b,'friends',['action'=>'accept','userId'=>$a['userId']]);
 check(call($service,$a,'presence',position(),'/api/')['friends'][0]['position']['x']===0.4,'Legacy signed path failed');
-foreach (['SDVN #3','[SEA/VN]-SDVN-#3-X3','SDVN #3 X3 GROW','sdvn3123123123','3.sdvn.org'] as $alias) {
+foreach (['SDVN #3','[SEA/VN]-SDVN-#3-X3','[SEA/VN]-SDVN-#3-X3 Grow','SDVN #3 X3 GROW','sdvn3123123123','3.sdvn.org'] as $alias) {
     call($service,$b,'presence',position($alias)); $snapshot=call($service,$a,'presence',position('sdvn3'));
     check($snapshot['friends'][0]['sameServer']&&$snapshot['friends'][0]['position']!==null,'SDVN #3 alias mismatch');
     check(call($service,$b,'presence',position($alias))['context']['server']===mb_strtolower($alias),'Legacy socket context changed');
@@ -36,6 +36,15 @@ foreach ([['SBTC Island','sbtc'],[' PANDORA ','pandora'],['DinoVietNam','dinovie
     call($service,$b,'presence',position($left)); check(call($service,$a,'presence',position($right))['friends'][0]['sameServer'],'Other same-server mismatch');
 }
 call($service,$b,'presence',position('DinoVietNam Premium')); check(!call($service,$a,'presence',position('DinoVietNam'))['friends'][0]['sameServer'],'Premium merged with regular server');
+$packet=position('udp:192.0.2.10:7777'); $packet['context']['endpoint']='udp:192.0.2.10:7777';
+$webAndPacket=position('SDVN #3'); $webAndPacket['context']['endpoint']='udp:192.0.2.10:7777';
+call($service,$b,'presence',$packet); $snap=call($service,$a,'presence',$webAndPacket);
+check($snap['friends'][0]['sameServer']&&$snap['friends'][0]['position']!==null,'Packet-only friend requires web');
+check($snap['context']===['server'=>'sdvn #3','map'=>'gateway','endpoint'=>'udp:192.0.2.10:7777'],'Socket endpoint context was lost');
+$different=$webAndPacket; $different['context']['endpoint']='udp:192.0.2.10:7778';
+call($service,$b,'presence',$different); check(!call($service,$a,'presence',$webAndPacket)['friends'][0]['sameServer'],'Same IP different game port leaked');
+$different['context']['endpoint']='udp:192.0.2.11:7777';
+call($service,$b,'presence',$different); check(!call($service,$a,'presence',$webAndPacket)['friends'][0]['sameServer'],'Same name different endpoint leaked');
 // Renaming keeps the account, recovery key, device and friendships, including Unicode NFC uniqueness.
 $before=$service->store->user($b['userId']);
 $renamed=call($service,$b,'account',['action'=>'rename','name'=>"Kha\u{0301}ng"]);

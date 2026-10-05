@@ -828,4 +828,5 @@ internal readonly record struct NpcapPositionSample(
     WorldLocation Location,
     DateTimeOffset CapturedAt,
     float GameTimestamp,
-    double? WorldYawDegrees = null);
+    double? WorldYawDegrees = null,
+    string? ServerEndpoint = null);

@@ -109,24 +109,27 @@ final class Service {
     public function update(string $id,string $name,array $b,int $now,?int $owner=null): void {
         $c=$b['context']??null; $p=$b['position']??null;
         $context=is_array($c)&&is_string($c['server']??null)&&trim($c['server'])!==''&&mb_strlen($c['server'])<=160&&($c['map']??null)==='gateway' ? ['server'=>mb_strtolower(\Normalizer::normalize(trim($c['server']))),'map'=>'gateway']:null;
+        $endpoint=$c['endpoint']??null;
+        if ($context!==null&&is_string($endpoint)&&preg_match('/^udp:([0-9.]+):([0-9]{1,5})$/D',$endpoint,$parts)&&filter_var($parts[1],FILTER_VALIDATE_IP,FILTER_FLAG_IPV4)&&((int)$parts[2])>0&&((int)$parts[2])<=65535) $context['endpoint']=$endpoint;
         $position=is_array($p)&&is_numeric($p['x']??null)&&is_numeric($p['y']??null)&&is_finite((float)$p['x'])&&is_finite((float)$p['y'])&&$p['x']>=0&&$p['x']<=1&&$p['y']>=0&&$p['y']<=1 ? ['x'=>(float)$p['x'],'y'=>(float)$p['y'],'heading'=>isset($p['heading'])&&is_numeric($p['heading'])&&is_finite((float)$p['heading'])?(float)$p['heading']:null]:null;
         $sharing=($b['sharing']??false)===true&&$context!==null&&$position!==null;
-        $this->presence[$id]=['at'=>$now,'sharing'=>$sharing,'server'=>$context['server']??null,'map'=>$context['map']??null,'position'=>$sharing?$position:null,'species'=>is_string($b['species']??null)?mb_substr($b['species'],0,64):'','name'=>$name,'owner'=>$owner];
+        $this->presence[$id]=['at'=>$now,'sharing'=>$sharing,'server'=>$context['server']??null,'endpoint'=>$context['endpoint']??null,'context'=>$context,'map'=>$context['map']??null,'position'=>$sharing?$position:null,'species'=>is_string($b['species']??null)?mb_substr($b['species'],0,64):'','name'=>$name,'owner'=>$owner];
     }
     public function snapshot(string $id,int $now): array {
         if (($this->friends[$id]['until']??0)<=$now) { $ids=[]; foreach ($this->store->links($id,true) as $l) $ids[]=$l['members'][0]===$id?$l['members'][1]:$l['members'][0]; $this->friends[$id]=['ids'=>$ids,'until'=>$now+300000]; }
         $own=$this->presence[$id]??null; $result=[];
         foreach ($this->friends[$id]['ids'] as $other) {
             $p=$this->presence[$other]??null; $online=$p && $now-$p['at']>=0 && $now-$p['at']<10000;
-            $same=$online && $own && $own['server']!==null && $p['server']!==null && self::serverIdentity($p['server'])===self::serverIdentity($own['server']) && $p['map']===$own['map'];
+            $same=$online && $own && $own['server']!==null && $p['server']!==null && $p['map']===$own['map'] &&
+                (($own['endpoint']??null)!==null&&($p['endpoint']??null)!==null ? $own['endpoint']===$p['endpoint'] : self::serverIdentity($p['server'])===self::serverIdentity($own['server']));
             $result[]=['userId'=>$other,'online'=>(bool)$online,'name'=>$online?$p['name']:null,'species'=>$online?$p['species']:null,'position'=>$same&&$p['sharing']?$p['position']:null,'at'=>$online?$p['at']:null,'sameServer'=>(bool)$same];
         }
-        return ['serverTime'=>$now,'friends'=>$result,'context'=>$own&&$own['server']!==null?['server'=>$own['server'],'map'=>$own['map']]:null];
+        return ['serverTime'=>$now,'friends'=>$result,'context'=>$own['context']??null];
     }
     public static function serverIdentity(string $server): string {
         $normalized=preg_replace('/\s+/u',' ',trim(mb_strtolower(\Normalizer::normalize($server))));
         $compact=preg_replace('/[^\p{L}\p{N}]/u','',$normalized);
-        if (in_array($compact,['sdvn3','sdvn3123123123','sdvn3x3','sdvn3x3grow','seavnsdvn3x3'],true)||$normalized==='3.sdvn.org') return 'sdvn3';
+        if (in_array($compact,['sdvn3','sdvn3123123123','sdvn3x3','sdvn3x3grow','seavnsdvn3x3','seavnsdvn3x3grow'],true)||$normalized==='3.sdvn.org') return 'sdvn3';
         if (in_array($compact,['sbtc','sbtcisland'],true)) return 'sbtc';
         return $normalized;
     }

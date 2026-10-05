@@ -1,6 +1,6 @@
 services:
   islemap:
-    image: islemap-php:1.9.7
+    image: islemap-php:1.9.8
     container_name: islemap-php
     restart: unless-stopped
     ports:

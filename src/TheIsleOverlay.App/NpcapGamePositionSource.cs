@@ -230,7 +230,7 @@ internal sealed class NpcapGamePositionSource : IAsyncDisposable
                                     SetState(
                                         NpcapSourceStatus.Live,
                                         $"Đang chạy · server {flow.RemoteAddress}:{flow.RemotePort}");
-                                    PositionReceived?.Invoke(stabilized);
+                                    PositionReceived?.Invoke(stabilized with { ServerEndpoint = $"udp:{flow.RemoteAddress}:{flow.RemotePort}" });
                                 }
 
                                 PublishWeightSample(decoder, flow, capturedAt);

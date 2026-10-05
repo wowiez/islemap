@@ -13,7 +13,7 @@ public sealed record FriendPosition(double X, double Y, double? Heading);
 public sealed record FriendPresence(string UserId, bool Online, string? Name, string? Species, FriendPosition? Position, long? At, bool SameServer);
 public sealed record FriendSnapshot(string UserId, string Name, string FriendCode, IReadOnlyList<OverlayFriend> Friends);
 public sealed record PresenceSnapshot(long ServerTime, IReadOnlyList<FriendPresence> Friends);
-public sealed record FriendContext(string Server, string Map = "gateway");
+public sealed record FriendContext(string Server, string Map = "gateway", string? Endpoint = null);
 internal sealed record AccountResponse(string UserId, string Name, string FriendCode, string? RecoveryCode);
 
 public sealed class FriendIdentityStore(string path)

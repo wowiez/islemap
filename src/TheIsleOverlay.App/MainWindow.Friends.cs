@@ -36,14 +36,9 @@ public partial class MainWindow
     private FriendContext? CurrentFriendContext()
     {
         // Never share a stale last-known point from the menu or after disconnect.
-        if (_guidePlayerOverview is not { } overview || string.IsNullOrWhiteSpace(_friendGameServer)) return null;
-        var now = DateTimeOffset.UtcNow;
-        var freshWeb = now - overview.UpdatedAt < TimeSpan.FromSeconds(10);
-        var freshPacket = CurrentNpcapStatus == NpcapSourceStatus.Live && _npcapPosition is { } sample && now - sample.CapturedAt < TimeSpan.FromSeconds(10);
-        if (!freshWeb && !freshPacket) return null;
-        // A server's real identity is independent of the telemetry provider used.
-        var server = FriendServerIdentity.Normalize(_friendGameServer);
-        return new FriendContext(server);
+        return FriendServerIdentity.Resolve(_friendGameServer, _guidePlayerOverview?.UpdatedAt,
+            _npcapPosition?.ServerEndpoint, _npcapPosition?.CapturedAt,
+            CurrentNpcapStatus == NpcapSourceStatus.Live, DateTimeOffset.UtcNow);
     }
     private async Task SyncFriendsAsync()
     {
@@ -55,7 +50,7 @@ public partial class MainWindow
             var point = context is null ? null : CurrentMapPoint();
             var position = point is { } location ? new FriendPosition(location.Left, location.Top, _headingDegrees) : null;
             var capturedContext = context;
-            var result = await _friends.SyncAsync(context, position, _activeSpeciesName, _shutdown.Token);
+            var result = await _friends.SyncAsync(context, position, _guidePlayerOverview is null ? null : _activeSpeciesName, _shutdown.Token);
             // A response to the old server may not render after switching server.
             var received = DateTimeOffset.UtcNow;
             _overlayFriendPresence = Equals(capturedContext, CurrentFriendContext()) ? result.Friends.Select(friend => friend with
