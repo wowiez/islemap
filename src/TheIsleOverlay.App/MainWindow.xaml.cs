@@ -2017,8 +2017,7 @@ public partial class MainWindow : Window
                 BorderThickness = new Thickness(1d),
                 CornerRadius = new CornerRadius(4d),
                 Padding = new Thickness(4d, 1d, 4d, 1d),
-                RenderTransformOrigin = new Point(0.5d, 0.5d),
-                RenderTransform = labelRotation,
+                RenderTransformOrigin = new Point(0.5d, 0d),
                 IsHitTestVisible = false,
                 Child = new TextBlock
                 {
@@ -2035,16 +2034,18 @@ public partial class MainWindow : Window
                 }
             };
             label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            Canvas.SetLeft(label, center.X - label.DesiredSize.Width / 2d);
-            var labelTop = center.Y - marker.Height * friendScale / 2d - label.DesiredSize.Height - 4d;
-            if (CurrentMapPoint() is { } own)
+            // Counter-rotate the complete offset about the friend's position,
+            // so turning the map keeps the label directly above its own marker.
+            label.RenderTransform = new TransformGroup
             {
-                var ownRadius = PlayerMarker.Width * _layoutSettings.PlayerMarkerScale / 2d;
-                var ownBounds = new Rect(own.Left * imageWidth - ownRadius, own.Top * imageHeight - ownRadius, ownRadius * 2d, ownRadius * 2d);
-                if (ownBounds.IntersectsWith(new Rect(Canvas.GetLeft(label), labelTop, label.DesiredSize.Width, label.DesiredSize.Height)))
-                    labelTop = ownBounds.Top - label.DesiredSize.Height - 4d;
-            }
-            Canvas.SetTop(label, labelTop);
+                Children =
+                [
+                    new TranslateTransform(0d, -marker.Height * friendScale / 2d - label.DesiredSize.Height - 3d),
+                    labelRotation
+                ]
+            };
+            Canvas.SetLeft(label, center.X - label.DesiredSize.Width / 2d);
+            Canvas.SetTop(label, center.Y);
             SbtcPlayerLayer.Children.Add(label);
         }
     }

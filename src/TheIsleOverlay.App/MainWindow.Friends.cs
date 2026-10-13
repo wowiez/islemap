@@ -75,7 +75,7 @@ public partial class MainWindow
         var now = DateTimeOffset.UtcNow;
         var ownContext = CurrentFriendContext();
         SbtcPlayerMarker[] friends = ownContext is null || !Equals(ownContext, _friendReceivedContext) ? [] : _overlayFriendPresence.Where(friend => FriendPresenceRules.Visible(friend, _friendPresenceReceivedAt, now))
-            .Select(friend => new SbtcPlayerMarker("overlay:" + friend.UserId, $"{friend.Name ?? "Bạn bè"}\n{friend.Species}", false, new MapPoint(friend.Position!.X, friend.Position.Y), friend.Position.Heading, true)).ToArray();
+            .Select(friend => new SbtcPlayerMarker("overlay:" + friend.UserId, friend.Name ?? "Bạn bè", false, new MapPoint(friend.Position!.X, friend.Position.Y), friend.Position.Heading, true)).ToArray();
         ApplyCombinedPlayerMarkers(_serverPlayerMarkers.Concat(friends).ToArray());
         var labelPoint = CurrentMapPoint();
         if (_sbtcPlayerMarkers.Count > 0 && !Equals(labelPoint, _friendLabelPoint) && _renderedPlayerWidth > 0)
