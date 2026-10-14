@@ -5,7 +5,7 @@ namespace TheIsleOverlay.App;
 
 public sealed record OverlayLayoutSettings
 {
-    public int Version { get; init; } = 12;
+    public int Version { get; init; } = 14;
     public double Scale { get; init; } = OverlayLayoutRules.DefaultScale;
     public double MapZoom { get; init; } = OverlayLayoutRules.DefaultMapZoom;
     public string MapStyle { get; init; } = OverlayLayoutRules.DefaultMapStyle;
@@ -17,7 +17,6 @@ public sealed record OverlayLayoutSettings
     public bool ShowMap { get; init; } = true;
     public bool ShowActivity { get; init; } = true;
     public bool RotateMap { get; init; }
-    public bool AutoDetectLiveMap { get; init; } = true;
     public bool ShowPrimeTasks { get; init; }
     public bool ShowPathTrail { get; init; } = true;
     public bool NpcapEnabled { get; init; } = true;
@@ -33,7 +32,9 @@ public sealed record OverlayLayoutSettings
 public static class OverlayLayoutRules
 {
     public const double BaseWidth = 318d;
-    public const double DefaultScale = 1d;
+    // 95%: a slightly smaller default minimap. The stat panel compensates below
+    // 100% (ApplyReadabilityScales), so its text keeps roughly the same size.
+    public const double DefaultScale = 0.95d;
     public const double MinimumScale = 0.65d;
     public const double MaximumScale = 1.75d;
     public const double ButtonStep = 0.1d;
@@ -49,17 +50,20 @@ public static class OverlayLayoutRules
     public static OverlayLayoutSettings Normalize(OverlayLayoutSettings? settings)
     {
         settings ??= new OverlayLayoutSettings();
+        // Layouts still on an earlier untouched default (100% before v13, the
+        // short-lived 85% of v13) follow the current one; a chosen size is kept.
+        var untouchedDefault = settings.Version < 13 ? settings.Scale == 1d : settings.Version == 13 && settings.Scale == 0.85d;
+        var scale = untouchedDefault ? DefaultScale : settings.Scale;
         return settings with
         {
-            Version = 12,
-            Scale = NormalizeScale(settings.Scale),
+            Version = 14,
+            Scale = NormalizeScale(scale),
             MapZoom = NormalizeMapZoom(settings.MapZoom),
             MapStyle = NormalizeMapStyle(settings.MapStyle),
             PlayerMarkerScale = NormalizePlayerMarkerScale(settings.PlayerMarkerScale),
             ShowMap = settings.ShowMap || !settings.ShowActivity,
             ShowActivity = settings.ShowActivity,
             RotateMap = settings.RotateMap,
-            AutoDetectLiveMap = settings.AutoDetectLiveMap,
             ShowPrimeTasks = settings.ShowPrimeTasks,
             ShowPathTrail = settings.ShowPathTrail,
             NpcapEnabled = settings.NpcapEnabled,

@@ -24,6 +24,24 @@ public partial class MainWindow
     private bool _mapKillFeedLoading;
     private bool _mapKillFeedDisposed;
     private DateTimeOffset? _mapKillFeedLastSuccess;
+    private bool _killFeedAvailable;
+    private string? _killFeedServer;
+
+    // The kill feed only exists on SBTC Island: offer it only while playing there.
+    private void UpdateKillFeedAvailability(string? server)
+    {
+        // A brief offline snapshot reports no server: keep the last one instead of
+        // hiding/re-showing the kill feed (and resizing the HUD) on every reconnect.
+        _killFeedServer = server ?? _killFeedServer;
+        var available = !_guest &&
+            (_requestedSource?.Kind == TelemetrySourceKind.SbtcIsland || SbtcZoneOverlay.IsSbtcServer(_killFeedServer));
+        if (available == _killFeedAvailable) return;
+        _killFeedAvailable = available;
+        MapKillFeedSettingRow.Visibility = available ? Visibility.Visible : Visibility.Collapsed;
+        _guideWindow?.SetKillFeedAvailable(available);
+        UpdateMapKillFeedPolling();
+        if (IsLoaded) RefreshWindowSizeToContent();
+    }
 
     private void InitializeMapKillFeed()
     {
@@ -53,7 +71,7 @@ public partial class MainWindow
 
     private void UpdateMapKillFeedPolling()
     {
-        var enabled = _layoutSettings.ShowMapKillFeed && _showMap;
+        var enabled = _layoutSettings.ShowMapKillFeed && _showMap && _killFeedAvailable;
         MapKillFeedToggleButton.Content = _layoutSettings.ShowMapKillFeed ? "KILL FEED · ON" : "KILL FEED · OFF";
         MapKillFeedPanel.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
         if (_mapKillFeedTimer is null || _mapKillFeedDisposed) return;
@@ -72,7 +90,7 @@ public partial class MainWindow
 
     private async Task RefreshMapKillFeedAsync()
     {
-        if (_mapKillFeedLoading || _mapKillFeedDisposed || !_layoutSettings.ShowMapKillFeed || !_showMap || _mapKillFeedClient is null) return;
+        if (_mapKillFeedLoading || _mapKillFeedDisposed || !_layoutSettings.ShowMapKillFeed || !_showMap || !_killFeedAvailable || _mapKillFeedClient is null) return;
         _mapKillFeedLoading = true;
         using var request = CancellationTokenSource.CreateLinkedTokenSource(_shutdown.Token);
         _mapKillFeedRequest = request;

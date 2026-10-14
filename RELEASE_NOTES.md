@@ -1,3 +1,18 @@
+# Isle of Wie 2.0.0
+
+Isle Live Map đổi tên thành **Isle of Wie**, kèm giao diện mới theo logo.
+
+- Logo và icon app mới (icon nét ở mọi cỡ, taskbar không còn hiện icon cũ). Shortcut mới tên "Isle of Wie - The Isle Live Map" nên tìm "the isle live map" vẫn ra app.
+- Giao diện mới cho Home, cẩm nang F8, Overlay Settings và các cửa sổ đăng nhập: bảng màu logo (xanh đêm, vàng, kem), thẻ bo tròn, bộ icon nét đồng bộ.
+- Font Lexend (đủ tiếng Việt, có hinting) cho toàn app; chữ trên bản đồ dùng Bahnschrift. Chữ nhỏ trong HUD và F8 nét, không dính chữ.
+- HUD chỉ số: icon mới; số hiện ngay khi game gửi giá trị hiện tại ("56 / -") và thanh tạm tính tới khi có giá trị tối đa; thanh không còn giật khi số đổi.
+- Chế độ khách và server không có website: ẩn tên dino và % growth, chỉ số không bị làm mờ.
+- Kill feed chỉ hiện khi chơi SBTC Island.
+- Bạn bè: hết chớp nền trắng khi chấp nhận/tải lại; nhãn bạn bè đứng gần nhau không còn đè lên nhau.
+- Bản đồ lớn không in trùng/chồng tên vùng; sửa tên vùng "Highlan" thành "Highlands".
+- Overlay mặc định 95% (bản đồ nhỏ hơn, chữ chỉ số giữ cỡ); bản đồ thu nhỏ mịn, không còn gắt.
+- Bỏ tùy chọn AUTO DETECT: vị trí từ live map luôn được dùng khi có.
+
 # Isle Live Map 1.9.8
 
 - Chia sẻ vị trí bạn bè chỉ với Npcap, kể cả khi web không có dữ liệu Dino hoặc server không hỗ trợ web.

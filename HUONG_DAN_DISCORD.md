@@ -1,4 +1,4 @@
-# 🦖 HƯỚNG DẪN ISLE LIVE MAP
+# 🦖 HƯỚNG DẪN ISLE OF WIE
 
 **1. Cài đặt:** Tải bộ cài do nhà phát hành cung cấp, mở file `.exe` và cài đặt. App không tự tải bản cập nhật từ GitHub.
 

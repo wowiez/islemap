@@ -67,7 +67,9 @@ public partial class MainWindow : Window
     private const int WsExTransparent = 0x00000020;
     private const int WsExNoActivate = 0x08000000;
 
-    private static readonly SolidColorBrush OnlineBrush = BrushFrom("#37D4C6");
+    // Map labels stay condensed: dense zone/player names fit and read better on terrain.
+    internal static readonly FontFamily MapLabelFont = new("Bahnschrift SemiCondensed");
+    private static readonly SolidColorBrush OnlineBrush = BrushFrom("#8DBE5E");
     private static readonly SolidColorBrush WaitingBrush = BrushFrom("#E7B74E");
     private static readonly SolidColorBrush ErrorBrush = BrushFrom("#DC5A56");
 
@@ -102,6 +104,8 @@ public partial class MainWindow : Window
     private string _configuredSource = "ERA";
     private WorldLocation? _location;
     private MapPoint? _mapLocation;
+    private readonly double[] _vitalPeaks = new double[4]; // health, hunger, thirst, stamina
+    private uint? _vitalPeakActor;
     private WorldLocation? _previousLocation;
     private WorldLocation? _previousClipboardLocation;
     private WorldLocation? _clipboardLocation;
@@ -117,7 +121,6 @@ public partial class MainWindow : Window
     private bool _showMap = true;
     private bool _showActivity = true;
     private bool _rotateMap;
-    private bool _autoDetectLiveMap = true;
     private bool _showPrimeTasks;
     private bool _usesIslePilotMap;
     private double _headingDegrees;
@@ -224,7 +227,6 @@ public partial class MainWindow : Window
         _showMap = _layoutSettings.ShowMap;
         _showActivity = _layoutSettings.ShowActivity;
         _rotateMap = _layoutSettings.RotateMap;
-        _autoDetectLiveMap = _layoutSettings.AutoDetectLiveMap;
         _showPrimeTasks = _layoutSettings.ShowPrimeTasks;
         ApplyOverlayScale(_layoutSettings.Scale, persist: false);
         ApplyMapZoom(_mapZoom, persist: false);
@@ -232,10 +234,10 @@ public partial class MainWindow : Window
         ApplyMapRotationPreference(_rotateMap, persist: false);
         ApplyMapMarkerSettings(_layoutSettings.PlayerMarkerScale, _layoutSettings.WildlifeAbovePlayer, persist: false);
         ApplyMapLayerFilters(_layoutSettings.ShowMapZones, _layoutSettings.ShowWildlife, persist: false);
-        ApplyAutoDetectLiveMapPreference(_autoDetectLiveMap, persist: false);
         RenderPrimeTasks(null);
         UpdatePathTrailButtonState();
         InitializeMapKillFeed();
+        UpdateKillFeedAvailability(null);
         ApplyPanelVisibility(persist: false);
     }
 
@@ -284,7 +286,9 @@ public partial class MainWindow : Window
             PlayerNameLabel.Text = "GUEST · MAP ONLY";
             MapStateLabel.Text = "BẢN ĐỒ + VỊ TRÍ TỪ PACKET (NPCAP)";
             UpdatedLabel.Text = "KHÁCH · CHỈ XEM BẢN ĐỒ";
-            SetTelemetryOpacity(0.55d);
+            // No website: species and growth are unknowable, packet stats are exact.
+            DinosaurHeaderRow.Visibility = Visibility.Collapsed;
+            SetTelemetryOpacity(1d);
             return;
         }
 
@@ -419,6 +423,7 @@ public partial class MainWindow : Window
         var activeServer = snapshot.PlayerOnline ? snapshot.Player?.Server : null;
         var mapServer = activeServer ??
             (SbtcZoneOverlay.IsSbtcServer(snapshot.Source) ? "SBTC Island" : null);
+        UpdateKillFeedAvailability(mapServer);
         UpdateSbtcZoneData(
             mapServer,
             snapshot.Map?.PointsOfInterest,
@@ -442,6 +447,9 @@ public partial class MainWindow : Window
                     snapshot.StatusMessage ?? "ISLEPILOT · CHƯA VÀO SERVER HỖ TRỢ",
                     "Server hiện tại chưa cài IslePilot",
                     IsNpcapOwnPositionAuthoritative);
+                // Same as guest mode: no website to name the dino, packet stats stay crisp.
+                DinosaurHeaderRow.Visibility = Visibility.Collapsed;
+                SetTelemetryOpacity(1d);
                 RequestStatusLabel.Text = PositionSourceStatus(activityStatus);
                 return;
             }
@@ -487,6 +495,7 @@ public partial class MainWindow : Window
 
             var degraded = snapshot.SessionState is TelemetrySessionState.Reconnecting or TelemetrySessionState.Stale;
             SetTelemetryOpacity(degraded ? 0.7d : 1d);
+            DinosaurHeaderRow.Visibility = Visibility.Visible;
             SetConnectionState(ConnectionText(snapshot.SessionState), degraded ? WaitingBrush : OnlineBrush);
             SpeciesLabel.Text = FriendlySpecies(player.Class);
             PlayerNameLabel.Text = string.IsNullOrWhiteSpace(player.Name) ? "ACTIVE PLAYER" : player.Name;
@@ -612,6 +621,12 @@ public partial class MainWindow : Window
         source.VitalsReceived += sample => Dispatcher.BeginInvoke(() =>
         {
             if (!ReferenceEquals(_npcapPositionSource, source)) return;
+            if (sample?.ActorHandle != _vitalPeakActor)
+            {
+                Array.Clear(_vitalPeaks);
+                _vitalValueWidth = 0d;
+                _vitalPeakActor = sample?.ActorHandle;
+            }
             _dinosaurVitals.UpdateVitals(sample);
             RenderDinosaurVitals();
         }, DispatcherPriority.Background);
@@ -643,6 +658,9 @@ public partial class MainWindow : Window
 
     private void HideWeight()
     {
+        Array.Clear(_vitalPeaks);
+        _vitalPeakActor = null;
+        _vitalValueWidth = 0d;
         _dinosaurVitals.UpdateWeight(null);
         _dinosaurVitals.UpdateVitals(null);
         RenderDinosaurVitals();
@@ -655,20 +673,13 @@ public partial class MainWindow : Window
         var hunger = _dinosaurVitals.Hunger(now);
         var water = _dinosaurVitals.Thirst(now);
         var stamina = _dinosaurVitals.Stamina(now);
-        // Percentages use the longer fracture-style track; pairs reserve
-        // fixed room for numbers. Digit count never changes either layout.
-        HealthValueColumn.Width = new GridLength(HasVitalPair(health) ? 64d : 32d);
-        RenderPacketVital(HungerBar, HungerValue, hunger, HungerValueColumn);
-        RenderPacketVital(WaterBar, WaterValue, water, WaterValueColumn);
-        RenderPacketVital(StaminaBar, StaminaValue, stamina, StaminaValueColumn);
-        HealthBar.Value = health.Percent ?? 0d;
+        RenderPacketVital(HungerBar, HungerValue, hunger, ref _vitalPeaks[1]);
+        RenderPacketVital(WaterBar, WaterValue, water, ref _vitalPeaks[2]);
+        RenderPacketVital(StaminaBar, StaminaValue, stamina, ref _vitalPeaks[3]);
+        HealthBar.Value = BarPercent(health, ref _vitalPeaks[0]) ?? 0d;
         var waitingForHealthMaximum = health.Current is not null && health.Maximum is null;
         HealthBar.Visibility = Visibility.Visible;
-        HealthValue.Text = health is { Current: { } current, Maximum: { } maximum }
-            ? $"{current.ToString("0", CultureInfo.InvariantCulture)} / {maximum.ToString("0", CultureInfo.InvariantCulture)}"
-            : health.Percent is { } percent
-                ? $"{percent.ToString("0", CultureInfo.InvariantCulture)}%"
-                : "- / -";
+        HealthValue.Text = VitalText(health, "0");
         HealthValue.ToolTip = waitingForHealthMaximum
             ? $"Đã nhận máu hiện tại: {health.Current:0.#}. Đang chờ game gửi máu tối đa."
             : health.FromWeight
@@ -685,25 +696,63 @@ public partial class MainWindow : Window
             };
             _guideWindow?.UpdatePlayerOverview(_guidePlayerOverview);
         }
+        FitVitalValueColumns();
         return health;
     }
 
-    private static bool HasVitalPair(DinosaurHealthValues values) =>
-        values.Current is not null && values.Maximum is not null;
+    // All value columns share one width that only grows: just wide enough for the
+    // longest number shown so far for this dinosaur. Bars stay long and equal, and a
+    // changing number (tabular digits) never nudges them; they can only step
+    // shorter once, when a wider value first appears. Reset with the dinosaur.
+    private const double MinVitalValueWidth = 48d;
+    private double _vitalValueWidth;
 
-    private static void RenderPacketVital(System.Windows.Controls.ProgressBar bar, System.Windows.Controls.TextBlock label, DinosaurHealthValues values, System.Windows.Controls.ColumnDefinition valueColumn)
+    private void FitVitalValueColumns()
     {
-        valueColumn.Width = new GridLength(HasVitalPair(values) ? 64d : 32d);
-        bar.Value = values.Percent ?? 0d;
+        var widest = 0d;
+        foreach (var label in new[] { HealthValue, StaminaValue, HungerValue, WaterValue, FractureValue })
+        {
+            label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            widest = Math.Max(widest, label.DesiredSize.Width);
+        }
+        _vitalValueWidth = Math.Max(Math.Max(_vitalValueWidth, MinVitalValueWidth), Math.Ceiling(widest) + 2d);
+        foreach (var column in new[] { HealthValueColumn, StaminaValueColumn, HungerValueColumn, WaterValueColumn, FractureValueColumn })
+            column.Width = new GridLength(_vitalValueWidth);
+    }
+
+    // The game sends a stat's maximum only in a later keyframe (an unchanged full
+    // stat may never resend it). Until then the bar uses the highest value seen
+    // for this dinosaur as its provisional maximum, so it is not left empty while
+    // the number is already known. Real percentages always win; text keeps "x / -".
+    internal static double? BarPercent(DinosaurHealthValues values, ref double peak)
+    {
+        if (values.Percent is { } percent) return percent;
+        if (values.Current is not { } current || !double.IsFinite(current) || current < 0d) return null;
+        peak = Math.Max(peak, current);
+        return peak > 0d ? Math.Clamp(current / peak * 100d, 0d, 100d) : null;
+    }
+
+    private static void RenderPacketVital(System.Windows.Controls.ProgressBar bar, System.Windows.Controls.TextBlock label, DinosaurHealthValues values, ref double peak)
+    {
+        bar.Value = BarPercent(values, ref peak) ?? 0d;
         var waitingForMaximum = values.Current is not null && values.Maximum is null;
         bar.Visibility = Visibility.Visible;
         label.ToolTip = waitingForMaximum
-            ? $"Đã nhận giá trị hiện tại: {values.Current:0.#}. Đang chờ game gửi giá trị tối đa."
+            ? $"Đã nhận giá trị hiện tại: {values.Current:0.#}. Đang chờ game gửi giá trị tối đa · thanh tạm tính theo mức cao nhất đã thấy."
             : null;
-        label.Text = values is { Current: { } current, Maximum: { } max }
-            ? $"{current.ToString("0.#", CultureInfo.InvariantCulture)} / {max.ToString("0.#", CultureInfo.InvariantCulture)}"
-            : values.Percent is { } percent ? $"{percent:0.#}%" : "- / -";
+        label.Text = VitalText(values, "0.#");
     }
+
+    // A current value arrives before its capacity keyframe: show it right away
+    // ("56 / -") instead of hiding packet data the player already has.
+    internal static string VitalText(DinosaurHealthValues values, string format) => values switch
+    {
+        { Current: { } current, Maximum: { } max } =>
+            $"{current.ToString(format, CultureInfo.InvariantCulture)} / {max.ToString(format, CultureInfo.InvariantCulture)}",
+        { Percent: { } percent } => $"{percent.ToString(format, CultureInfo.InvariantCulture)}%",
+        { Current: { } pending } => $"{pending.ToString(format, CultureInfo.InvariantCulture)} / -",
+        _ => "- / -"
+    };
 
     private async Task RestartNpcapPositionSourceAsync()
     {
@@ -789,8 +838,8 @@ public partial class MainWindow : Window
 
         if (_clipboardLocation is not null)
         {
-            if (_autoDetectLiveMap &&
-                AutoDetectLocationPriority.HasNewLocation(
+            // A fresh live-map position always wins over an older Copy Asset paste.
+            if (AutoDetectLocationPriority.HasNewLocation(
                     _autoDetectLocationAtClipboard,
                     _autoDetectMapUpdatedAtClipboard,
                     networkLocation,
@@ -813,7 +862,7 @@ public partial class MainWindow : Window
             return _clipboardLocation;
         }
 
-        if (_autoDetectLiveMap && networkLocation is not null)
+        if (networkLocation is not null)
         {
             effectiveMapLocation = networkMapLocation;
             return networkLocation;
@@ -1102,6 +1151,8 @@ public partial class MainWindow : Window
     {
         _guidePlayerOverview = null;
         _guideWindow?.UpdatePlayerOverview(null);
+        DinosaurHeaderRow.Visibility = Visibility.Collapsed;
+        SetTelemetryOpacity(1d); // a stale web session must not keep packet vitals dimmed
         SetConnectionState(connectionState, ErrorBrush);
         SpeciesLabel.Text = "TELEMETRY UNAVAILABLE";
         PlayerNameLabel.Text = detail;
@@ -1125,6 +1176,8 @@ public partial class MainWindow : Window
     {
         _guidePlayerOverview = null;
         _guideWindow?.UpdatePlayerOverview(null);
+        DinosaurHeaderRow.Visibility = Visibility.Collapsed;
+        SetTelemetryOpacity(1d); // a stale web session must not keep packet vitals dimmed
         SetConnectionState(connectionState, WaitingBrush);
         SpeciesLabel.Text = "NO ACTIVE DINOSAUR";
         PlayerNameLabel.Text = detail;
@@ -1808,6 +1861,7 @@ public partial class MainWindow : Window
         if (_friends is not null) guideWindow.ConnectFriends(_friends, SyncFriendsAsync);
         guideWindow.UpdateMapMarkerSettings(_layoutSettings.PlayerMarkerScale, _layoutSettings.WildlifeAbovePlayer);
         guideWindow.UpdateMapKillFeedSetting(_layoutSettings.ShowMapKillFeed);
+        guideWindow.SetKillFeedAvailable(_killFeedAvailable);
         guideWindow.MapKillFeedEnabledChanged += GuideWindow_MapKillFeedEnabledChanged;
         guideWindow.UpdateMapLayerFilters(_layoutSettings.ShowMapZones, _layoutSettings.ShowWildlife);
         guideWindow.MapLayerFiltersChanged += MapWindow_MapLayerFiltersChanged;
@@ -1962,6 +2016,7 @@ public partial class MainWindow : Window
         _sbtcPlayerLabelRotations.Clear();
         _renderedPlayerWidth = imageWidth;
         _renderedPlayerHeight = imageHeight;
+        var occupiedLabels = new List<Rect>();
 
         foreach (var player in _sbtcPlayerMarkers)
         {
@@ -2026,7 +2081,7 @@ public partial class MainWindow : Window
                         player.Location,
                         CurrentMapPoint()),
                     Foreground = Brushes.White,
-                    FontFamily = new FontFamily("Bahnschrift SemiCondensed"),
+                    FontFamily = MapLabelFont,
                     FontSize = 10d,
                     FontWeight = FontWeights.SemiBold,
                     MaxWidth = player.Friend ? 180d : 120d,
@@ -2034,13 +2089,25 @@ public partial class MainWindow : Window
                 }
             };
             label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            // Friends standing together: lift a colliding label one row (screen-up,
+            // since the offset is applied before the counter-rotation). Exact for
+            // the default north-up map, a close approximation while it rotates.
+            var labelOffset = -marker.Height * friendScale / 2d - label.DesiredSize.Height - 3d;
+            var labelRect = new Rect(center.X - label.DesiredSize.Width / 2d, center.Y + labelOffset,
+                label.DesiredSize.Width, label.DesiredSize.Height);
+            for (var lift = 0; lift < 4 && occupiedLabels.Any(existing => existing.IntersectsWith(labelRect)); lift++)
+            {
+                labelRect.Y -= label.DesiredSize.Height + 2d;
+                labelOffset -= label.DesiredSize.Height + 2d;
+            }
+            occupiedLabels.Add(labelRect);
             // Counter-rotate the complete offset about the friend's position,
             // so turning the map keeps the label directly above its own marker.
             label.RenderTransform = new TransformGroup
             {
                 Children =
                 [
-                    new TranslateTransform(0d, -marker.Height * friendScale / 2d - label.DesiredSize.Height - 3d),
+                    new TranslateTransform(0d, labelOffset),
                     labelRotation
                 ]
             };
@@ -2068,7 +2135,7 @@ public partial class MainWindow : Window
         {
             Text = text,
             Foreground = Brushes.White,
-            FontFamily = new FontFamily("Bahnschrift SemiCondensed"),
+            FontFamily = MapLabelFont,
             FontSize = fontSize,
             FontWeight = FontWeights.SemiBold
         }
@@ -2289,7 +2356,7 @@ public partial class MainWindow : Window
                 {
                     Text = zoneLabel.Name,
                     Foreground = Brushes.White,
-                    FontFamily = new FontFamily("Bahnschrift SemiCondensed"),
+                    FontFamily = MapLabelFont,
                     FontSize = 9.5d,
                     FontWeight = FontWeights.SemiBold
                 }
@@ -2521,7 +2588,6 @@ public partial class MainWindow : Window
         SetMapKillFeedEnabled(false);
         RenderPrimeTasks(null);
         ApplyMapRotationPreference(rotateMap: true, persist: false);
-        ApplyAutoDetectLiveMapPreference(autoDetectLiveMap: true, persist: false);
         ApplyPanelVisibility(persist: false);
         SaveOverlayLayout();
     }
@@ -2596,8 +2662,6 @@ public partial class MainWindow : Window
     private void MapRotationButton_Click(object sender, RoutedEventArgs e) =>
         ApplyMapRotationPreference(!_rotateMap, persist: true);
 
-    private void AutoDetectLiveMapButton_Click(object sender, RoutedEventArgs e) =>
-        ApplyAutoDetectLiveMapPreference(!_autoDetectLiveMap, persist: true);
 
     private void ResizeGrip_DragStarted(object sender, DragStartedEventArgs e)
     {
@@ -2653,9 +2717,9 @@ public partial class MainWindow : Window
         OverlayScaleTransform.ScaleX = pixelAlignedScale;
         OverlayScaleTransform.ScaleY = pixelAlignedScale;
         TextOptions.SetTextRenderingMode(OverlayScaleRoot, TextRenderingMode.Grayscale);
-        RenderOptions.SetBitmapScalingMode(
-            MapImage,
-            pixelAlignedScale < 1d ? BitmapScalingMode.Linear : BitmapScalingMode.HighQuality);
+        // The map bitmap is always downscaled; Linear below 100% aliased it into a
+        // harsh, over-sharpened look. HighQuality (Fant) keeps every size smooth.
+        RenderOptions.SetBitmapScalingMode(MapImage, BitmapScalingMode.HighQuality);
         ApplyReadabilityScales();
         OverlayScaleLabel.Text = OverlayLayoutRules.FormatScale(_overlayScale);
         if (Math.Abs(OverlayScaleSlider.Value - _overlayScale * 100d) > 0.01d)
@@ -2712,8 +2776,8 @@ public partial class MainWindow : Window
         MapViewport.Clip = isCircle
             ? new EllipseGeometry(new Point(141d, 141d), 141d, 141d)
             : new RectangleGeometry(new Rect(0d, 0d, 282d, 282d), 4d, 4d);
-        CircleStyleButton.Background = isCircle ? BrushFrom("#3A1D514B") : Brushes.Transparent;
-        SquareStyleButton.Background = isCircle ? Brushes.Transparent : BrushFrom("#3A1D514B");
+        CircleStyleButton.Background = isCircle ? BrushFrom("#40C9A95A") : Brushes.Transparent;
+        SquareStyleButton.Background = isCircle ? Brushes.Transparent : BrushFrom("#40C9A95A");
 
         if (persist)
         {
@@ -2725,24 +2789,12 @@ public partial class MainWindow : Window
     {
         _rotateMap = rotateMap;
         MapRotationButton.Content = _rotateMap ? "ROTATE · ON" : "ROTATE · OFF";
-        MapRotationButton.Background = _rotateMap ? BrushFrom("#3A1D514B") : Brushes.Transparent;
+        MapRotationButton.Background = _rotateMap ? BrushFrom("#40C9A95A") : Brushes.Transparent;
         // The applied angles depend on the mode, so re-apply even when the
         // heading itself did not change.
         _lastAppliedNeedleAngle = null;
         _lastAppliedMapAngle = null;
         AnimateHeadingTo(_headingDegrees);
-
-        if (persist)
-        {
-            SaveOverlayLayout();
-        }
-    }
-
-    private void ApplyAutoDetectLiveMapPreference(bool autoDetectLiveMap, bool persist)
-    {
-        _autoDetectLiveMap = autoDetectLiveMap;
-        AutoDetectLiveMapButton.Content = _autoDetectLiveMap ? "LIVE MAP · ON" : "LIVE MAP · OFF";
-        AutoDetectLiveMapButton.Background = _autoDetectLiveMap ? BrushFrom("#3A3B4A21") : Brushes.Transparent;
 
         if (persist)
         {
@@ -2765,11 +2817,11 @@ public partial class MainWindow : Window
         UpdateMapKillFeedPolling();
         MapVisibilityButton.Content = _showMap ? "MAP · ON" : "MAP · OFF";
         ActivityVisibilityButton.Content = _showActivity ? "ACTIVITY · ON" : "ACTIVITY · OFF";
-        MapVisibilityButton.Background = _showMap ? BrushFrom("#3A1D514B") : Brushes.Transparent;
-        ActivityVisibilityButton.Background = _showActivity ? BrushFrom("#3A1D514B") : Brushes.Transparent;
+        MapVisibilityButton.Background = _showMap ? BrushFrom("#40C9A95A") : Brushes.Transparent;
+        ActivityVisibilityButton.Background = _showActivity ? BrushFrom("#40C9A95A") : Brushes.Transparent;
         PrimeTasksPanel.Visibility = _showPrimeTasks ? Visibility.Visible : Visibility.Collapsed;
         PrimeTasksVisibilityButton.Content = _showPrimeTasks ? "PRIME · ON" : "PRIME · OFF";
-        PrimeTasksVisibilityButton.Background = _showPrimeTasks ? BrushFrom("#3A3B4A21") : Brushes.Transparent;
+        PrimeTasksVisibilityButton.Background = _showPrimeTasks ? BrushFrom("#40C9A95A") : Brushes.Transparent;
 
         if (_showMap && IsLoaded)
         {
@@ -2838,7 +2890,6 @@ public partial class MainWindow : Window
             ShowMap = _showMap,
             ShowActivity = _showActivity,
             RotateMap = _rotateMap,
-            AutoDetectLiveMap = _autoDetectLiveMap,
             ShowPrimeTasks = _showPrimeTasks,
             Left = WindowState == WindowState.Normal ? Left : _layoutSettings.Left,
             Top = WindowState == WindowState.Normal ? Top : _layoutSettings.Top

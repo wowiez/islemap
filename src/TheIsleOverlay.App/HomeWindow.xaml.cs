@@ -41,7 +41,7 @@ public partial class HomeWindow : Window
             return;
         }
 
-        VersionStatusLabel.Text = $"ISLE LIVE MAP · v{CurrentVersion()} · ĐANG KIỂM TRA UPDATE";
+        VersionStatusLabel.Text = $"ISLE OF WIE · v{CurrentVersion()} · ĐANG KIỂM TRA UPDATE";
         await CheckForUpdatesAsync();
     }
 
@@ -66,13 +66,13 @@ public partial class HomeWindow : Window
                     }
                     break;
                 case UpdateCheckState.DevelopmentBuild:
-                    VersionStatusLabel.Text = $"ISLE LIVE MAP · v{CurrentVersion()} · PORTABLE/DEV";
+                    VersionStatusLabel.Text = $"ISLE OF WIE · v{CurrentVersion()} · PORTABLE/DEV";
                     break;
                 case UpdateCheckState.Unavailable:
-                    VersionStatusLabel.Text = $"ISLE LIVE MAP · v{CurrentVersion()} · KHÔNG CHECK ĐƯỢC UPDATE";
+                    VersionStatusLabel.Text = $"ISLE OF WIE · v{CurrentVersion()} · KHÔNG CHECK ĐƯỢC UPDATE";
                     break;
                 default:
-                    VersionStatusLabel.Text = $"ISLE LIVE MAP · v{CurrentVersion()} · MỚI NHẤT";
+                    VersionStatusLabel.Text = $"ISLE OF WIE · v{CurrentVersion()} · MỚI NHẤT";
                     break;
             }
         }
@@ -89,7 +89,7 @@ public partial class HomeWindow : Window
         var version = string.IsNullOrWhiteSpace(_availableUpdateVersion)
             ? "BẢN MỚI"
             : $"v{_availableUpdateVersion}";
-        VersionStatusLabel.Text = $"ISLE LIVE MAP · v{CurrentVersion()} · CẦN UPDATE {version}";
+        VersionStatusLabel.Text = $"ISLE OF WIE · v{CurrentVersion()} · CẦN UPDATE {version}";
         ApplyUpdateButton.Content = "UPDATE";
         ApplyUpdateButton.IsEnabled = true;
         ApplyUpdateButton.Visibility = Visibility.Visible;
@@ -109,7 +109,7 @@ public partial class HomeWindow : Window
         {
             var downloaded = await _updateService.DownloadPendingUpdateAsync(
                 progress => Dispatcher.Invoke(() =>
-                    VersionStatusLabel.Text = $"ISLE LIVE MAP · ĐANG TẢI UPDATE {progress}%"),
+                    VersionStatusLabel.Text = $"ISLE OF WIE · ĐANG TẢI UPDATE {progress}%"),
                 _shutdown.Token);
             if (!downloaded)
             {
@@ -146,7 +146,7 @@ public partial class HomeWindow : Window
                 or TelemetrySourceKind.Pandora
                 or TelemetrySourceKind.SbtcIsland
                 or TelemetrySourceKind.IslePilotHosted);
-        OwnSourceCountLabel.Text = $"{count} NGUỒN RIÊNG";
+        OwnSourceCountLabel.Text = $"· {count} nguồn";
     }
 
     private void GuestModeButton_Click(object sender, RoutedEventArgs e)

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- App icon: the logo's map badge without the wordmark, so it stays legible at 16-32px. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#16271D"/>
+      <stop offset="1" stop-color="#070E0A"/>
+    </linearGradient>
+    <radialGradient id="sea" cx="0.5" cy="0.45" r="0.6">
+      <stop offset="0" stop-color="#1F6470"/>
+      <stop offset="1" stop-color="#0A2128"/>
+    </radialGradient>
+    <linearGradient id="land" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7DAE52"/>
+      <stop offset="1" stop-color="#46702E"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+  <circle cx="128" cy="132" r="96" fill="url(#sea)"/>
+  <path d="M58 150C42 118 66 76 106 72C134 60 178 72 192 104C206 136 186 172 154 176C132 192 82 190 58 150Z"
+        fill="url(#land)" stroke="#E2CF96" stroke-width="7" stroke-linejoin="round"/>
+  <g fill="#1F3317">
+    <ellipse cx="126" cy="104" rx="10" ry="27"/>
+    <ellipse cx="126" cy="104" rx="9" ry="24" transform="rotate(-32 126 156)"/>
+    <ellipse cx="126" cy="104" rx="9" ry="24" transform="rotate(32 126 156)"/>
+    <ellipse cx="126" cy="154" rx="19" ry="16"/>
+  </g>
+  <circle cx="128" cy="132" r="96" fill="none" stroke="#C9A95A" stroke-width="11"/>
+  <path d="M128 18L140 42H116Z" fill="#C9A95A"/>
+  <circle cx="204" cy="56" r="20" fill="#FF3B30" stroke="#0B1510" stroke-width="7"/>
+</svg>

@@ -312,6 +312,10 @@ public partial class LargeMapWindow : Window
             }
         }
 
+        // Same rule as the minimap: a label that would cover an earlier one is
+        // suppressed, so duplicate or neighbouring zone names never print on top
+        // of each other (e.g. two "NE Cape" entries at the same spot).
+        var occupiedLabels = new List<Rect>();
         foreach (var zoneLabel in SbtcZoneOverlay.CreateLabels(_zones))
         {
             var center = ToCanvasPoint(zoneLabel.Center);
@@ -330,7 +334,7 @@ public partial class LargeMapWindow : Window
                 {
                     Text = zoneLabel.Name,
                     Foreground = Brushes.White,
-                    FontFamily = new FontFamily("Bahnschrift SemiCondensed"),
+                    FontFamily = MainWindow.MapLabelFont,
                     FontSize = 14d,
                     FontWeight = FontWeights.SemiBold
                 }
@@ -343,6 +347,14 @@ public partial class LargeMapWindow : Window
                 : center.Y - Math.Max(7d, (zoneLabel.Size ?? 0.01d) * MapWidth) - 15d;
             Canvas.SetLeft(label, center.X - label.DesiredSize.Width / 2d);
             Canvas.SetTop(label, labelCenterY - label.DesiredSize.Height / 2d);
+            var bounds = new Rect(center.X - label.DesiredSize.Width / 2d - 4d,
+                labelCenterY - label.DesiredSize.Height / 2d - 4d, label.DesiredSize.Width + 8d, label.DesiredSize.Height + 8d);
+            if (occupiedLabels.Any(existing => existing.IntersectsWith(bounds)))
+            {
+                label.Tag = "MapZoneLabelSuppressed";
+                label.Visibility = Visibility.Collapsed;
+            }
+            else occupiedLabels.Add(bounds);
             var layer = SbtcZoneOverlay.IsFilterableZone(zoneLabel.Kind) ? LargeZoneLayer : LargeMapPoiLayer;
             layer.Children.Add(label);
         }
@@ -446,6 +458,7 @@ public partial class LargeMapWindow : Window
     private void RenderPlayers()
     {
         LargePlayerLayer.Children.Clear();
+        var occupiedLabels = new List<Rect>();
         foreach (var player in _players)
         {
             var center = ToCanvasPoint(player.Location);
@@ -500,7 +513,7 @@ public partial class LargeMapWindow : Window
                         player.Location,
                         _currentLocation),
                     Foreground = Brushes.White,
-                    FontFamily = new FontFamily("Bahnschrift SemiCondensed"),
+                    FontFamily = MainWindow.MapLabelFont,
                     FontSize = 13d,
                     FontWeight = FontWeights.SemiBold,
                     MaxWidth = 150d,
@@ -508,8 +521,16 @@ public partial class LargeMapWindow : Window
                 }
             };
             label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            Canvas.SetLeft(label, center.X - label.DesiredSize.Width / 2d);
-            Canvas.SetTop(label, center.Y - marker.Height * friendScale / 2d - label.DesiredSize.Height - 5d);
+            // Players standing together would print their names on top of each
+            // other: lift each colliding label one row until it is clear.
+            var labelRect = new Rect(center.X - label.DesiredSize.Width / 2d,
+                center.Y - marker.Height * friendScale / 2d - label.DesiredSize.Height - 5d,
+                label.DesiredSize.Width, label.DesiredSize.Height);
+            for (var lift = 0; lift < 6 && occupiedLabels.Any(existing => existing.IntersectsWith(labelRect)); lift++)
+                labelRect.Y -= label.DesiredSize.Height + 2d;
+            occupiedLabels.Add(labelRect);
+            Canvas.SetLeft(label, labelRect.X);
+            Canvas.SetTop(label, labelRect.Y);
             LargePlayerLayer.Children.Add(label);
         }
     }
@@ -526,7 +547,7 @@ public partial class LargeMapWindow : Window
         {
             Text = text,
             Foreground = Brushes.White,
-            FontFamily = new FontFamily("Bahnschrift SemiCondensed"),
+            FontFamily = MainWindow.MapLabelFont,
             FontSize = fontSize,
             FontWeight = FontWeights.SemiBold
         }

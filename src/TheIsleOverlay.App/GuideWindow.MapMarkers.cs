@@ -20,8 +20,8 @@ public partial class GuideWindow
         {
             GuidePlayerMarkerScaleSlider.Value = _playerMarkerScale * 100d;
             GuidePlayerMarkerScaleLabel.Text = OverlayLayoutRules.FormatPlayerMarkerScale(_playerMarkerScale);
-            GuideWildlifeBelowPlayerButton.Background = BrushFrom(!wildlifeAbovePlayer ? "#34363A" : "#00000000");
-            GuideWildlifeAbovePlayerButton.Background = BrushFrom(wildlifeAbovePlayer ? "#34363A" : "#00000000");
+            GuideWildlifeBelowPlayerButton.Background = BrushFrom(!wildlifeAbovePlayer ? "#2C4236" : "#00000000");
+            GuideWildlifeAbovePlayerButton.Background = BrushFrom(wildlifeAbovePlayer ? "#2C4236" : "#00000000");
         }
         finally { _updatingMapMarkerSettings = false; }
     }

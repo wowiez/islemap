@@ -295,6 +295,7 @@ public partial class GuideWindow : Window
         RenderCaptureSettings();
         UpdateMapMarkerSettings(OverlayLayoutRules.DefaultPlayerMarkerScale, wildlifeAbovePlayer: false);
         InitializeKillFeed();
+        SetKillFeedAvailable(false);
     }
 
     public event Action<MapPoint?>? DestinationChanged;
@@ -569,11 +570,11 @@ public partial class GuideWindow : Window
         };
         foreach (var color in colors)
         {
-            var colorButton = new Button { Width = 24, Height = 24, Padding = new Thickness(0), Margin = new Thickness(1), Background = BrushFrom(color), BorderBrush = BrushFrom("#606761"), ToolTip = color };
+            var colorButton = new Button { Width = 24, Height = 24, Padding = new Thickness(0), Margin = new Thickness(1), Background = BrushFrom(color), BorderBrush = BrushFrom("#577062"), ToolTip = color };
             colorButton.Click += (_, _) => { input.Input.Text = color; popup.IsOpen = false; };
             panel.Children.Add(colorButton);
         }
-        popup.Child = new Border { Background = BrushFrom("#202326"), BorderBrush = BrushFrom("#606761"), BorderThickness = new Thickness(1), Padding = new Thickness(4), Child = panel };
+        popup.Child = new Border { Background = BrushFrom("#1B2B22"), BorderBrush = BrushFrom("#577062"), BorderThickness = new Thickness(1), Padding = new Thickness(4), Child = panel };
         popup.IsOpen = true;
     }
 
@@ -654,8 +655,8 @@ public partial class GuideWindow : Window
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Owner = this,
             ResizeMode = ResizeMode.NoResize,
-            Background = BrushFrom("#151918"),
-            Foreground = BrushFrom("#E8EAE9")
+            Background = BrushFrom("#111D16"),
+            Foreground = BrushFrom("#F5F0DD")
         };
         var input = new TextBox { Text = $"{_skinEditorSpecies} skin", Margin = new Thickness(0, 8, 0, 12), MinWidth = 290 };
         var save = new Button { Content = "LƯU", IsDefault = true, Padding = new Thickness(18, 6, 18, 6), HorizontalAlignment = HorizontalAlignment.Right };
@@ -798,7 +799,7 @@ public partial class GuideWindow : Window
         _skinDraftLoading = true;
         SkinDraftsRefreshButton.IsEnabled = false;
         SkinDraftsStatusLabel.Text = "Đang tải thiết kế đã lưu từ Studio SBTC…";
-        SkinDraftsStatusLabel.Foreground = BrushFrom("#B9C8C1");
+        SkinDraftsStatusLabel.Foreground = BrushFrom("#CCC7B5");
         try
         {
             var result = await _garageApi.LoadSkinDrafts(_skinEditorServerSlug, _garageCancellation.Token);
@@ -917,15 +918,15 @@ public partial class GuideWindow : Window
             var color = NormalizeHex(input.Text);
             var inputValid = color is not null;
             valid &= inputValid;
-            input.BorderBrush = BrushFrom(inputValid ? "#45484C" : "#B95252");
-            swatch.Background = BrushFrom(color ?? "#17191B");
+            input.BorderBrush = BrushFrom(inputValid ? "#3C5547" : "#B95252");
+            swatch.Background = BrushFrom(color ?? "#131F18");
         }
 
         if (valid && TryReadSkinPalette(out var palette))
         {
             SkinEditorModel.SetModel(_skinEditorSpecies, palette, _skinEditorPattern);
             SkinEditorStatusLabel.Text = "BẢNG MÀU HỢP LỆ · #RRGGBB";
-            SkinEditorStatusLabel.Foreground = BrushFrom("#7F8C84");
+            SkinEditorStatusLabel.Foreground = BrushFrom("#869279");
         }
         else
         {
@@ -996,15 +997,15 @@ public partial class GuideWindow : Window
         if (!IsInitialized) return;
 
         NpcapToggleButton.Content = _npcapEnabled ? "BẬT" : "TẮT";
-        NpcapToggleButton.Background = _npcapEnabled ? BrushFrom("#34363A") : Brushes.Transparent;
-        NpcapToggleButton.Foreground = BrushFrom(_npcapEnabled ? "#F2F3F4" : "#85888D");
+        NpcapToggleButton.Background = _npcapEnabled ? BrushFrom("#2C4236") : Brushes.Transparent;
+        NpcapToggleButton.Foreground = BrushFrom(_npcapEnabled ? "#FAF7EC" : "#8A957D");
         NpcapDiagnosticsLabel.Text = _npcapEnabled ? NpcapDiagnostics.Describe(_npcapState) : string.Empty;
         NpcapStatusLabel.Text = NpcapSourcePresentation.StatusText(_npcapEnabled, _npcapState.Status);
         NpcapStatusLabel.Foreground = BrushFrom(!_npcapEnabled
-            ? "#85888D"
+            ? "#8A957D"
             : _npcapState.Status switch
             {
-                NpcapSourceStatus.Live => "#37D4C6",
+                NpcapSourceStatus.Live => "#8DBE5E",
                 NpcapSourceStatus.Faulted => "#DC5A56",
                 NpcapSourceStatus.Unavailable => "#E7B74E",
                 _ => "#C6A85C"
@@ -1014,8 +1015,8 @@ public partial class GuideWindow : Window
                 ? Visibility.Visible
                 : Visibility.Collapsed;
         AutoHideOutsideGameButton.Content = _autoHideOutsideGame ? "BẬT" : "TẮT";
-        AutoHideOutsideGameButton.Background = _autoHideOutsideGame ? BrushFrom("#34363A") : Brushes.Transparent;
-        AutoHideOutsideGameButton.Foreground = BrushFrom(_autoHideOutsideGame ? "#F2F3F4" : "#85888D");
+        AutoHideOutsideGameButton.Background = _autoHideOutsideGame ? BrushFrom("#2C4236") : Brushes.Transparent;
+        AutoHideOutsideGameButton.Foreground = BrushFrom(_autoHideOutsideGame ? "#FAF7EC" : "#8A957D");
     }
 
     private void ShowPage(FrameworkElement page, Button activeButton)
@@ -1028,9 +1029,9 @@ public partial class GuideWindow : Window
         foreach (var button in new[] { OverviewNavButton, MapNavButton, GarageNavButton, SkinEditorNavButton, VoiceNavButton, MutationNavButton, KillFeedNavButton, SettingsNavButton, FriendsNavButton })
         {
             var active = button == activeButton;
-            button.Foreground = BrushFrom(active ? "#111214" : "#9A9DA2");
-            button.Background = BrushFrom(active ? "#D9DBDE" : "#00000000");
-            button.BorderBrush = BrushFrom(active ? "#F0F1F2" : "#3B3D41");
+            button.Foreground = BrushFrom(active ? "#13221A" : "#9FA894");
+            button.Background = BrushFrom(active ? "#ECDFB3" : "#00000000");
+            button.BorderBrush = BrushFrom(active ? "#D9C58C" : "#324A3C");
         }
 
         page.BeginAnimation(OpacityProperty, new DoubleAnimation(0.35d, 1d, TimeSpan.FromMilliseconds(150))
@@ -1388,7 +1389,7 @@ public partial class GuideWindow : Window
         }
 
         SpeciesSummaryLabel.Text = species.Summary;
-        SpeciesProfileLabel.Text = $"{species.Diet.ToUpperInvariant()}  ·  {species.Role.ToUpperInvariant()}";
+        SpeciesProfileLabel.Text = $"{species.Diet.ToUpperInvariant()} · {species.Role.ToUpperInvariant()}";
         var trackName = _selectedTrack switch
         {
             MutationTrack.Survival => "Sinh tồn",
@@ -1409,9 +1410,9 @@ public partial class GuideWindow : Window
                  })
         {
             var active = pair.Track == _selectedTrack;
-            pair.Button.Background = BrushFrom(active ? "#303236" : "#141517");
-            pair.Button.Foreground = BrushFrom(active ? "#F0F1F2" : "#92959A");
-            pair.Button.BorderBrush = BrushFrom(active ? "#7C7F84" : "#34363A");
+            pair.Button.Background = BrushFrom(active ? "#283E32" : "#101B15");
+            pair.Button.Foreground = BrushFrom(active ? "#FAF6E8" : "#97A08B");
+            pair.Button.BorderBrush = BrushFrom(active ? "#818D73" : "#2C4236");
         }
 
         MutationCards.BeginAnimation(OpacityProperty, new DoubleAnimation(0.25d, 1d, TimeSpan.FromMilliseconds(150)));

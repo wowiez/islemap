@@ -1,0 +1,59 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#13221a"/>
+      <stop offset="1" stop-color="#060d09"/>
+    </linearGradient>
+    <radialGradient id="sea" cx="0.5" cy="0.45" r="0.6">
+      <stop offset="0" stop-color="#1b5560"/>
+      <stop offset="1" stop-color="#0a2128"/>
+    </radialGradient>
+    <linearGradient id="land" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6b9a45"/>
+      <stop offset="1" stop-color="#3d6229"/>
+    </linearGradient>
+    <clipPath id="disc"><circle cx="256" cy="220" r="146"/></clipPath>
+  </defs>
+
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+
+  <!-- map disc -->
+  <circle cx="256" cy="220" r="146" fill="url(#sea)"/>
+  <g clip-path="url(#disc)" stroke="#7fd3d9" stroke-opacity="0.12" stroke-width="1.5">
+    <path d="M110 160H402M110 220H402M110 280H402M196 70V370M256 70V370M316 70V370"/>
+  </g>
+
+  <!-- island -->
+  <path d="M168 262C146 222 176 166 228 160C262 146 318 160 336 198C352 236 330 284 290 290C262 308 196 306 168 262Z"
+        fill="url(#land)" stroke="#d9c58c" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M206 250C196 226 214 196 244 192C266 186 296 198 302 222C306 246 288 262 264 264C244 270 214 268 206 250Z"
+        fill="#56813a" opacity="0.7"/>
+
+  <!-- dino footprint -->
+  <g fill="#1f3317">
+    <ellipse cx="252" cy="198" rx="9" ry="25"/>
+    <ellipse cx="252" cy="198" rx="8" ry="22" transform="rotate(-32 252 246)"/>
+    <ellipse cx="252" cy="198" rx="8" ry="22" transform="rotate(32 252 246)"/>
+    <ellipse cx="252" cy="244" rx="17" ry="14"/>
+  </g>
+
+  <!-- compass ring -->
+  <circle cx="256" cy="220" r="146" fill="none" stroke="#c9a95a" stroke-width="7"/>
+  <circle cx="256" cy="220" r="130" fill="none" stroke="#c9a95a" stroke-opacity="0.45" stroke-width="2" stroke-dasharray="4 10"/>
+  <path d="M256 52L268 78H244Z" fill="#c9a95a"/>
+
+  <!-- live pulse -->
+  <g transform="translate(372 112)">
+    <circle r="14" fill="none" stroke="#ff3b30" stroke-width="3">
+      <animate attributeName="r" values="14;38" dur="1.8s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.9;0" dur="1.8s" repeatCount="indefinite"/>
+    </circle>
+    <circle r="15" fill="#ff3b30" stroke="#13221a" stroke-width="5"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="256" y="424" text-anchor="middle" font-family="Impact, 'Arial Black', sans-serif"
+        font-size="52" letter-spacing="4" fill="#ecdfb3">ISLE OF <tspan fill="#c9a95a">WIE</tspan></text>
+  <text x="256" y="466" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-weight="700"
+        font-size="24" letter-spacing="12" fill="#c9a95a"><tspan fill="#ff3b30">●</tspan> LIVE MAP</text>
+</svg>

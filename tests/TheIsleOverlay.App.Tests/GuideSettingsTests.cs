@@ -50,7 +50,7 @@ public sealed class GuideSettingsTests
         var navStyle = Assert.Single(document.Descendants(), element =>
             string.Equals((string?)element.Attribute(keyAttribute), "NavButton", StringComparison.Ordinal));
         Assert.Contains(navStyle.Descendants(), element =>
-            element.Name.LocalName == "Border" && (string?)element.Attribute("CornerRadius") == "8");
+            element.Name.LocalName == "Border" && (string?)element.Attribute("CornerRadius") == "12");
 
         var actionStyle = Assert.Single(document.Descendants(), element =>
             string.Equals((string?)element.Attribute(keyAttribute), "SettingsActionButton", StringComparison.Ordinal));

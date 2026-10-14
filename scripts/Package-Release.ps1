@@ -38,7 +38,7 @@ dotnet publish $projectFile --configuration Release --runtime win-x64 --self-con
 if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }
 
 dotnet vpk pack --packId IsleLiveMap --packVersion $Version --packDir $publishDirectory `
-    --mainExe IsleLiveMap.exe --packTitle 'Isle Live Map' --packAuthors 'IsleLiveMap' `
+    --mainExe IsleLiveMap.exe --packTitle 'Isle of Wie - The Isle Live Map' --packAuthors 'IsleLiveMap' `
     --runtime win-x64 --icon $iconFile --releaseNotes $releaseNotes --outputDir $releaseDirectory
 if ($LASTEXITCODE -ne 0) { throw 'Velopack packaging failed.' }
 

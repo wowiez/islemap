@@ -6,8 +6,8 @@ namespace TheIsleOverlay.App.Tests;
 public sealed class OverlayLayoutSettingsTests
 {
     [Theory]
-    [InlineData(double.NaN, 1d)]
-    [InlineData(double.NegativeInfinity, 1d)]
+    [InlineData(double.NaN, OverlayLayoutRules.DefaultScale)]
+    [InlineData(double.NegativeInfinity, OverlayLayoutRules.DefaultScale)]
     [InlineData(0.2d, 0.65d)]
     [InlineData(0.45d, 0.65d)]
     [InlineData(0.65d, 0.65d)]
@@ -108,7 +108,6 @@ public sealed class OverlayLayoutSettingsTests
                 ShowMap = false,
                 ShowActivity = true,
                 RotateMap = true,
-                AutoDetectLiveMap = false,
                 ShowPrimeTasks = false,
                 ShowPathTrail = false,
                 NpcapEnabled = false,
@@ -129,7 +128,6 @@ public sealed class OverlayLayoutSettingsTests
             Assert.False(restored.ShowMap);
             Assert.True(restored.ShowActivity);
             Assert.True(restored.RotateMap);
-            Assert.False(restored.AutoDetectLiveMap);
             Assert.False(restored.ShowPrimeTasks);
             Assert.False(restored.ShowPathTrail);
             Assert.False(restored.NpcapEnabled);
@@ -146,7 +144,19 @@ public sealed class OverlayLayoutSettingsTests
             Assert.False(migrated.WildlifeAbovePlayer);
             Assert.True(migrated.ShowMapZones);
             Assert.True(migrated.ShowWildlife);
-            Assert.Equal(12, migrated.Version);
+            Assert.Equal(14, migrated.Version);
+
+            // Untouched older defaults (100% before v13, 85% in v13) follow the 95% default; chosen sizes stay.
+            File.WriteAllText(path, """{"version":12,"scale":1}""");
+            Assert.Equal(0.95d, store.Load().Scale);
+            File.WriteAllText(path, """{"version":13,"scale":0.85}""");
+            Assert.Equal(0.95d, store.Load().Scale);
+            File.WriteAllText(path, """{"version":12,"scale":1.2}""");
+            Assert.Equal(1.2d, store.Load().Scale);
+            File.WriteAllText(path, """{"version":13,"scale":1}""");
+            Assert.Equal(1d, store.Load().Scale);
+            File.WriteAllText(path, """{"version":14,"scale":0.85}""");
+            Assert.Equal(0.85d, store.Load().Scale);
 
             File.WriteAllText(path, "{broken");
             Assert.Equal(new OverlayLayoutSettings(), store.Load());
@@ -211,7 +221,7 @@ public sealed class OverlayLayoutSettingsTests
         Assert.NotNull(Control("MapVisibilityButton"));
         Assert.NotNull(Control("ActivityVisibilityButton"));
         Assert.NotNull(Control("MapRotationButton"));
-        Assert.NotNull(Control("AutoDetectLiveMapButton"));
+        Assert.DoesNotContain(document.Descendants(), element => (string?)element.Attribute(nameAttribute) == "AutoDetectLiveMapButton");
         Assert.NotNull(Control("PrimeTasksVisibilityButton"));
         Assert.NotNull(Control("PathTrailToggleButton"));
         Assert.NotNull(Control("ClearPathTrailButton"));
@@ -362,16 +372,16 @@ public sealed class OverlayLayoutSettingsTests
         XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
         XName nameAttribute = "{http://schemas.microsoft.com/winfx/2006/xaml}Name";
 
-        // The food status is drawn as the drumstick icon the user supplied, with a warm
-        // orange body and a lighter edge/highlight.
+        // The food status is a drumstick line icon in the food bar's orange, matching
+        // the other stat icons: a tinted meat outline plus a stroke-only bone.
         var drumstick = Assert.Single(document.Descendants(), element =>
             string.Equals((string?)element.Attribute(nameAttribute), "FoodSteakIcon", StringComparison.Ordinal));
         Assert.Equal("Thức ăn", (string?)drumstick.Attribute("ToolTip"));
         var paths = drumstick.Descendants(presentation + "Path").ToArray();
         Assert.Equal(2, paths.Length);
-        Assert.Equal("#E49428", (string?)paths[0].Attribute("Fill"));
-        Assert.Equal("#FFD18B", (string?)paths[0].Attribute("Stroke"));
-        Assert.Equal("#FFE3B8", (string?)paths[1].Attribute("Fill"));
+        Assert.All(paths, path => Assert.Equal("#E49428", (string?)path.Attribute("Stroke")));
+        Assert.Equal("#33E49428", (string?)paths[0].Attribute("Fill"));
+        Assert.Null(paths[1].Attribute("Fill"));
         Assert.Empty(drumstick.Descendants(presentation + "Ellipse"));
         Assert.Empty(drumstick.Descendants(presentation + "TextBlock"));
     }

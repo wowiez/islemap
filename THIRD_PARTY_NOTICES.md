@@ -30,3 +30,7 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
+
+# Lexend font
+
+`src/TheIsleOverlay.App/Assets/Fonts/Lexend-*.ttf` are static Regular/Medium/SemiBold/Bold instances of the Lexend variable font from the official Google Fonts repository (https://github.com/google/fonts/tree/main/ofl/lexend), autohinted with ttfautohint for crisp small Windows text. Lexend is Copyright 2018 The Lexend Project Authors (https://github.com/googlefonts/lexend), with Reserved Font Name "RevReading Lexend", licensed under the SIL Open Font License 1.1; the full license is in `src/TheIsleOverlay.App/Assets/Fonts/OFL.txt`.

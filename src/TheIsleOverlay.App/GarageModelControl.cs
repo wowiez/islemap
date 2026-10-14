@@ -449,7 +449,7 @@ public sealed class GarageModelControl : ContentControl
             TextWrapping = TextWrapping.Wrap,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
-            FontFamily = new FontFamily("Bahnschrift SemiCondensed"),
+            FontFamily = App.UiFont,
             FontWeight = FontWeights.SemiBold,
             Foreground = new SolidColorBrush(Color.FromRgb(226, 236, 228)),
             Effect = new System.Windows.Media.Effects.DropShadowEffect

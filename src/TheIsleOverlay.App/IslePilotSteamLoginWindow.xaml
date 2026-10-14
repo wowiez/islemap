@@ -4,7 +4,7 @@
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         Title="Đăng nhập Steam · IslePilot" Width="1060" Height="760"
         MinWidth="820" MinHeight="620" WindowStartupLocation="CenterOwner"
-        Background="#071716" Foreground="#E9F4EE"
+        Background="#0A140E" Foreground="#F9F4E4"
         FontFamily="Segoe UI Variable Text"
         Loaded="Window_Loaded" Closed="Window_Closed">
     <Grid>
@@ -14,7 +14,7 @@
             <RowDefinition Height="62" />
         </Grid.RowDefinitions>
 
-        <Border Background="#0B201E" BorderBrush="#35554F" BorderThickness="0,0,0,1">
+        <Border Background="#0F1C15" BorderBrush="#355543" BorderThickness="0,0,0,1">
             <Grid Margin="18,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -22,38 +22,38 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock Text="ĐĂNG NHẬP STEAM MỘT LẦN"
-                               FontFamily="Bahnschrift SemiCondensed" FontSize="18"
+                               FontFamily="{StaticResource WieFont}" FontSize="18"
                                FontWeight="SemiBold" />
                     <TextBlock Text="Tự nhận server IslePilot đang chơi"
-                               Foreground="#78938C" FontSize="10.5" Margin="0,3,0,0" />
+                               Foreground="#869279" FontSize="10.5" Margin="0,3,0,0" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
-                    <TextBlock Text="READ-ONLY TELEMETRY" Foreground="#37D4C6"
-                               FontFamily="Bahnschrift SemiCondensed" FontSize="10"
+                    <TextBlock Text="READ-ONLY TELEMETRY" Foreground="#C9A95A"
+                               FontFamily="{StaticResource WieFont}" FontSize="10"
                                FontWeight="SemiBold" HorizontalAlignment="Right" />
-                    <TextBlock Text="/me · /map · /ows" Foreground="#638078"
-                               FontFamily="Bahnschrift" FontSize="9" Margin="0,3,0,0"
+                    <TextBlock Text="/me · /map · /ows" Foreground="#667D70"
+                               FontFamily="{StaticResource WieFont}" FontSize="9" Margin="0,3,0,0"
                                HorizontalAlignment="Right" />
                 </StackPanel>
             </Grid>
         </Border>
 
-        <Border Grid.Row="1" Margin="12" Background="#0A1A19"
-                BorderBrush="#35554F" BorderThickness="1">
+        <Border Grid.Row="1" Margin="12" Background="#0D1711"
+                BorderBrush="#355543" BorderThickness="1">
             <Grid>
                 <wv2:WebView2 x:Name="LoginBrowser" />
-                <Border x:Name="BrowserLoadingPanel" Background="#F2071716">
+                <Border x:Name="BrowserLoadingPanel" Background="#F20A140E">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <Ellipse Width="24" Height="24" Stroke="#37D4C6" StrokeThickness="2" />
+                        <Ellipse Width="24" Height="24" Stroke="#C9A95A" StrokeThickness="2" />
                         <TextBlock Text="ĐANG MỞ ĐĂNG NHẬP STEAM…"
-                                   Foreground="#8DA69F" FontFamily="Bahnschrift SemiCondensed"
+                                   Foreground="#9AA48F" FontFamily="{StaticResource WieFont}"
                                    FontSize="10" Margin="0,12,0,0" />
                     </StackPanel>
                 </Border>
             </Grid>
         </Border>
 
-        <Border Grid.Row="2" Background="#0B201E" BorderBrush="#35554F" BorderThickness="0,1,0,0">
+        <Border Grid.Row="2" Background="#0F1C15" BorderBrush="#355543" BorderThickness="0,1,0,0">
             <Grid Margin="18,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -63,18 +63,18 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock x:Name="LoginStatusLabel"
                            Text="Đăng nhập tại Steam. Token chỉ được lưu mã hóa cho tài khoản Windows hiện tại."
-                           Foreground="#78938C" FontSize="10.5" VerticalAlignment="Center"
+                           Foreground="#869279" FontSize="10.5" VerticalAlignment="Center"
                            TextWrapping="Wrap" />
                 <Button x:Name="SwitchAccountButton" Grid.Column="1" Content="ĐỔI TÀI KHOẢN"
                         Padding="15,7" Margin="10,0,0,0" Click="SwitchAccountButton_Click"
-                        Background="#173F3A" Foreground="#E9F4EE" BorderBrush="#4F8177"
-                        FontFamily="Bahnschrift SemiCondensed" Cursor="Hand" />
+                        Background="#1E3829" Foreground="#F9F4E4" BorderBrush="#4F8165"
+                        FontFamily="{StaticResource WieFont}" Cursor="Hand" />
                 <Button x:Name="RetryButton" Grid.Column="2" Content="THỬ LẠI" Padding="15,7" Margin="8,0,0,0"
-                        Click="RetryButton_Click" Background="#173F3A" Foreground="#E9F4EE"
-                        BorderBrush="#4F8177" FontFamily="Bahnschrift SemiCondensed" Cursor="Hand" />
+                        Click="RetryButton_Click" Background="#1E3829" Foreground="#F9F4E4"
+                        BorderBrush="#4F8165" FontFamily="{StaticResource WieFont}" Cursor="Hand" />
                 <Button Grid.Column="3" Content="HỦY" Padding="15,7" Margin="8,0,0,0"
-                        Click="CancelButton_Click" Background="Transparent" Foreground="#A8BBB5"
-                        BorderBrush="#48655F" FontFamily="Bahnschrift SemiCondensed" Cursor="Hand" />
+                        Click="CancelButton_Click" Background="Transparent" Foreground="#B2B9AA"
+                        BorderBrush="#486555" FontFamily="{StaticResource WieFont}" Cursor="Hand" />
             </Grid>
         </Border>
     </Grid>

@@ -2,10 +2,10 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:primitives="clr-namespace:System.Windows.Controls.Primitives;assembly=PresentationFramework"
-        Title="Isle Live Map" SizeToContent="WidthAndHeight"
+        Title="Isle of Wie" SizeToContent="WidthAndHeight"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="NoResize" Topmost="True" ShowInTaskbar="True" ShowActivated="False"
-        FontFamily="Segoe UI Variable Text" TextOptions.TextFormattingMode="Display"
+        FontFamily="Segoe UI Variable Text" TextOptions.TextFormattingMode="Ideal"
         TextOptions.TextHintingMode="Fixed" TextOptions.TextRenderingMode="Grayscale"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         Loaded="Window_Loaded" Closed="Window_Closed" DpiChanged="Window_DpiChanged">
@@ -166,18 +166,18 @@
                 <TextBlock x:Name="CoordinateLabel" Visibility="Collapsed" Text="X —  Y —  Z —" />
 
                 <Border x:Name="HeadingReadout" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,18" Background="#A8071110" CornerRadius="8" Padding="8,3">
-                    <TextBlock x:Name="HeadingModeLabel" Text="CHƯA RÕ HƯỚNG" Foreground="#EEE9D9" FontFamily="Bahnschrift SemiCondensed" FontSize="10.5" FontWeight="SemiBold" />
+                    <TextBlock x:Name="HeadingModeLabel" Text="CHƯA RÕ HƯỚNG" Foreground="#EEE9D9" FontFamily="{StaticResource WieFont}" FontSize="10.5" FontWeight="SemiBold" />
                 </Border>
 
-                <TextBlock x:Name="MapStateLabel" Text="ĐANG TẢI BẢN ĐỒ" Foreground="#A5BDB5" Background="#C0091718" Padding="10,6" HorizontalAlignment="Center" VerticalAlignment="Center" FontFamily="Bahnschrift SemiCondensed" FontSize="10" />
+                <TextBlock x:Name="MapStateLabel" Text="ĐANG TẢI BẢN ĐỒ" Foreground="#A5BDB5" Background="#C0091718" Padding="10,6" HorizontalAlignment="Center" VerticalAlignment="Center" FontFamily="{StaticResource WieFont}" FontSize="10" />
             </Grid>
         </Border>
 
         <Border x:Name="MapActivitySpacer" Grid.Row="1" Height="8" />
 
         <Border x:Name="ActivityPanel" Grid.Row="2" Width="248" HorizontalAlignment="Center"
-                Background="{StaticResource HudPatternBrush}" BorderBrush="#555A604D" BorderThickness="1"
-                CornerRadius="4" Padding="8,6,8,6">
+                Background="{StaticResource HudPatternBrush}" BorderThickness="0"
+                CornerRadius="10" Padding="8,6,8,6">
             <Border.LayoutTransform>
                 <ScaleTransform x:Name="ActivityReadabilityScaleTransform" ScaleX="1" ScaleY="1" />
             </Border.LayoutTransform>
@@ -188,15 +188,15 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <Grid>
+                <Grid x:Name="DinosaurHeaderRow" Visibility="Collapsed">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                     <TextBlock x:Name="SpeciesLabel" Text="NO ACTIVE DINOSAUR" Foreground="#EEF3E8"
-                               FontFamily="Bahnschrift SemiCondensed" FontWeight="Bold" FontSize="11.5"
+                               FontFamily="{StaticResource WieFont}" FontWeight="Bold" FontSize="11.5"
                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="2,0,8,0" />
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="GROWTH" Foreground="#A9914A" FontFamily="Bahnschrift SemiCondensed"
+                        <TextBlock Text="GROWTH" Foreground="#A9914A" FontFamily="{StaticResource WieFont}"
                                    FontSize="8.5" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,4,0" />
-                        <TextBlock x:Name="GrowthLabel" Text="—" Foreground="#E6BD47" FontFamily="Bahnschrift"
+                        <TextBlock x:Name="GrowthLabel" Text="—" Foreground="#E6BD47" FontFamily="{StaticResource WieFont}"
                                    FontSize="11" FontWeight="Bold" VerticalAlignment="Center" />
                     </StackPanel>
                     <Ellipse x:Name="ConnectionDot" Visibility="Collapsed" Width="5" Height="5" />
@@ -206,67 +206,68 @@
 
                 <StackPanel Grid.Row="1" Margin="0,5,0,0">
                     <Grid Margin="0,0,0,4">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="27" /><ColumnDefinition Width="*" /><ColumnDefinition x:Name="HealthValueColumn" Width="32" /></Grid.ColumnDefinitions>
-                        <Viewbox Width="19" Height="19" HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="Máu">
-                            <Canvas Width="15" Height="15">
-                                <Path Fill="#E0453A" Stroke="#FFC9C4" StrokeThickness="0.45"
-                                      Data="F1 M13.91 6.75c-1.17 2.25-4.3 5.31-6.07 6.94a.5.5 0 0 1-.67 0C5.39 12.06 2.26 9 1.09 6.75-1.48 1.8 5-1.5 7.5 3.45c2.5-4.95 8.98-1.65 6.41 3.3" />
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /><ColumnDefinition x:Name="HealthValueColumn" Width="32" /></Grid.ColumnDefinitions>
+                        <Viewbox Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="Máu">
+                            <Canvas Width="24" Height="24">
+                                <Path Fill="#33FF5A4F" Stroke="#FF5A4F" StrokeThickness="2" StrokeLineJoin="Round"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                      Data="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
                             </Canvas>
                         </Viewbox>
                         <ProgressBar x:Name="HealthBar" Grid.Column="1" Style="{StaticResource TelemetryBar}" Height="8" Margin="0,0,4,0" Foreground="#55D64E" VerticalAlignment="Center" />
-                        <TextBlock x:Name="HealthValue" Grid.Column="2" Text="- / -" Foreground="#E1E9E5" FontFamily="Bahnschrift" FontSize="9.5" HorizontalAlignment="Right" />
+                        <TextBlock x:Name="HealthValue" Grid.Column="2" Typography.NumeralAlignment="Tabular" FontWeight="SemiBold" Text="- / -" Foreground="#E1E9E5" FontFamily="{StaticResource WieFont}" FontSize="10" HorizontalAlignment="Right" />
                     </Grid>
                     <Grid Margin="0,0,0,4">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="27" /><ColumnDefinition Width="*" /><ColumnDefinition x:Name="StaminaValueColumn" Width="32" /></Grid.ColumnDefinitions>
-                        <Viewbox Width="19" Height="19" HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="Thể lực">
-                            <Canvas Width="18" Height="18">
-                                <Path Fill="#EBD35B" Stroke="#FFF3A1" StrokeThickness="0.6"
-                                      Data="M10.5,1 L4,10 L8.2,10 L7,17 L14.5,7.2 L10.3,7.2 Z" />
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /><ColumnDefinition x:Name="StaminaValueColumn" Width="32" /></Grid.ColumnDefinitions>
+                        <Viewbox Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="Thể lực">
+                            <Canvas Width="24" Height="24">
+                                <Path Fill="#33E6D24D" Stroke="#E6D24D" StrokeThickness="2" StrokeLineJoin="Round"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                      Data="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14Z" />
                             </Canvas>
                         </Viewbox>
                         <ProgressBar x:Name="StaminaBar" Grid.Column="1" Style="{StaticResource TelemetryBar}" Height="8" Margin="0,0,4,0" Foreground="#E6D24D" VerticalAlignment="Center" />
-                        <TextBlock x:Name="StaminaValue" Grid.Column="2" Text="- / -" Foreground="#DDE6E1" FontFamily="Bahnschrift" FontSize="9.5" HorizontalAlignment="Right" />
+                        <TextBlock x:Name="StaminaValue" Grid.Column="2" Typography.NumeralAlignment="Tabular" FontWeight="SemiBold" Text="- / -" Foreground="#DDE6E1" FontFamily="{StaticResource WieFont}" FontSize="10" HorizontalAlignment="Right" />
                     </Grid>
                     <Grid Margin="0,0,0,4">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="27" /><ColumnDefinition Width="*" /><ColumnDefinition x:Name="HungerValueColumn" Width="32" /></Grid.ColumnDefinitions>
-                        <Viewbox x:Name="FoodSteakIcon" Width="20" Height="20" HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="Thức ăn">
-                            <Canvas Width="70" Height="70">
-                                <Path Fill="#E49428" Stroke="#FFD18B" StrokeThickness="0.9" StrokeLineJoin="Round"
-                                      Data="F1 M62.131 8.45c-3.445-3.446-8.139-5.344-13.215-5.344-5.678 0-11.348 2.413-15.554 6.619C26.787 16.3 19.139 31.689 20.874 41.44l-7.891 7.891c-2.729-1.6-6.083-1.244-8.414 1.086-2.717 2.717-2.726 7.131-.02 9.84a6.9 6.9 0 0 0 3.15 1.814c.316 1.184.941 1.927 1.815 2.8 1.315 1.314 3.067 1.712 4.933 1.712h.047c1.861 0 3.604-.372 4.91-1.677 2.08-2.08 2.486-5.259 1.21-7.813l7.712-7.619a16 16 0 0 0 3.802.469c9.404 0 22.688-6.707 28.727-12.747 3.987-3.986 6.328-9.143 6.594-14.54.27-5.47-1.62-10.508-5.318-14.206M16.605 55.63a2 2 0 0 0-.001 2.828c.911.91 1.098 2.842-.027 3.965a2.9 2.9 0 0 1-2.103.854 3.02 3.02 0 0 1-3.011-2.994 2 2 0 0 0-1.997-1.994 2.95 2.95 0 0 1-2.089-.865c-1.146-1.146-1.138-3.021.02-4.178 1.236-1.238 3.025-1.176 4.35.148a2 2 0 0 0 2.828 0l7.848-7.846a8.8 8.8 0 0 0 1.158 1.451c.276.277.575.531.887.77zm46.849-33.159c-.217 4.403-2.144 8.636-5.427 11.919-5.475 5.474-17.714 11.597-25.898 11.597-2.59 0-4.515-.611-5.72-1.816-5.414-5.416 2.362-24.198 9.781-31.618 3.462-3.462 8.101-5.447 12.726-5.447 4.008 0 7.696 1.481 10.387 4.172 2.889 2.889 4.364 6.865 4.151 11.193" />
-                                <!-- The little shine and crumbs the original icon carries. -->
-                                <Path Fill="#FFE3B8"
-                                      Data="F1 M54.475 11.944a1.001 1.001 0 0 0-.903 1.785 9.7 9.7 0 0 1 2.483 1.796.997.997 0 0 0 1.414 0 1 1 0 0 0 0-1.414 11.6 11.6 0 0 0-2.994-2.167m-7.068-1.215c-3.204.358-6.274 1.861-8.645 4.232-2.686 2.685-5.54 7.548-7.104 12.104a1.002 1.002 0 0 0 .946 1.325 1 1 0 0 0 .946-.676c1.473-4.293 4.136-8.849 6.625-11.338 2.051-2.052 4.697-3.351 7.453-3.658.549-.062.943-.557.883-1.105a.996.996 0 0 0-1.104-.884M9.724 52.583h-.011c-.567 0-1.668.747-2.201 1.974-.221.506.012 1.315.519 1.536.13.057.265.174.397.174.387 0 .754-.189.918-.566.132-.301.334-.344.421-.354.537-.023.963-.842.957-1.383-.006-.549-.453-1.381-1-1.381" />
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /><ColumnDefinition x:Name="HungerValueColumn" Width="32" /></Grid.ColumnDefinitions>
+                        <Viewbox x:Name="FoodSteakIcon" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="Thức ăn">
+                            <Canvas Width="24" Height="24">
+                                <Path Fill="#33E49428" Stroke="#E49428" StrokeThickness="2" StrokeLineJoin="Round"
+                                      Data="M15.4 15.63a7.875 6 135 1 1 6.23-6.23 4.5 3.43 135 0 0-6.23 6.23Z" />
+                                <Path Stroke="#E49428" StrokeThickness="2" StrokeLineJoin="Round"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                      Data="M8.29 12.71 5.7 15.3a2.5 2.5 0 1 0-1.65 4.65A2.5 2.5 0 1 0 8.7 18.3l2.59-2.59" />
                             </Canvas>
                         </Viewbox>
                         <ProgressBar x:Name="HungerBar" Grid.Column="1" Style="{StaticResource TelemetryBar}" Height="8" Margin="0,0,4,0" Foreground="#E49428" VerticalAlignment="Center" />
-                        <TextBlock x:Name="HungerValue" Grid.Column="2" Text="- / -" Foreground="#DDE6E1" FontFamily="Bahnschrift" FontSize="9.5" HorizontalAlignment="Right" />
+                        <TextBlock x:Name="HungerValue" Grid.Column="2" Typography.NumeralAlignment="Tabular" FontWeight="SemiBold" Text="- / -" Foreground="#DDE6E1" FontFamily="{StaticResource WieFont}" FontSize="10" HorizontalAlignment="Right" />
                     </Grid>
                     <Grid>
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="27" /><ColumnDefinition Width="*" /><ColumnDefinition x:Name="WaterValueColumn" Width="32" /></Grid.ColumnDefinitions>
-                        <Viewbox Width="19" Height="19" HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="Nước">
-                            <Canvas Width="15" Height="15">
-                                <Path Fill="#31A9D7" Stroke="#A7E8FF" StrokeThickness="0.5"
-                                      Data="F1 M7.49 15A5.84 5.84 0 0 1 2 9.5C2 6.6 6.25 1.66 7.49 0c1.24 1.66 5 6.59 5 9.49S10.17 15 7.49 15" />
-                                <Path Stroke="#BCEFFF" StrokeThickness="0.7" StrokeStartLineCap="Round"
-                                      Data="M4.6 9.6c.1 1.6 1 2.6 2.3 2.9" />
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /><ColumnDefinition x:Name="WaterValueColumn" Width="32" /></Grid.ColumnDefinitions>
+                        <Viewbox Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="Nước">
+                            <Canvas Width="24" Height="24">
+                                <Path Fill="#3331A9D7" Stroke="#31A9D7" StrokeThickness="2" StrokeLineJoin="Round"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                      Data="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7Z" />
                             </Canvas>
                         </Viewbox>
                         <ProgressBar x:Name="WaterBar" Grid.Column="1" Style="{StaticResource TelemetryBar}" Height="8" Margin="0,0,4,0" Foreground="#31A9D7" VerticalAlignment="Center" />
-                        <TextBlock x:Name="WaterValue" Grid.Column="2" Text="- / -" Foreground="#DDE6E1" FontFamily="Bahnschrift" FontSize="9.5" HorizontalAlignment="Right" />
+                        <TextBlock x:Name="WaterValue" Grid.Column="2" Typography.NumeralAlignment="Tabular" FontWeight="SemiBold" Text="- / -" Foreground="#DDE6E1" FontFamily="{StaticResource WieFont}" FontSize="10" HorizontalAlignment="Right" />
                     </Grid>
                     <Grid x:Name="FractureRow" Margin="0,4,0,0" Visibility="Collapsed">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="27" /><ColumnDefinition Width="*" /><ColumnDefinition x:Name="FractureValueColumn" Width="32" /></Grid.ColumnDefinitions>
-                        <Viewbox x:Name="FractureIcon" Width="17" Height="17" HorizontalAlignment="Center"
-                                 VerticalAlignment="Center" ToolTip="Tình trạng xương">
-                            <Canvas Width="32" Height="32">
-                                <Path x:Name="FractureBone" Fill="#F4F7F5" Stroke="#C9D4D0" StrokeThickness="0.7" StrokeLineJoin="Round"
-                                      Data="F1 M27.7 18.3c-1.3-1.3-3.2-1.6-4.8-.8l-8.3-8.3c.7-1.6.4-3.6-.8-4.8-1.7-1.7-4.4-1.7-6.1 0q-1.05.75-1.2 2.1c-.9.1-1.6.5-2.2 1.1-1.7 1.7-1.7 4.4 0 6.1 1.3 1.3 3.2 1.6 4.8.8l8.3 8.3c-.7 1.6-.4 3.6.8 4.8.8.8 1.9 1.3 3 1.3s2.2-.4 3-1.3c.6-.6 1-1.3 1.2-2.2.8-.2 1.6-.6 2.2-1.2 1.8-1.5 1.8-4.2.1-5.9" />
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /><ColumnDefinition x:Name="FractureValueColumn" Width="32" /></Grid.ColumnDefinitions>
+                        <Viewbox x:Name="FractureIcon" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="Tình trạng xương">
+                            <Canvas Width="24" Height="24">
+                                <Path x:Name="FractureBone" Fill="#33C9D4D0" Stroke="#C9D4D0" StrokeThickness="2" StrokeLineJoin="Round"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                      Data="M17 10c.7-.7 1.69 0 2.5 0a2.5 2.5 0 1 0 0-5 .5.5 0 0 1-.5-.5 2.5 2.5 0 1 0-5 0c0 .81.7 1.8 0 2.5l-7 7c-.7.7-1.69 0-2.5 0a2.5 2.5 0 0 0 0 5c.28 0 .5.22.5.5a2.5 2.5 0 1 0 5 0c0-.81-.7-1.8 0-2.5Z" />
                             </Canvas>
                         </Viewbox>
                         <ProgressBar x:Name="FractureBar" Grid.Column="1" Style="{StaticResource TelemetryBar}" Height="8"
                                      Margin="0,0,4,0" Foreground="#C9D4D0" VerticalAlignment="Center" />
                         <TextBlock x:Name="FractureValue" Grid.Column="2" Text="—" Foreground="#D6DEDA"
-                                   FontFamily="Bahnschrift" FontSize="9.5" HorizontalAlignment="Right" />
+                                   FontFamily="{StaticResource WieFont}" FontSize="9.5" HorizontalAlignment="Right" />
                     </Grid>
                 </StackPanel>
 
@@ -276,11 +277,11 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <TextBlock x:Name="RequestStatusLabel" Text="" Foreground="#A9914A"
-                               FontFamily="Bahnschrift SemiCondensed" FontSize="8.5"
+                               FontFamily="{StaticResource WieFont}" FontSize="8.5"
                                FontWeight="SemiBold" HorizontalAlignment="Left"
                                TextTrimming="CharacterEllipsis" Margin="2,0,8,0" />
                     <TextBlock x:Name="UpdatedLabel" Grid.Column="1" Text="—" Foreground="#788780"
-                               FontFamily="Bahnschrift" FontSize="8.5" HorizontalAlignment="Right" />
+                               FontFamily="{StaticResource WieFont}" FontSize="8.5" HorizontalAlignment="Right" />
                 </Grid>
             </Grid>
         </Border>
@@ -306,9 +307,9 @@
                     </Grid.ColumnDefinitions>
                     <Ellipse Width="6" Height="6" Fill="#E7B74E" VerticalAlignment="Center" Margin="0,0,7,0" />
                     <TextBlock Grid.Column="1" Text="NHIỆM VỤ PRIME" Foreground="#EEF3E8"
-                               FontFamily="Bahnschrift SemiCondensed" FontSize="11.5" FontWeight="SemiBold" />
+                               FontFamily="{StaticResource WieFont}" FontSize="11.5" FontWeight="SemiBold" />
                     <TextBlock x:Name="PrimeTasksProgressLabel" Grid.Column="2" Text="0 / 0"
-                               Foreground="#E7B74E" FontFamily="Bahnschrift" FontSize="10.5" FontWeight="Bold" />
+                               Foreground="#E7B74E" FontFamily="{StaticResource WieFont}" FontSize="10.5" FontWeight="Bold" />
                 </Grid>
                 <Rectangle Grid.Row="1" Fill="#405D56" Margin="0,7,0,0" />
                 <ItemsControl x:Name="PrimeTasksList" Grid.Row="2" Margin="0,6,0,0">
@@ -320,9 +321,9 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="{Binding Marker}" Foreground="{Binding MarkerBrush}"
-                                           FontFamily="Bahnschrift" FontSize="11" FontWeight="Bold" />
+                                           FontFamily="{StaticResource WieFont}" FontSize="11" FontWeight="Bold" />
                                 <TextBlock Grid.Column="1" Text="{Binding Text}" Foreground="{Binding TextBrush}"
-                                           FontFamily="Bahnschrift SemiCondensed" FontSize="10.5"
+                                           FontFamily="{StaticResource WieFont}" FontSize="10.5"
                                            TextWrapping="Wrap" LineHeight="13" />
                             </Grid>
                         </DataTemplate>
@@ -340,15 +341,15 @@
             </Border.LayoutTransform>
             <StackPanel>
                 <Grid Margin="0,0,0,5">
-                    <TextBlock Text="KILL FEED · SBTC" Foreground="#E7B74E" FontFamily="Bahnschrift" FontSize="10" />
+                    <TextBlock Text="KILL FEED · SBTC" Foreground="#E7B74E" FontFamily="{StaticResource WieFont}" FontSize="10" />
                     <TextBlock x:Name="MapKillFeedStatus" Text="Đang tải…" HorizontalAlignment="Right" Foreground="#98A49D" FontSize="8" />
                 </Grid>
                 <ItemsControl x:Name="MapKillFeedRows">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Margin="0,3,0,3">
-                                <TextBlock Text="{Binding Summary}" Foreground="#EEF3E8" FontFamily="Bahnschrift" FontSize="10" TextTrimming="CharacterEllipsis" ToolTip="{Binding Summary}" />
-                                <TextBlock Text="{Binding Detail}" Foreground="#98A49D" FontFamily="Bahnschrift" FontSize="8.5" TextTrimming="CharacterEllipsis" ToolTip="{Binding Detail}" />
+                                <TextBlock Text="{Binding Summary}" Foreground="#EEF3E8" FontFamily="{StaticResource WieFont}" FontSize="10" TextTrimming="CharacterEllipsis" ToolTip="{Binding Summary}" />
+                                <TextBlock Text="{Binding Detail}" Foreground="#98A49D" FontFamily="{StaticResource WieFont}" FontSize="8.5" TextTrimming="CharacterEllipsis" ToolTip="{Binding Detail}" />
                             </StackPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
@@ -359,8 +360,8 @@
 
         <Border x:Name="SettingsPanel" Grid.Row="5" Visibility="Collapsed"
                 Margin="0,8,0,0" Padding="9,7"
-                Background="{StaticResource HudPatternBrush}" BorderBrush="#655A604D" BorderThickness="1"
-                CornerRadius="4">
+                Background="{StaticResource HudPatternBrush}" BorderBrush="#654A6355" BorderThickness="1"
+                CornerRadius="14">
             <Border.LayoutTransform>
                 <ScaleTransform x:Name="SettingsReadabilityScaleTransform" ScaleX="1" ScaleY="1" />
             </Border.LayoutTransform>
@@ -383,8 +384,8 @@
                 <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                     <StackPanel>
-                        <TextBlock Text="OVERLAY SETTINGS" Foreground="#EEF3E8" FontFamily="Bahnschrift SemiCondensed" FontSize="12" FontWeight="SemiBold" />
-                        <TextBlock Text="F8 · GUIDE  /  ALT + M · BIG MAP  /  ALT + = / - · ZOOM" Foreground="#98A49D" FontFamily="Bahnschrift" FontSize="8.5" />
+                        <TextBlock Text="OVERLAY SETTINGS" Foreground="#F8F3E3" FontFamily="{StaticResource WieFont}" FontSize="12" FontWeight="SemiBold" />
+                        <TextBlock Text="F8 · GUIDE  /  ALT + M · BIG MAP  /  ALT + = / - · ZOOM" Foreground="#9FA894" FontFamily="{StaticResource WieFont}" FontSize="8.5" />
                     </StackPanel>
                     <Button Grid.Column="1" Style="{StaticResource ChromeButton}" Content="DONE" Padding="10,4" Click="CloseSettingsButton_Click" />
                 </Grid>
@@ -393,32 +394,32 @@
 
                 <Grid Grid.Row="2" Margin="0,9,0,0">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /><ColumnDefinition Width="46" /></Grid.ColumnDefinitions>
-                    <TextBlock Text="HUD SIZE" Foreground="#D5DDD5" FontFamily="Bahnschrift SemiCondensed" FontSize="10" VerticalAlignment="Center" />
+                    <TextBlock Text="HUD SIZE" Foreground="#E9E1C9" FontFamily="{StaticResource WieFont}" FontSize="10" VerticalAlignment="Center" />
                     <Slider x:Name="OverlayScaleSlider" Grid.Column="1" Minimum="65" Maximum="175" Value="100" SmallChange="5" LargeChange="10"
                             TickFrequency="5" IsSnapToTickEnabled="True"
                             Margin="7,0" VerticalAlignment="Center" ValueChanged="OverlayScaleSlider_ValueChanged" />
-                    <TextBlock x:Name="OverlayScaleLabel" Grid.Column="2" Text="100%" Foreground="#E7B74E" FontFamily="Bahnschrift" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                    <TextBlock x:Name="OverlayScaleLabel" Grid.Column="2" Text="100%" Foreground="#C9A95A" FontFamily="{StaticResource WieFont}" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center" />
                 </Grid>
 
                 <StackPanel Grid.Row="3" Margin="0,7,0,0">
                 <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /><ColumnDefinition Width="46" /></Grid.ColumnDefinitions>
-                    <TextBlock Text="MAP CROP" Foreground="#D5DDD5" FontFamily="Bahnschrift SemiCondensed" FontSize="10" VerticalAlignment="Center" />
+                    <TextBlock Text="MAP CROP" Foreground="#E9E1C9" FontFamily="{StaticResource WieFont}" FontSize="10" VerticalAlignment="Center" />
                     <Slider x:Name="MapZoomSlider" Grid.Column="1" Minimum="100" Maximum="1000" Value="225" SmallChange="10" LargeChange="50"
                             Margin="7,0" VerticalAlignment="Center" ValueChanged="MapZoomSlider_ValueChanged" />
-                    <TextBlock x:Name="MapZoomLabel" Grid.Column="2" Text="225%" Foreground="#31A9D7" FontFamily="Bahnschrift" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                    <TextBlock x:Name="MapZoomLabel" Grid.Column="2" Text="225%" Foreground="#C9A95A" FontFamily="{StaticResource WieFont}" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center" />
                 </Grid>
                 <Grid Margin="0,7,0,0">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /><ColumnDefinition Width="46" /></Grid.ColumnDefinitions>
-                    <TextBlock Text="ĐIỂM VỊ TRÍ" Foreground="#D5DDD5" FontFamily="Bahnschrift SemiCondensed" FontSize="10" VerticalAlignment="Center" />
+                    <TextBlock Text="ĐIỂM VỊ TRÍ" Foreground="#E9E1C9" FontFamily="{StaticResource WieFont}" FontSize="10" VerticalAlignment="Center" />
                     <Slider x:Name="PlayerMarkerScaleSlider" Grid.Column="1" Minimum="50" Maximum="200" Value="100"
                             TickFrequency="5" IsSnapToTickEnabled="True" SmallChange="5" LargeChange="25" Margin="7,0"
                             VerticalAlignment="Center" ValueChanged="PlayerMarkerScaleSlider_ValueChanged" />
-                    <TextBlock x:Name="PlayerMarkerScaleLabel" Grid.Column="2" Text="100%" Foreground="#FF7EB6" FontFamily="Bahnschrift" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                    <TextBlock x:Name="PlayerMarkerScaleLabel" Grid.Column="2" Text="100%" Foreground="#C9A95A" FontFamily="{StaticResource WieFont}" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center" />
                 </Grid>
                 <Grid Margin="0,7,0,0">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /><ColumnDefinition Width="5" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                    <TextBlock Text="LỚP AI" Foreground="#D5DDD5" FontFamily="Bahnschrift SemiCondensed" FontSize="10" VerticalAlignment="Center" />
+                    <TextBlock Text="LỚP AI" Foreground="#E9E1C9" FontFamily="{StaticResource WieFont}" FontSize="10" VerticalAlignment="Center" />
                     <Button x:Name="WildlifeBelowPlayerButton" Grid.Column="1" Style="{StaticResource ChromeButton}" Content="DƯỚI ĐIỂM" Padding="6,4" Click="WildlifeBelowPlayerButton_Click" />
                     <Button x:Name="WildlifeAbovePlayerButton" Grid.Column="3" Style="{StaticResource ChromeButton}" Content="TRÊN ĐIỂM" Padding="6,4" Click="WildlifeAbovePlayerButton_Click" />
                 </Grid>
@@ -426,7 +427,7 @@
 
                 <Grid Grid.Row="4" Margin="0,8,0,0">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /><ColumnDefinition Width="5" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                    <TextBlock Text="MAP STYLE" Foreground="#D5DDD5" FontFamily="Bahnschrift SemiCondensed" FontSize="10" VerticalAlignment="Center" />
+                    <TextBlock Text="MAP STYLE" Foreground="#E9E1C9" FontFamily="{StaticResource WieFont}" FontSize="10" VerticalAlignment="Center" />
                     <Button x:Name="CircleStyleButton" Grid.Column="1" Style="{StaticResource ChromeButton}" Content="CIRCLE" Padding="8,4" Click="CircleStyleButton_Click" />
                     <Button x:Name="SquareStyleButton" Grid.Column="3" Style="{StaticResource ChromeButton}" Content="SQUARE" Padding="8,4" Click="SquareStyleButton_Click" />
                 </Grid>
@@ -434,38 +435,33 @@
                 <StackPanel Grid.Row="5" Margin="0,8,0,0">
                 <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /><ColumnDefinition Width="5" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                    <TextBlock Text="VISIBLE" Foreground="#D5DDD5" FontFamily="Bahnschrift SemiCondensed" FontSize="10" VerticalAlignment="Center" />
+                    <TextBlock Text="VISIBLE" Foreground="#E9E1C9" FontFamily="{StaticResource WieFont}" FontSize="10" VerticalAlignment="Center" />
                     <Button x:Name="MapVisibilityButton" Grid.Column="1" Style="{StaticResource ChromeButton}" Content="MAP · ON" Padding="8,4" Click="MapVisibilityButton_Click" />
                     <Button x:Name="ActivityVisibilityButton" Grid.Column="3" Style="{StaticResource ChromeButton}" Content="ACTIVITY · ON" Padding="8,4" Click="ActivityVisibilityButton_Click" />
                 </Grid>
-                <Grid Margin="0,7,0,0">
+                <Grid x:Name="MapKillFeedSettingRow" Margin="0,7,0,0" Visibility="Collapsed">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                    <TextBlock Text="KILL FEED" Foreground="#D5DDD5" FontFamily="Bahnschrift SemiCondensed" FontSize="10" VerticalAlignment="Center" />
+                    <TextBlock Text="KILL FEED" Foreground="#E9E1C9" FontFamily="{StaticResource WieFont}" FontSize="10" VerticalAlignment="Center" />
                     <Button x:Name="MapKillFeedToggleButton" Grid.Column="1" Style="{StaticResource ChromeButton}" Content="KILL FEED · OFF" Padding="8,4" Click="MapKillFeedToggleButton_Click" ToolTip="Hiện Kill Feed SBTC cạnh minimap · cập nhật mỗi 5 giây" />
                 </Grid>
                 </StackPanel>
 
                 <Grid Grid.Row="6" Margin="0,8,0,0">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                    <TextBlock Text="MAP ROTATE" Foreground="#D5DDD5" FontFamily="Bahnschrift SemiCondensed" FontSize="10" VerticalAlignment="Center" />
+                    <TextBlock Text="MAP ROTATE" Foreground="#E9E1C9" FontFamily="{StaticResource WieFont}" FontSize="10" VerticalAlignment="Center" />
                     <Button x:Name="MapRotationButton" Grid.Column="1" Style="{StaticResource ChromeButton}" Content="ROTATE · OFF" Padding="8,4" Click="MapRotationButton_Click" />
                 </Grid>
 
-                <Grid Grid.Row="7" Margin="0,8,0,0">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                    <TextBlock Text="AUTO DETECT" Foreground="#D5DDD5" FontFamily="Bahnschrift SemiCondensed" FontSize="10" VerticalAlignment="Center" />
-                    <Button x:Name="AutoDetectLiveMapButton" Grid.Column="1" Style="{StaticResource ChromeButton}" Content="LIVE MAP · ON" Padding="8,4" Click="AutoDetectLiveMapButton_Click" ToolTip="Nguồn dự phòng; Asset Location luôn được ưu tiên" />
-                </Grid>
 
                 <Grid Grid.Row="8" Margin="0,8,0,0">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                    <TextBlock Text="PRIME TASKS" Foreground="#D5DDD5" FontFamily="Bahnschrift SemiCondensed" FontSize="10" VerticalAlignment="Center" />
+                    <TextBlock Text="PRIME TASKS" Foreground="#E9E1C9" FontFamily="{StaticResource WieFont}" FontSize="10" VerticalAlignment="Center" />
                     <Button x:Name="PrimeTasksVisibilityButton" Grid.Column="1" Style="{StaticResource ChromeButton}" Content="PRIME · OFF" Padding="8,4" Click="PrimeTasksVisibilityButton_Click" ToolTip="Tự động lấy tiến độ Prime từ telemetry của server" />
                 </Grid>
 
                 <Grid Grid.Row="9" Margin="0,8,0,0">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /><ColumnDefinition Width="5" /><ColumnDefinition Width="60" /></Grid.ColumnDefinitions>
-                    <TextBlock Text="ĐƯỜNG ĐI" Foreground="#D5DDD5" FontFamily="Bahnschrift SemiCondensed" FontSize="10" VerticalAlignment="Center" />
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /><ColumnDefinition Width="5" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <TextBlock Text="ĐƯỜNG ĐI" Foreground="#E9E1C9" FontFamily="{StaticResource WieFont}" FontSize="10" VerticalAlignment="Center" />
                     <Button x:Name="PathTrailToggleButton" Grid.Column="1" Style="{StaticResource ChromeButton}" Content="TRAIL · ON" Padding="8,4" Click="PathTrailToggleButton_Click" ToolTip="Bật/tắt hiển thị đường đi của bạn trên bản đồ" />
                     <Button x:Name="ClearPathTrailButton" Grid.Column="3" Style="{StaticResource ChromeButton}" Content="XÓA · Ctrl+R" Padding="8,4" Click="ClearPathTrailButton_Click" ToolTip="Xóa lịch sử đường đi hiện tại · Ctrl+R khi đang trong game hoặc overlay" />
                 </Grid>
@@ -483,16 +479,22 @@
                         <ColumnDefinition Width="5" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <Border x:Name="DragRegion" Background="#D5153732" BorderBrush="#64958B" BorderThickness="1" CornerRadius="2" Padding="9,5" MouseLeftButtonDown="DragRegion_MouseLeftButtonDown" Cursor="SizeAll">
-                        <TextBlock Text="✥  MOVE HUD" Foreground="#BBD1C9" FontFamily="Bahnschrift SemiCondensed" FontSize="9" />
+                    <Border x:Name="DragRegion" Background="#D515241B" BorderBrush="#2E4637" BorderThickness="1" CornerRadius="9" Padding="7,5" MouseLeftButtonDown="DragRegion_MouseLeftButtonDown" Cursor="SizeAll" Margin="0,0,5,0" ToolTip="Giữ và kéo để di chuyển HUD" AutomationProperties.Name="Di chuyển HUD">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <ContentControl Style="{StaticResource WieIcon}" Tag="{StaticResource IconMove}" Foreground="#C9A95A" Width="14" Height="14" HorizontalAlignment="Center" />
+                        </StackPanel>
                     </Border>
-                    <Button Grid.Column="1" Style="{StaticResource ChromeButton}" Content="HOME" Padding="7,3" Click="HomeButton_Click" ToolTip="Đổi nguồn telemetry" />
-                    <Button Grid.Column="3" Style="{StaticResource ChromeButton}" Content="RESET" Padding="7,3" Click="ResetSettingsButton_Click" />
-                    <Button Grid.Column="5" Style="{StaticResource ChromeButton}" Content="—" Width="25" Padding="0" Click="MinimizeButton_Click" />
-                    <Button Grid.Column="7" Style="{StaticResource ChromeButton}" Content="×" Width="25" Padding="0" Click="CloseButton_Click" />
+                    <Button Grid.Column="1" Style="{StaticResource ChromeButton}" Content="HOME" Padding="6,3" Click="HomeButton_Click" ToolTip="Đổi nguồn telemetry" />
+                    <Button Grid.Column="3" Style="{StaticResource ChromeButton}" Content="RESET" Padding="6,3" Click="ResetSettingsButton_Click" />
+                    <Button Grid.Column="5" Style="{StaticResource ChromeButton}" Width="25" Padding="0" Click="MinimizeButton_Click" AutomationProperties.Name="Thu nhỏ">
+                        <ContentControl Style="{StaticResource WieIcon}" Tag="{StaticResource IconMinus}" Width="11" Height="11" />
+                    </Button>
+                    <Button Grid.Column="7" Style="{StaticResource ChromeButton}" Width="25" Padding="0" Click="CloseButton_Click" AutomationProperties.Name="Đóng">
+                        <ContentControl Style="{StaticResource WieIcon}" Tag="{StaticResource IconClose}" Width="11" Height="11" />
+                    </Button>
 
                     <primitives:Thumb x:Name="ResizeGrip" Grid.Column="9"
-                                  Width="48" Height="29" Cursor="SizeNWSE"
+                                  Width="60" Height="29" Cursor="SizeNWSE"
                                   AutomationProperties.Name="Kéo để thay đổi kích thước toàn bộ overlay"
                                   ToolTip="Giữ và kéo để resize toàn bộ overlay"
                                   DragStarted="ResizeGrip_DragStarted"
@@ -500,23 +502,22 @@
                                   DragCompleted="ResizeGrip_DragCompleted">
                     <primitives:Thumb.Template>
                         <ControlTemplate TargetType="{x:Type primitives:Thumb}">
-                            <Border x:Name="GripChrome" CornerRadius="2"
-                                    Background="#D5153732" BorderBrush="#64958B" BorderThickness="1">
+                            <Border x:Name="GripChrome" CornerRadius="9"
+                                    Background="#D515241B" BorderBrush="#2E4637" BorderThickness="1">
                                 <Grid>
-                                    <TextBlock Text="SIZE" Foreground="#A8C8BF"
-                                               FontFamily="Bahnschrift SemiCondensed" FontSize="7.5"
-                                               Margin="6,0,0,5" HorizontalAlignment="Left" VerticalAlignment="Bottom" />
-                                    <TextBlock Text="↘" Foreground="#37D4C6" FontSize="15"
-                                               Margin="0,0,4,1" HorizontalAlignment="Right" VerticalAlignment="Bottom" />
+                                    <TextBlock Text="SIZE" Foreground="#E6E0CB" FontFamily="{StaticResource WieFont}" FontSize="10.5"
+                                               Margin="8,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" />
+                                    <ContentControl Style="{StaticResource WieIcon}" Tag="{StaticResource IconResize}" Foreground="#C9A95A"
+                                                    Width="12" Height="12" Margin="0,0,7,0" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                 </Grid>
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="GripChrome" Property="Background" Value="#E21B4942" />
-                                    <Setter TargetName="GripChrome" Property="BorderBrush" Value="#79C5B8" />
+                                    <Setter TargetName="GripChrome" Property="Background" Value="#E21B2E23" />
+                                    <Setter TargetName="GripChrome" Property="BorderBrush" Value="#C9A95A" />
                                 </Trigger>
                                 <Trigger Property="IsDragging" Value="True">
-                                    <Setter TargetName="GripChrome" Property="Background" Value="#F0275D54" />
+                                    <Setter TargetName="GripChrome" Property="Background" Value="#F022392B" />
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>

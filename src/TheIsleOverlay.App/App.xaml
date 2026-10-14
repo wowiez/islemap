@@ -3,6 +3,254 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="HomeWindow.xaml">
     <Application.Resources>
+        <!-- Isle of Wie brand: palette, type and radii taken from the logo
+             (night island, gold compass ring, cream wordmark, red live dot). -->
+        <FontFamily x:Key="WieFont">./Assets/Fonts/#Lexend, Segoe UI Variable Display, Segoe UI</FontFamily>
+        <Color x:Key="WieInkColor">#0B1510</Color>
+        <Color x:Key="WieCardColor">#101C15</Color>
+        <SolidColorBrush x:Key="WieInk" Color="{StaticResource WieInkColor}" />
+        <SolidColorBrush x:Key="WieCard" Color="{StaticResource WieCardColor}" />
+        <SolidColorBrush x:Key="WieRaised" Color="#15241B" />
+        <SolidColorBrush x:Key="WieHover" Color="#1B2E23" />
+        <SolidColorBrush x:Key="WieLine" Color="#21342A" />
+        <SolidColorBrush x:Key="WieLineStrong" Color="#2E4637" />
+        <SolidColorBrush x:Key="WieCream" Color="#ECDFB3" />
+        <SolidColorBrush x:Key="WieText" Color="#E6E0CB" />
+        <SolidColorBrush x:Key="WieMuted" Color="#98A18E" />
+        <SolidColorBrush x:Key="WieFaint" Color="#7D8873" />
+        <SolidColorBrush x:Key="WieGold" Color="#C9A95A" />
+        <SolidColorBrush x:Key="WieSand" Color="#D9C58C" />
+        <SolidColorBrush x:Key="WieSea" Color="#7FD3D9" />
+        <SolidColorBrush x:Key="WieLand" Color="#8DBE5E" />
+        <SolidColorBrush x:Key="WieLive" Color="#FF3B30" />
+
+        <!-- One line-icon set (24px grid, 2px round strokes) instead of font glyphs
+             such as ✕ — + →, which fall back to Windows symbol fonts. Usage:
+             <ContentControl Style="{StaticResource WieIcon}" Tag="{StaticResource IconClose}" /> -->
+        <Style x:Key="WieIcon" TargetType="ContentControl">
+            <Setter Property="Width" Value="16" />
+            <Setter Property="Height" Value="16" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContentControl">
+                        <Viewbox>
+                            <Canvas Width="24" Height="24">
+                                <Path Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                      Stroke="{TemplateBinding Foreground}" StrokeThickness="2" StrokeLineJoin="Round"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                            </Canvas>
+                        </Viewbox>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Geometry x:Key="IconClose">M18 6 6 18 M6 6 18 18</Geometry>
+        <Geometry x:Key="IconMinus">M5 12h14</Geometry>
+        <Geometry x:Key="IconPlus">M12 5v14 M5 12h14</Geometry>
+        <Geometry x:Key="IconArrowRight">M5 12h14 M12 5l7 7-7 7</Geometry>
+        <Geometry x:Key="IconLink">M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71 M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71</Geometry>
+        <Geometry x:Key="IconEye">M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0 M15 12a3 3 0 1 1-6 0 3 3 0 1 1 6 0Z</Geometry>
+        <Geometry x:Key="IconUser">M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2 M16 7a4 4 0 1 1-8 0 4 4 0 1 1 8 0Z</Geometry>
+        <Geometry x:Key="IconUsers">M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M13 7a4 4 0 1 1-8 0 4 4 0 1 1 8 0Z M22 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75</Geometry>
+        <Geometry x:Key="IconMap">M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3Z M9 3v15 M15 6v15</Geometry>
+        <Geometry x:Key="IconDna">M2 15c6.67-6 13.33 0 20-6 M9 22c1.8-2 2.52-4 2.81-6 M15 2c-1.8 2-2.52 4-2.81 6 M17 6l-2.5-2.5 M14 8l-1-1 M7 18l2.5 2.5 M3.5 14.5l.5.5 M20 9l.5.5 M6.5 12.5l1 1 M16.5 10.5l1 1 M10 16l1.5 1.5</Geometry>
+        <Geometry x:Key="IconSliders">M21 4h-7 M10 4H3 M21 12h-9 M8 12H3 M21 20h-5 M12 20H3 M14 2v4 M8 10v4 M16 18v4</Geometry>
+        <Geometry x:Key="IconSwords">M14.5 17.5 3 6V3h3l11.5 11.5 M13 19l6-6 M16 16l4 4 M19 21l2-2 M14.5 6.5 18 3h3v3l-3.5 3.5 M5 14l4 4 M7 17l-3 3 M3 19l2 2</Geometry>
+        <Geometry x:Key="IconPalette">M12 22a10 10 0 1 1 10-10c0 2.5-2 3-3.5 3H16a2 2 0 0 0-1.5 3.3A2 2 0 0 1 12 22Z M7.5 10.5h.01 M12 7.5h.01 M16.5 10.5h.01</Geometry>
+        <Geometry x:Key="IconMic">M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z M19 10v2a7 7 0 0 1-14 0v-2 M12 19v3</Geometry>
+        <Geometry x:Key="IconMove">M12 2v20 M15 19l-3 3-3-3 M19 9l3 3-3 3 M2 12h20 M5 9l-3 3 3 3 M9 5l3-3 3 3</Geometry>
+        <Geometry x:Key="IconResize">M3 9V3h6 M21 15v6h-6 M3 3l7 7 M21 21l-7-7</Geometry>
+        <Geometry x:Key="IconGarage">M22 8.35V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35A2 2 0 0 1 3.26 6.5l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z M6 18h12 M6 14h12</Geometry>
+
+        <!-- Title sits on the card's top border (zyo-next legend card). The
+             header background is split so it erases the border line only. -->
+        <Style x:Key="WieLegendCard" TargetType="HeaderedContentControl">
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Margin" Value="0,0,0,16" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="HeaderedContentControl">
+                        <Grid>
+                            <Border Margin="0,9,0,0" Background="{StaticResource WieCard}" BorderBrush="{StaticResource WieLine}"
+                                    BorderThickness="1" CornerRadius="20" Padding="16,20,16,16">
+                                <ContentPresenter />
+                            </Border>
+                            <Border Margin="16,0,0,0" Padding="6,0" Height="18" HorizontalAlignment="Left" VerticalAlignment="Top">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Offset="0.5" Color="{StaticResource WieInkColor}" />
+                                        <GradientStop Offset="0.5" Color="{StaticResource WieCardColor}" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <ContentPresenter ContentSource="Header" VerticalAlignment="Center" TextElement.Foreground="{StaticResource WieCream}"
+                                                  TextElement.FontFamily="{StaticResource WieFont}" TextElement.FontSize="13" TextElement.FontWeight="SemiBold" />
+                            </Border>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="WieButton" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource WieText}" />
+            <Setter Property="Background" Value="{StaticResource WieRaised}" />
+            <Setter Property="BorderBrush" Value="{StaticResource WieLineStrong}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontFamily" Value="{StaticResource WieFont}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="12" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource WieHover}" />
+                                <Setter Property="Foreground" Value="#FBF5E1" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource WieGold}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#22392B" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45" />
+                                <Setter Property="Cursor" Value="No" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="WiePrimaryButton" TargetType="Button" BasedOn="{StaticResource WieButton}">
+            <Setter Property="Foreground" Value="#13221A" />
+            <Setter Property="Background" Value="{StaticResource WieCream}" />
+            <Setter Property="BorderBrush" Value="{StaticResource WieSand}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="12" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#F7EFD0" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource WieGold}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource WieSand}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="WieGhostButton" TargetType="Button" BasedOn="{StaticResource WieButton}">
+            <Setter Property="Foreground" Value="{StaticResource WieMuted}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+
+        <!-- Slim scrollbar: thumb only, no arrows, in the logo's muted gold. -->
+        <Style x:Key="WieScrollThumb" TargetType="Thumb">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border x:Name="Pill" Background="#3A4A3C" CornerRadius="3" />
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Pill" Property="Background" Value="#8C7640" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="WieScrollBar" TargetType="ScrollBar">
+            <Setter Property="Width" Value="6" />
+            <Setter Property="MinWidth" Value="6" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource WieScrollThumb}" />
+                            </Track.Thumb>
+                        </Track>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="Orientation" Value="Horizontal">
+                    <Setter Property="Width" Value="NaN" />
+                    <Setter Property="MinWidth" Value="0" />
+                    <Setter Property="Height" Value="6" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ScrollBar">
+                                <Track x:Name="PART_Track">
+                                    <Track.Thumb>
+                                        <Thumb Style="{StaticResource WieScrollThumb}" />
+                                    </Track.Thumb>
+                                </Track>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Every slider in the app: gold track, cream thumb. -->
+        <Style TargetType="Slider">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid Height="22" Background="Transparent">
+                            <Border Height="4" CornerRadius="2" Background="#2A3F32" VerticalAlignment="Center" />
+                            <Track x:Name="PART_Track">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="Slider.DecreaseLarge" Focusable="False">
+                                        <RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Height="4" CornerRadius="2" Background="{StaticResource WieGold}" /></ControlTemplate></RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.DecreaseRepeatButton>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="Slider.IncreaseLarge" Focusable="False">
+                                        <RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Background="Transparent" /></ControlTemplate></RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.IncreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Template><ControlTemplate TargetType="Thumb"><Ellipse Width="14" Height="14" Fill="{StaticResource WieCream}" Stroke="{StaticResource WieGold}" StrokeThickness="2" /></ControlTemplate></Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <SolidColorBrush x:Key="FogBrush" Color="#DDE8E1" />
         <SolidColorBrush x:Key="MutedBrush" Color="#7F9993" />
         <SolidColorBrush x:Key="LineBrush" Color="#34514C" />
@@ -24,27 +272,27 @@
         </Style>
 
         <Style x:Key="ChromeButton" TargetType="Button">
-            <Setter Property="Foreground" Value="#AFC3BC" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderBrush" Value="#34514C" />
+            <Setter Property="Foreground" Value="#E6E0CB" />
+            <Setter Property="Background" Value="#9915241B" />
+            <Setter Property="BorderBrush" Value="#2E4637" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="FontFamily" Value="Bahnschrift SemiCondensed" />
+            <Setter Property="FontFamily" Value="{StaticResource WieFont}" />
             <Setter Property="FontSize" Value="11" />
             <Setter Property="Padding" Value="9,3" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
+                        <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="9" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#193936" />
-                                <Setter Property="Foreground" Value="#E9F4EE" />
+                                <Setter TargetName="Chrome" Property="Background" Value="#1B2E23" />
+                                <Setter Property="Foreground" Value="#FBF5E1" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#28534D" />
+                                <Setter TargetName="Chrome" Property="Background" Value="#22392B" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>

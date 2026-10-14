@@ -1,87 +1,72 @@
 <Window x:Class="TheIsleOverlay.App.HomeWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Isle Live Map" Width="520" Height="720"
+        Title="Isle of Wie" Width="520" Height="790"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="NoResize" WindowStartupLocation="CenterScreen" ShowInTaskbar="True"
-        FontFamily="Segoe UI" FontSize="12" TextOptions.TextFormattingMode="Display" TextOptions.TextHintingMode="Fixed"
+        FontFamily="{StaticResource WieFont}" FontSize="13" Foreground="{StaticResource WieText}"
+        TextOptions.TextFormattingMode="Ideal" TextOptions.TextHintingMode="Fixed"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         Loaded="Window_Loaded" Closed="Window_Closed">
     <Window.Resources>
-        <SolidColorBrush x:Key="HomeBone" Color="#E9F4EE" />
-        <SolidColorBrush x:Key="HomeMuted" Color="#9EB3AD" />
-        <SolidColorBrush x:Key="HomeLine" Color="#35554F" />
+        <Style x:Key="HomeChromeButton" TargetType="Button" BasedOn="{StaticResource WieButton}" />
 
-        <Style x:Key="HomeChromeButton" TargetType="Button">
-            <Setter Property="Foreground" Value="#AFC3BC" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderBrush" Value="#35554F" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="FontFamily" Value="Bahnschrift SemiCondensed" />
-            <Setter Property="FontSize" Value="11" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#183631" />
-                                <Setter Property="Foreground" Value="#F3FFF9" />
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#265048" />
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Opacity" Value="0.45" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
+        <Style x:Key="SourceButton" TargetType="Button" BasedOn="{StaticResource WieButton}">
+            <Setter Property="Height" Value="64" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         </Style>
 
-        <Style x:Key="SourceButton" TargetType="Button" BasedOn="{StaticResource HomeChromeButton}">
-            <Setter Property="Height" Value="52" />
-            <Setter Property="Margin" Value="0,0,0,8" />
-            <Setter Property="Padding" Value="14,0" />
-            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-            <Setter Property="Background" Value="#C50B2421" />
-            <Setter Property="BorderBrush" Value="#486C64" />
+        <Style x:Key="Monogram" TargetType="Border">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="MonogramLetter" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="TileTitle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource WieCream}" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+        <Style x:Key="TileDetail" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource WieMuted}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            <Setter Property="Margin" Value="0,1,0,0" />
         </Style>
 
         <Style x:Key="SteamAccountCombo" TargetType="ComboBox">
-            <Setter Property="Foreground" Value="#E9F4EE" />
-            <Setter Property="Background" Value="#D00A201D" />
-            <Setter Property="BorderBrush" Value="#486C64" />
-            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="{StaticResource WieText}" />
             <Setter Property="MinHeight" Value="48" />
             <Setter Property="MaxDropDownHeight" Value="220" />
             <Setter Property="ItemContainerStyle">
                 <Setter.Value>
                     <Style TargetType="ComboBoxItem">
-                        <Setter Property="Foreground" Value="#E9F4EE" />
-                        <Setter Property="Background" Value="#0A201D" />
+                        <Setter Property="Foreground" Value="{StaticResource WieText}" />
+                        <Setter Property="Background" Value="Transparent" />
                         <Setter Property="Padding" Value="10,7" />
                         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                         <Setter Property="Template">
                             <Setter.Value>
                                 <ControlTemplate TargetType="ComboBoxItem">
                                     <Border x:Name="ItemChrome" Background="{TemplateBinding Background}"
-                                            BorderBrush="#254740" BorderThickness="0,0,0,1"
-                                            Padding="{TemplateBinding Padding}">
+                                            CornerRadius="9" Margin="4,2" Padding="{TemplateBinding Padding}">
                                         <ContentPresenter />
                                     </Border>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsHighlighted" Value="True">
-                                            <Setter TargetName="ItemChrome" Property="Background" Value="#173D37" />
+                                            <Setter TargetName="ItemChrome" Property="Background" Value="{StaticResource WieHover}" />
                                         </Trigger>
                                         <Trigger Property="IsSelected" Value="True">
-                                            <Setter TargetName="ItemChrome" Property="Background" Value="#205047" />
+                                            <Setter TargetName="ItemChrome" Property="Background" Value="#22392B" />
                                         </Trigger>
                                     </ControlTemplate.Triggers>
                                 </ControlTemplate>
@@ -94,7 +79,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ComboBox">
                         <Grid>
-                            <ToggleButton x:Name="DropDownToggle" Focusable="False"
+                            <ToggleButton x:Name="DropDownToggle" Focusable="False" Cursor="Hand"
                                           IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
                                           ClickMode="Press" Background="Transparent" BorderThickness="0">
                                 <ToggleButton.Template>
@@ -102,9 +87,9 @@
                                         <ContentPresenter />
                                     </ControlTemplate>
                                 </ToggleButton.Template>
-                                <Border x:Name="ComboChrome" Background="#D00A201D"
-                                        BorderBrush="#486C64" BorderThickness="1" CornerRadius="3">
-                                    <Grid Margin="10,5,9,5">
+                                <Border x:Name="ComboChrome" Background="{StaticResource WieRaised}"
+                                        BorderBrush="{StaticResource WieLineStrong}" BorderThickness="1" CornerRadius="12">
+                                    <Grid Margin="12,5,10,5">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="18" />
@@ -112,8 +97,8 @@
                                         <ContentPresenter Content="{TemplateBinding SelectionBoxItem}"
                                                           ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
                                                           VerticalAlignment="Center" />
-                                        <Path Grid.Column="1" Data="M 2 5 L 7 10 L 12 5" Stroke="#72D8C8"
-                                              StrokeThickness="1.5" StrokeStartLineCap="Round"
+                                        <Path Grid.Column="1" Data="M 2 5 L 7 10 L 12 5" Stroke="{StaticResource WieGold}"
+                                              StrokeThickness="1.6" StrokeStartLineCap="Round"
                                               StrokeEndLineCap="Round" HorizontalAlignment="Center"
                                               VerticalAlignment="Center" />
                                     </Grid>
@@ -124,9 +109,12 @@
                                    PopupAnimation="Fade">
                                 <Border Width="{Binding ActualWidth, ElementName=DropDownToggle}"
                                         MaxHeight="{TemplateBinding MaxDropDownHeight}"
-                                        Margin="0,3,0,0" Background="#071716" BorderBrush="#4F8177"
-                                        BorderThickness="1" CornerRadius="3">
+                                        Margin="0,4,0,0" Background="{StaticResource WieCard}" BorderBrush="{StaticResource WieLineStrong}"
+                                        BorderThickness="1" CornerRadius="12" Padding="0,3">
                                     <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <ScrollViewer.Resources>
+                                            <Style TargetType="ScrollBar" BasedOn="{StaticResource WieScrollBar}" />
+                                        </ScrollViewer.Resources>
                                         <ItemsPresenter />
                                     </ScrollViewer>
                                 </Border>
@@ -134,10 +122,10 @@
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ComboChrome" Property="BorderBrush" Value="#68A99D" />
+                                <Setter TargetName="ComboChrome" Property="Background" Value="{StaticResource WieHover}" />
                             </Trigger>
                             <Trigger Property="IsKeyboardFocusWithin" Value="True">
-                                <Setter TargetName="ComboChrome" Property="BorderBrush" Value="#37D4C6" />
+                                <Setter TargetName="ComboChrome" Property="BorderBrush" Value="{StaticResource WieGold}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="ComboChrome" Property="Opacity" Value="0.45" />
@@ -147,302 +135,288 @@
                 </Setter.Value>
             </Setter>
         </Style>
-
     </Window.Resources>
 
-    <Border Margin="12" Background="#F2071716" BorderBrush="#6A58736C" BorderThickness="1" CornerRadius="7">
+    <Border Margin="12" Background="{StaticResource WieInk}" BorderBrush="{StaticResource WieLine}" BorderThickness="1" CornerRadius="20">
         <Border.Effect>
-            <DropShadowEffect Color="#000000" BlurRadius="24" ShadowDepth="4" Opacity="0.72" />
+            <DropShadowEffect Color="#000000" BlurRadius="24" ShadowDepth="4" Opacity="0.7" />
         </Border.Effect>
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="42" />
+                <RowDefinition Height="44" />
                 <RowDefinition Height="*" />
-                <RowDefinition Height="42" />
+                <RowDefinition Height="40" />
             </Grid.RowDefinitions>
 
-            <Border Grid.Row="0" BorderBrush="#2F514B" BorderThickness="0,0,0,1" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-                <Grid Margin="14,0,9,0">
+            <Border Grid.Row="0" Background="Transparent" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid Margin="16,0,10,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <Ellipse Width="9" Height="9" Fill="#163C38" Stroke="#37D4C6" StrokeThickness="1.5" VerticalAlignment="Center" />
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="9,0,0,0">
-                        <TextBlock Text="FIELD // LINK" Foreground="{StaticResource HomeBone}" FontFamily="Bahnschrift SemiCondensed" FontWeight="SemiBold" FontSize="11" />
-                        <TextBlock Text="  OPEN TELEMETRY CLIENT" Foreground="#86A19A" FontFamily="Bahnschrift" FontSize="10" FontWeight="Medium" VerticalAlignment="Center" />
-                    </StackPanel>
+                    <Image Width="20" Height="20" Source="pack://application:,,,/Assets/IsleOfWieIcon.png"
+                           RenderOptions.BitmapScalingMode="HighQuality" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" VerticalAlignment="Center" Margin="9,0,0,0" FontSize="12.5">
+                        <Run Text="Isle of Wie" Foreground="{StaticResource WieCream}" FontWeight="SemiBold" />
+                        <Run Text="  live map" Foreground="{StaticResource WieFaint}" />
+                    </TextBlock>
                     <StackPanel Grid.Column="2" Orientation="Horizontal">
-                        <Button Style="{StaticResource HomeChromeButton}" Content="—" Width="27" Height="23" Padding="0" Click="MinimizeButton_Click" />
-                        <Button Style="{StaticResource HomeChromeButton}" Content="×" Width="27" Height="23" Padding="0" Margin="5,0,0,0" Click="CloseButton_Click" />
+                        <Button Style="{StaticResource WieGhostButton}" Width="30" Height="28" Click="MinimizeButton_Click"
+                                AutomationProperties.Name="Thu nhỏ">
+                            <ContentControl Style="{StaticResource WieIcon}" Tag="{StaticResource IconMinus}" Width="14" Height="14" />
+                        </Button>
+                        <Button Style="{StaticResource WieGhostButton}" Width="30" Height="28" Margin="4,0,0,0"
+                                Click="CloseButton_Click" AutomationProperties.Name="Đóng">
+                            <ContentControl Style="{StaticResource WieIcon}" Tag="{StaticResource IconClose}" Width="14" Height="14" />
+                        </Button>
                     </StackPanel>
                 </Grid>
             </Border>
 
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel Margin="22,22,22,18">
-                    <Grid>
+                <ScrollViewer.Resources>
+                    <Style TargetType="ScrollBar" BasedOn="{StaticResource WieScrollBar}" />
+                </ScrollViewer.Resources>
+                <StackPanel Margin="22,6,22,18">
+                    <Grid Margin="0,0,0,22">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <StackPanel>
-                            <TextBlock Text="ISLE" Foreground="#86A29A" FontFamily="Bahnschrift SemiCondensed" FontSize="14" FontWeight="SemiBold" />
-                            <TextBlock Text="LIVE MAP" Foreground="{StaticResource HomeBone}" FontFamily="Bahnschrift SemiCondensed" FontSize="42" FontWeight="Bold" Margin="-2,-7,0,0" />
-                            <TextBlock Text="Minimap và chỉ số cá nhân cho The Isle Evrima." Foreground="{StaticResource HomeMuted}" FontSize="13" FontWeight="Medium" Margin="0,2,0,0" />
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock FontSize="40" FontWeight="Bold" Margin="-2,0,0,0">
+                                <Run Text="ISLE OF " Foreground="{StaticResource WieCream}" /><Run Text="WIE" Foreground="{StaticResource WieGold}" />
+                            </TextBlock>
+                            <StackPanel Orientation="Horizontal" Margin="1,0,0,0">
+                                <Ellipse Width="8" Height="8" Fill="{StaticResource WieLive}" VerticalAlignment="Center" />
+                                <TextBlock Text="L I V E   M A P" Foreground="{StaticResource WieGold}" FontSize="12.5" FontWeight="SemiBold"
+                                           Margin="8,0,0,0" VerticalAlignment="Center" AutomationProperties.Name="Live map" />
+                            </StackPanel>
+                            <TextBlock Text="Minimap và chỉ số cá nhân cho The Isle Evrima." Foreground="{StaticResource WieMuted}"
+                                       FontSize="13" Margin="0,10,0,0" TextWrapping="Wrap" />
                         </StackPanel>
-                        <Border Grid.Column="1" Width="68" Height="68" CornerRadius="34" BorderBrush="#3B665E" BorderThickness="1" VerticalAlignment="Top">
-                            <Grid>
-                                <Ellipse Width="45" Height="45" Stroke="#385F58" StrokeThickness="1" />
-                                <Path Data="M34,12 L43,37 L34,31 L25,37 Z" Fill="#E9F4EE" Stroke="#37D4C6" StrokeThickness="1" />
-                                <Ellipse Width="5" Height="5" Fill="#E7B74E" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                            </Grid>
-                        </Border>
+                        <Image Grid.Column="1" Width="104" Height="104" Margin="12,0,0,0"
+                               Source="pack://application:,,,/Assets/IsleOfWie.png" Stretch="Uniform"
+                               RenderOptions.BitmapScalingMode="HighQuality"
+                               VerticalAlignment="Center" AutomationProperties.Name="Isle of Wie Live Map" />
                     </Grid>
 
-                    <Rectangle Height="1" Fill="#35554F" Margin="0,18,0,16" />
-
-                    <TextBlock Text="ISLEPILOT NETWORK" Foreground="#A8BDB7" FontSize="11.5" FontWeight="SemiBold" Margin="0,0,0,9" />
-
-                    <StackPanel Loaded="SteamLoginPanel_Loaded">
-                        <Button x:Name="SteamLoginButton" Style="{StaticResource SourceButton}"
-                                Height="66" Click="SteamLoginButton_Click" Margin="0,0,0,8">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="42" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <Border Width="36" Height="36" CornerRadius="18" Background="#173D39"
-                                        BorderBrush="#5A8D84" BorderThickness="1" VerticalAlignment="Center">
-                                    <Canvas Width="24" Height="24">
-                                        <Line X1="7" Y1="15" X2="15" Y2="9" Stroke="#DDF9F1" StrokeThickness="2.3" />
-                                        <Ellipse Canvas.Left="2" Canvas.Top="12" Width="8" Height="8"
-                                                 Fill="#173D39" Stroke="#DDF9F1" StrokeThickness="2" />
-                                        <Ellipse Canvas.Left="13" Canvas.Top="4" Width="8" Height="8"
-                                                 Fill="#37D4C6" Stroke="#DDF9F1" StrokeThickness="1.5" />
-                                    </Canvas>
-                                </Border>
-                                <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
-                                    <TextBlock x:Name="SteamAccountLabel" Text="CHƯA ĐĂNG NHẬP STEAM"
-                                               Foreground="{StaticResource HomeBone}"
-                                               FontFamily="Bahnschrift SemiCondensed" FontSize="15"
-                                               FontWeight="SemiBold" />
-                                    <TextBlock x:Name="SteamLoginDetailLabel"
-                                               Text="Một phiên cho mọi server đã cài IslePilot"
-                                               Foreground="#91AAA3" FontSize="10.5" FontWeight="Medium" />
-                                </StackPanel>
-                                <TextBlock x:Name="SteamLoginActionLabel" Grid.Column="2"
-                                           Text="ĐĂNG NHẬP  →" Foreground="#A0D2C8"
-                                           FontFamily="Bahnschrift SemiCondensed" FontSize="10.5"
-                                           FontWeight="SemiBold" VerticalAlignment="Center" Margin="12,0,0,0" />
-                            </Grid>
-                        </Button>
-
-                        <Grid x:Name="SteamAccountControls" Visibility="Collapsed" Margin="0,0,0,8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <ComboBox x:Name="SteamAccountSelector" Style="{StaticResource SteamAccountCombo}"
-                                      SelectionChanged="SteamAccountSelector_SelectionChanged">
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <StackPanel>
-                                            <TextBlock Text="{Binding Title}" FontFamily="Bahnschrift SemiCondensed"
-                                                       FontWeight="SemiBold" FontSize="12.5" Foreground="#E9F4EE" />
-                                            <TextBlock Text="{Binding Detail}" FontSize="9.5" Foreground="#8FA8A1" />
+                    <HeaderedContentControl Style="{StaticResource WieLegendCard}" Header="IslePilot network">
+                        <StackPanel Loaded="SteamLoginPanel_Loaded">
+                            <Button x:Name="SteamLoginButton" Style="{StaticResource SourceButton}"
+                                    Height="66" Click="SteamLoginButton_Click" Margin="0,0,0,10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="40" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Width="38" Height="38" CornerRadius="19" Background="#16281E"
+                                            BorderBrush="#2B503B" BorderThickness="1" VerticalAlignment="Center">
+                                        <ContentControl Style="{StaticResource WieIcon}" Tag="{StaticResource IconLink}"
+                                                        Foreground="{StaticResource WieSea}" Width="18" Height="18" HorizontalAlignment="Center" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                        <TextBlock x:Name="SteamAccountLabel" Text="CHƯA ĐĂNG NHẬP STEAM"
+                                                   Style="{StaticResource TileTitle}" FontSize="13" />
+                                        <TextBlock x:Name="SteamLoginDetailLabel"
+                                                   Text="Một phiên cho mọi server đã cài IslePilot"
+                                                   Style="{StaticResource TileDetail}" />
+                                    </StackPanel>
+                                    <Border Grid.Column="2" Background="{StaticResource WieCream}" CornerRadius="10" Padding="9,5"
+                                            VerticalAlignment="Center" Margin="10,0,0,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock x:Name="SteamLoginActionLabel" Text="ĐĂNG NHẬP" Foreground="#14211A"
+                                                       FontSize="11" FontWeight="Bold" VerticalAlignment="Center" />
+                                            <ContentControl Style="{StaticResource WieIcon}" Tag="{StaticResource IconArrowRight}"
+                                                            Foreground="#14211A" Width="12" Height="12" Margin="5,0,0,0" />
                                         </StackPanel>
-                                    </DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
-                            <Button x:Name="AddSteamAccountButton" Grid.Column="1"
-                                    Style="{StaticResource HomeChromeButton}" Content="＋ THÊM TÀI KHOẢN"
-                                    Padding="11,6" Margin="8,0,0,0"
-                                    Click="AddSteamAccountButton_Click" />
-                            <Button x:Name="RemoveWebsiteSessionButton" Grid.Column="2"
-                                    Style="{StaticResource HomeChromeButton}" Content="XÓA PHIÊN"
-                                    Padding="11,6" Margin="8,0,0,0" Visibility="Collapsed"
-                                    Click="RemoveWebsiteSessionButton_Click" />
-                        </Grid>
+                                    </Border>
+                                </Grid>
+                            </Button>
 
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="Chỉ đọc tọa độ, hướng quay và status dino. Tự nhận server."
-                                       Foreground="#78938C" FontSize="10.5" TextWrapping="Wrap"
-                                       VerticalAlignment="Center" />
-                            <Button x:Name="LogoutSteamButton" Grid.Column="1"
-                                    Style="{StaticResource HomeChromeButton}" Content="XÓA TÀI KHOẢN"
-                                    Padding="10,5" Margin="10,0,0,0" Visibility="Collapsed"
-                                    Click="LogoutSteamButton_Click" />
-                        </Grid>
-                    </StackPanel>
+                            <Grid x:Name="SteamAccountControls" Visibility="Collapsed" Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <ComboBox x:Name="SteamAccountSelector" Style="{StaticResource SteamAccountCombo}"
+                                          SelectionChanged="SteamAccountSelector_SelectionChanged">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13"
+                                                           Foreground="{StaticResource WieCream}" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding Detail}" FontSize="10.5" Foreground="{StaticResource WieMuted}"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <Button x:Name="AddSteamAccountButton" Grid.Column="1"
+                                        Style="{StaticResource HomeChromeButton}" Margin="8,0,0,0"
+                                        AutomationProperties.Name="Thêm tài khoản"
+                                        Click="AddSteamAccountButton_Click">
+                                    <StackPanel Orientation="Horizontal">
+                                        <ContentControl Style="{StaticResource WieIcon}" Tag="{StaticResource IconPlus}" Width="13" Height="13" Margin="0,0,6,0" />
+                                        <TextBlock Text="THÊM TÀI KHOẢN" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                                <Button x:Name="RemoveWebsiteSessionButton" Grid.Column="2"
+                                        Style="{StaticResource HomeChromeButton}" Content="XÓA PHIÊN"
+                                        Margin="8,0,0,0" Visibility="Collapsed"
+                                        Click="RemoveWebsiteSessionButton_Click" />
+                            </Grid>
 
-                    <Rectangle Height="1" Fill="#2F514B" Margin="0,17,0,14" />
-
-                    <Grid Margin="0,0,0,9">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="SERVER DÙNG WEBSITE RIÊNG" Foreground="#A8BDB7"
-                                   FontSize="11.5" FontWeight="SemiBold" />
-                        <TextBlock x:Name="OwnSourceCountLabel" Grid.Column="1" Text="—" Foreground="#6F8C84"
-                                   FontFamily="Bahnschrift SemiCondensed" FontSize="10"
-                                   FontWeight="SemiBold" VerticalAlignment="Center" />
-                    </Grid>
-
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="10" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-
-                        <Button x:Name="EraSourceButton" Style="{StaticResource SourceButton}" Tag="era"
-                                Height="64" Margin="0" Padding="12,0"
-                                AutomationProperties.Name="Kết nối trực tiếp EraGaming"
-                                Click="SourceButton_Click">
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="36" />
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <Border Width="32" Height="32" CornerRadius="6" Background="#173D39"
-                                        BorderBrush="#37D4C6" BorderThickness="1" VerticalAlignment="Center">
-                                    <TextBlock Text="E" Foreground="#65F1DF" FontFamily="Bahnschrift SemiCondensed"
-                                               FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"
-                                               VerticalAlignment="Center" />
-                                </Border>
-                                <StackPanel Grid.Column="1" Margin="8,0,5,0" VerticalAlignment="Center">
-                                    <TextBlock Text="ERAGAMING" Foreground="{StaticResource HomeBone}"
-                                               FontFamily="Bahnschrift SemiCondensed" FontSize="14"
-                                               FontWeight="SemiBold" />
-                                    <TextBlock Text="eragamingvn.net" Foreground="#93AAA4"
-                                               FontSize="10.5" FontWeight="Medium" />
-                                </StackPanel>
-                                <TextBlock Grid.Column="2" Text="→" Foreground="#37D4C6"
-                                           FontSize="18" VerticalAlignment="Center" />
+                                <TextBlock Text="Chỉ đọc tọa độ, hướng quay và status dino. Tự nhận server."
+                                           Foreground="{StaticResource WieFaint}" FontSize="11.5" TextWrapping="Wrap"
+                                           VerticalAlignment="Center" />
+                                <Button x:Name="LogoutSteamButton" Grid.Column="1"
+                                        Style="{StaticResource HomeChromeButton}" Content="XÓA TÀI KHOẢN"
+                                        FontSize="11" Padding="10,5" Margin="10,0,0,0" Visibility="Collapsed"
+                                        Click="LogoutSteamButton_Click" />
                             </Grid>
-                        </Button>
+                        </StackPanel>
+                    </HeaderedContentControl>
 
-                        <Button x:Name="PandoraSourceButton" Grid.Column="2"
-                                Style="{StaticResource SourceButton}" Tag="pandora"
-                                Height="64" Margin="0" Padding="12,0"
-                                AutomationProperties.Name="Kết nối trực tiếp PANDORA"
-                                Click="SourceButton_Click">
+                    <HeaderedContentControl Style="{StaticResource WieLegendCard}">
+                        <HeaderedContentControl.Header>
+                            <TextBlock>
+                                <Run Text="Server dùng website riêng" />
+                                <Run x:Name="OwnSourceCountLabel" Text="" Foreground="{StaticResource WieFaint}" FontWeight="Medium" />
+                            </TextBlock>
+                        </HeaderedContentControl.Header>
+                        <StackPanel>
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="36" />
                                     <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="10" />
+                                    <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <Border Width="32" Height="32" CornerRadius="6" Background="#352F19"
-                                        BorderBrush="#E7B74E" BorderThickness="1" VerticalAlignment="Center">
-                                    <TextBlock Text="P" Foreground="#FFE18B" FontFamily="Bahnschrift SemiCondensed"
-                                               FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"
-                                               VerticalAlignment="Center" />
-                                </Border>
-                                <StackPanel Grid.Column="1" Margin="8,0,5,0" VerticalAlignment="Center">
-                                    <TextBlock Text="PANDORA" Foreground="{StaticResource HomeBone}"
-                                               FontFamily="Bahnschrift SemiCondensed" FontSize="14"
-                                               FontWeight="SemiBold" />
-                                    <TextBlock Text="islapandora.eu" Foreground="#C5B77A"
-                                               FontSize="10.5" FontWeight="Medium" />
-                                </StackPanel>
-                                <TextBlock Grid.Column="2" Text="→" Foreground="#E7B74E"
-                                           FontSize="18" VerticalAlignment="Center" />
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="10" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <Button x:Name="EraSourceButton" Style="{StaticResource SourceButton}" Tag="era"
+                                        AutomationProperties.Name="Kết nối trực tiếp EraGaming"
+                                        Click="SourceButton_Click">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Style="{StaticResource Monogram}" Background="#0E2A30" BorderBrush="#1B5560">
+                                            <TextBlock Text="E" Style="{StaticResource MonogramLetter}" Foreground="{StaticResource WieSea}" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                            <TextBlock Text="EraGaming" Style="{StaticResource TileTitle}" />
+                                            <TextBlock Text="eragamingvn.net" Style="{StaticResource TileDetail}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Button>
+
+                                <Button x:Name="PandoraSourceButton" Grid.Column="2"
+                                        Style="{StaticResource SourceButton}" Tag="pandora"
+                                        AutomationProperties.Name="Kết nối trực tiếp PANDORA"
+                                        Click="SourceButton_Click">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Style="{StaticResource Monogram}" Background="#2A2414" BorderBrush="#5C4D2A">
+                                            <TextBlock Text="P" Style="{StaticResource MonogramLetter}" Foreground="{StaticResource WieGold}" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                            <TextBlock Text="Pandora" Style="{StaticResource TileTitle}" />
+                                            <TextBlock Text="islapandora.eu" Style="{StaticResource TileDetail}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Button>
+
+                                <Button x:Name="SdvnSourceButton" Grid.Row="2" Style="{StaticResource SourceButton}" Tag="sdvn3"
+                                        AutomationProperties.Name="Kết nối trực tiếp SDVN #3"
+                                        Click="SourceButton_Click">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Style="{StaticResource Monogram}" Background="#18291A" BorderBrush="#3D6229">
+                                            <TextBlock Text="S" Style="{StaticResource MonogramLetter}" Foreground="{StaticResource WieLand}" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                            <TextBlock Text="SDVN #3 x3 Grow" Style="{StaticResource TileTitle}" />
+                                            <TextBlock Text="3.sdvn.org · IslePilot" Style="{StaticResource TileDetail}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Button>
+
+                                <Button x:Name="SbtcSourceButton" Grid.Row="2" Grid.Column="2" Style="{StaticResource SourceButton}" Tag="sbtc"
+                                        AutomationProperties.Name="Kết nối trực tiếp SBTC Island"
+                                        Click="SourceButton_Click">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Style="{StaticResource Monogram}" Background="#2B2619" BorderBrush="#6B5E3A">
+                                            <TextBlock Text="S" Style="{StaticResource MonogramLetter}" Foreground="{StaticResource WieSand}" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                            <TextBlock Text="SBTC Island" Style="{StaticResource TileTitle}" />
+                                            <TextBlock Text="sbtcislandd.com" Style="{StaticResource TileDetail}" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Button>
                             </Grid>
-                        </Button>
-                    </Grid>
 
-                    <Button x:Name="SdvnSourceButton" Style="{StaticResource SourceButton}" Tag="sdvn3"
-                            Height="64" Margin="0,10,0,0" Padding="12,0"
-                            AutomationProperties.Name="Kết nối trực tiếp SDVN #3"
-                            Click="SourceButton_Click">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="36" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <Border Width="32" Height="32" CornerRadius="6" Background="#2C1B3A"
-                                    BorderBrush="#A78BFA" BorderThickness="1" VerticalAlignment="Center">
-                                <TextBlock Text="S" Foreground="#D6C4FF" FontFamily="Bahnschrift SemiCondensed"
-                                           FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"
-                                           VerticalAlignment="Center" />
-                            </Border>
-                            <StackPanel Grid.Column="1" Margin="8,0,5,0" VerticalAlignment="Center">
-                                <TextBlock Text="SDVN #3 X3 GROW" Foreground="{StaticResource HomeBone}"
-                                           FontFamily="Bahnschrift SemiCondensed" FontSize="14"
-                                           FontWeight="SemiBold" />
-                                <TextBlock Text="3.sdvn.org · IslePilot" Foreground="#B7A6D8"
-                                           FontSize="10.5" FontWeight="Medium" />
-                            </StackPanel>
-                            <TextBlock Grid.Column="2" Text="→" Foreground="#A78BFA"
-                                       FontSize="18" VerticalAlignment="Center" />
-                        </Grid>
-                    </Button>
-
-                    <Button x:Name="SbtcSourceButton" Style="{StaticResource SourceButton}" Tag="sbtc"
-                            Height="64" Margin="0,10,0,0" Padding="12,0"
-                            AutomationProperties.Name="Kết nối trực tiếp SBTC Island"
-                            Click="SourceButton_Click">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="36" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <Border Width="32" Height="32" CornerRadius="6" Background="#3A2A17"
-                                    BorderBrush="#E0A45E" BorderThickness="1" VerticalAlignment="Center">
-                                <TextBlock Text="S" Foreground="#FFD8A8" FontFamily="Bahnschrift SemiCondensed"
-                                           FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"
-                                           VerticalAlignment="Center" />
-                            </Border>
-                            <StackPanel Grid.Column="1" Margin="8,0,5,0" VerticalAlignment="Center">
-                                <TextBlock Text="SBTC ISLAND" Foreground="{StaticResource HomeBone}"
-                                           FontFamily="Bahnschrift SemiCondensed" FontSize="14"
-                                           FontWeight="SemiBold" />
-                                <TextBlock Text="sbtcislandd.com · live map + chỉ số" Foreground="#D8BFA0"
-                                           FontSize="10.5" FontWeight="Medium" />
-                            </StackPanel>
-                            <TextBlock Grid.Column="2" Text="→" Foreground="#E0A45E"
-                                       FontSize="18" VerticalAlignment="Center" />
-                        </Grid>
-                    </Button>
+                            <TextBlock Text="Các server này dùng phiên đăng nhập riêng trên live map của họ."
+                                       Foreground="{StaticResource WieFaint}" FontSize="11.5" TextWrapping="Wrap"
+                                       Margin="2,12,0,0" />
+                        </StackPanel>
+                    </HeaderedContentControl>
 
                     <Button x:Name="GuestModeButton" Style="{StaticResource HomeChromeButton}"
-                            Content="CHẾ ĐỘ KHÁCH · CHỈ XEM BẢN ĐỒ" Padding="14,8" Margin="0,10,0,0"
-                            HorizontalAlignment="Left"
+                            Height="44" HorizontalContentAlignment="Center"
                             AutomationProperties.Name="Mở overlay ở chế độ khách, chỉ xem bản đồ"
-                            Click="GuestModeButton_Click" />
-
-                    <TextBlock Text="Các server này dùng phiên đăng nhập riêng trên live map của họ."
-                               Foreground="#78938C" FontSize="10.5" TextWrapping="Wrap"
-                               Margin="0,8,0,0" />
+                            Click="GuestModeButton_Click">
+                        <TextBlock>
+                            <InlineUIContainer BaselineAlignment="Center"><ContentControl Style="{StaticResource WieIcon}" Tag="{StaticResource IconEye}"
+                                Foreground="{StaticResource WieGold}" Width="16" Height="16" Margin="0,0,8,0" /></InlineUIContainer><Run Text="Chế độ khách" FontWeight="SemiBold" Foreground="{StaticResource WieCream}" />
+                            <Run Text="  ·  chỉ xem bản đồ + chỉ số từ game" Foreground="{StaticResource WieMuted}" FontWeight="Normal" />
+                        </TextBlock>
+                    </Button>
 
                     <TextBlock x:Name="SourceStatusLabel"
                                Text="Chọn IslePilot hoặc kết nối trực tiếp đúng server bạn đang chơi."
-                               Foreground="#9CB2AC" FontSize="11.5" FontWeight="Medium"
-                               TextWrapping="Wrap" Margin="0,12,0,0" />
+                               Foreground="{StaticResource WieMuted}" FontSize="12"
+                               TextWrapping="Wrap" Margin="2,14,0,0" />
                 </StackPanel>
             </ScrollViewer>
 
-            <Border Grid.Row="2" BorderBrush="#2F514B" BorderThickness="0,1,0,0">
-                <Grid Margin="14,0">
+            <Border Grid.Row="2" BorderBrush="{StaticResource WieLine}" BorderThickness="0,1,0,0">
+                <Grid Margin="16,0,12,0">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                    <Ellipse Width="6" Height="6" Fill="#37D4C6" VerticalAlignment="Center" />
-                    <TextBlock x:Name="VersionStatusLabel" Grid.Column="1" Text="ISLE LIVE MAP · ĐANG KIỂM TRA UPDATE" Foreground="#87A39B" FontFamily="Bahnschrift SemiCondensed" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" Margin="7,0,0,0" />
-                    <Button x:Name="ApplyUpdateButton" Grid.Column="2" Style="{StaticResource HomeChromeButton}"
-                            Content="UPDATE" Padding="9,4" Margin="8,4,0,4"
-                            Foreground="#7DE4D2" BorderBrush="#39756B" Visibility="Collapsed"
+                    <Ellipse Width="7" Height="7" Fill="{StaticResource WieLive}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="VersionStatusLabel" Grid.Column="1" Text="ISLE OF WIE · ĐANG KIỂM TRA UPDATE"
+                               Foreground="{StaticResource WieMuted}" FontSize="11" FontWeight="Medium"
+                               VerticalAlignment="Center" Margin="8,0,0,0" TextTrimming="CharacterEllipsis" />
+                    <Button x:Name="ApplyUpdateButton" Grid.Column="2" Style="{StaticResource WiePrimaryButton}"
+                            Content="UPDATE" FontSize="11" Padding="12,4" Margin="8,6,0,6" Visibility="Collapsed"
                             Click="ApplyUpdateButton_Click" />
                 </Grid>
             </Border>

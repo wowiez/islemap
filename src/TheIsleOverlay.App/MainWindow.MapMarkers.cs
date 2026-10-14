@@ -21,8 +21,8 @@ public partial class MainWindow
             PlayerMarkerScaleSlider.Value = _layoutSettings.PlayerMarkerScale * 100d;
             PlayerMarkerScaleLabel.Text = OverlayLayoutRules.FormatPlayerMarkerScale(_layoutSettings.PlayerMarkerScale);
             Panel.SetZIndex(SbtcWildlifeLayer, wildlifeAbovePlayer ? 7 : 3);
-            WildlifeBelowPlayerButton.Background = BrushFrom(!wildlifeAbovePlayer ? "#3A1D514B" : "#151D1B");
-            WildlifeAbovePlayerButton.Background = BrushFrom(wildlifeAbovePlayer ? "#3A1D514B" : "#151D1B");
+            WildlifeBelowPlayerButton.Background = BrushFrom(!wildlifeAbovePlayer ? "#40C9A95A" : "#151D1B");
+            WildlifeAbovePlayerButton.Background = BrushFrom(wildlifeAbovePlayer ? "#40C9A95A" : "#151D1B");
         }
         finally { _updatingMapMarkerSettings = false; }
         if (_sbtcPlayerMarkers.Count > 0) RenderSbtcPlayerOverlay(SbtcPlayerLayer.Width, SbtcPlayerLayer.Height);

@@ -1,6 +1,8 @@
-# Isle Live Map
+# Isle of Wie (The Isle Live Map)
 
-Ứng dụng overlay cho **The Isle Evrima**. Isle Live Map chạy ngoài process game, luôn nổi trên màn hình và hiển thị minimap Gateway cùng telemetry cá nhân từ nguồn server tương thích.
+> Trước đây tên là **Isle Live Map**. Vẫn là app minimap / live map cho The Isle Evrima, chỉ đổi tên.
+
+Ứng dụng overlay cho **The Isle Evrima**. Isle of Wie chạy ngoài process game, luôn nổi trên màn hình và hiển thị minimap Gateway cùng telemetry cá nhân từ nguồn server tương thích.
 
 ## Nguồn telemetry
 
@@ -45,7 +47,7 @@ App mở website đăng nhập trong Microsoft Edge WebView2 với profile riên
 %LocalAppData%\IsleLiveMapData\WebView2
 ```
 
-Callback IslePilot `isle-overlay://` được bắt ngay bên trong WebView2. Isle Live Map không đăng ký hoặc chiếm protocol này trong Windows.
+Callback IslePilot `isle-overlay://` được bắt ngay bên trong WebView2. Isle of Wie không đăng ký hoặc chiếm protocol này trong Windows.
 
 Overlay Bearer token được lưu tại `%LocalAppData%\IsleLiveMapData` sau khi mã hóa bằng DPAPI CurrentUser. Thư mục này tách biệt với install root `%LocalAppData%\IsleLiveMap` do Velopack quản lý. Token:
 
@@ -78,7 +80,7 @@ dotnet build .\TheIsleOverlay.sln --configuration Release
 Build installer:
 
 ```powershell
-.\scripts\Package-Release.ps1 -Version 1.9.8
+.\scripts\Package-Release.ps1 -Version 2.0.0
 ```
 
 Output nằm trong `artifacts/distribution`.

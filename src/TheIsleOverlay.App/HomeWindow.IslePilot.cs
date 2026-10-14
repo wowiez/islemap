@@ -529,12 +529,12 @@ public partial class HomeWindow
             var sourceLabel = _islePilotSelectedSource?.AccountLabel;
             SteamLoginDetailLabel.Text = authenticated
                 ? sourceLabel is null
-                    ? $"SteamID ••••{credentials!.SteamId[^4..]} · mã hóa Windows DPAPI"
+                    ? $"SteamID ••••{credentials!.SteamId[^4..]} · mã hóa DPAPI"
                     : $"{sourceLabel} · SteamID ••••{credentials!.SteamId[^4..]}"
                 : "Một phiên cho mọi server đã cài IslePilot";
         }
 
-        SteamLoginActionLabel.Text = authenticated || websiteSelected ? "MỞ OVERLAY  →" : "ĐĂNG NHẬP  →";
+        SteamLoginActionLabel.Text = authenticated || websiteSelected ? "MỞ OVERLAY" : "ĐĂNG NHẬP";
         LogoutSteamButton.Visibility = authenticated ? Visibility.Visible : Visibility.Collapsed;
         RemoveWebsiteSessionButton.Visibility = websiteSelected && _selectedWebsiteChoice?.Credentials is null
             ? Visibility.Visible

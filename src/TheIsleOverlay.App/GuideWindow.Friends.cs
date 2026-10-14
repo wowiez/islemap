@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Security.Cryptography;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using Microsoft.Win32;
 using TheIsleOverlay.Core;
@@ -42,12 +43,16 @@ public partial class GuideWindow
     {
         if (_friendsBusy || _friendsClient is null) return;
         _friendsBusy = true;
-        FriendsActions.IsEnabled = false;
+        // Dim instead of IsEnabled=false: disabled inputs fall back to the white
+        // system template and flash on every accept/refresh. _friendsBusy guards re-entry.
+        FriendsActions.IsHitTestVisible = false;
+        Keyboard.ClearFocus(); // no typing into inputs the action will reset
+        FriendsActions.Opacity = 0.6;
         FriendsStatus.Text = "Đang xử lý…";
         try { await action(); FriendsStatus.Text = "Đã cập nhật · chỉ bạn cùng server mới được xem vị trí khi bạn bật chia sẻ."; }
         catch (Exception error) when (error is HttpRequestException or IOException or CryptographicException or InvalidOperationException or OperationCanceledException or System.Text.Json.JsonException or ObjectDisposedException)
         { FriendsStatus.Text = error is HttpRequestException ? error.Message : "Chưa thực hiện được. Kiểm tra kết nối hoặc dùng mã khôi phục nếu danh tính bị hỏng."; }
-        finally { _friendsBusy = false; FriendsActions.IsEnabled = true; UpdateFriendAccount(); }
+        finally { _friendsBusy = false; FriendsActions.IsHitTestVisible = true; FriendsActions.Opacity = 1; UpdateFriendAccount(); }
     }
     private async void FriendCreate_Click(object sender, RoutedEventArgs e) => await RunFriendAction(async () =>
     {
@@ -105,7 +110,7 @@ public partial class GuideWindow
         {
             _friendNames[friend.UserId] = friend.Name;
             var row = new DockPanel { LastChildFill = true };
-            var card = new Border { Background = new SolidColorBrush(Color.FromArgb(230, 20, 25, 27)), BorderBrush = new SolidColorBrush(Color.FromRgb(52,61,64)), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(14, 11, 14, 11), Margin = new Thickness(0, 0, 0, 8), Child = row };
+            var card = new Border { Background = new SolidColorBrush(Color.FromArgb(230, 16, 28, 21)), BorderBrush = new SolidColorBrush(Color.FromRgb(46, 70, 55)), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(14), Padding = new Thickness(14, 11, 14, 11), Margin = new Thickness(0, 0, 0, 8), Child = row };
             void ActionButton(string title, string action)
             {
                 var button = new Button { Content = title, Style = (Style)FindResource("NavButton"), Margin = new Thickness(6, 0, 0, 0) };
@@ -120,13 +125,13 @@ public partial class GuideWindow
             if (friend.State == "incoming") { ActionButton("CHẤP THUẬN", "accept"); ActionButton("TỪ CHỐI", "reject"); }
             else ActionButton(friend.State == "accepted" ? "HỦY KẾT BẠN" : "HỦY LỜI MỜI", friend.State == "accepted" ? "remove" : "cancel");
             var labels = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0,0,12,0) };
-            var name = new TextBlock { Text = friend.Name, Foreground = Brushes.White, FontSize = 15, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis };
-            var detail = new TextBlock { Text = friend.State == "incoming" ? "Lời mời đến" : friend.State == "outgoing" ? "Chờ chấp thuận" : "Ngoại tuyến", Foreground = new SolidColorBrush(Color.FromRgb(146,156,159)), FontSize = 12, Margin = new Thickness(0,4,0,0), TextTrimming = TextTrimming.CharacterEllipsis };
+            var name = new TextBlock { Text = friend.Name, Foreground = new SolidColorBrush(Color.FromRgb(242, 236, 215)), FontSize = 15, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis };
+            var detail = new TextBlock { Text = friend.State == "incoming" ? "Lời mời đến" : friend.State == "outgoing" ? "Chờ chấp thuận" : "Ngoại tuyến", Foreground = new SolidColorBrush(Color.FromRgb(152, 161, 142)), FontSize = 12, Margin = new Thickness(0,4,0,0), TextTrimming = TextTrimming.CharacterEllipsis };
             labels.Children.Add(name); labels.Children.Add(detail); row.Children.Add(labels);
             if (friend.State == "accepted") _friendLabels[friend.UserId] = (name, detail);
             FriendRows.Items.Add(card);
         }
-        if (snapshot.Friends.Count == 0) FriendRows.Items.Add(new TextBlock { Text = "Chưa có bạn bè hoặc lời mời.", Foreground = Brushes.Gray });
+        if (snapshot.Friends.Count == 0) FriendRows.Items.Add(new TextBlock { Text = "Chưa có bạn bè hoặc lời mời.", Foreground = new SolidColorBrush(Color.FromRgb(152, 161, 142)) });
         RefreshFriendLabels();
     }
     public void UpdateFriendPresence(IReadOnlyList<FriendPresence> friends, MapPoint? own = null)

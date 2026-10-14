@@ -180,7 +180,7 @@ public sealed class SbtcVoiceControl : ContentControl, IDisposable
         {
             Text = message,
             Foreground = new SolidColorBrush(Color.FromRgb(152, 164, 158)),
-            FontFamily = new FontFamily("Bahnschrift SemiCondensed"),
+            FontFamily = App.UiFont,
             FontWeight = FontWeights.SemiBold,
             TextAlignment = TextAlignment.Center
         });

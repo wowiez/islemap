@@ -20,7 +20,7 @@ public sealed record KillFeedRowPresentation(string Time, string Killer, string 
             natural ? "Nguyên nhân tự nhiên" : Detail(row.KillerSpecies, row.KillerGrowth),
             string.IsNullOrWhiteSpace(row.VictimName) ? "Người chơi" : row.VictimName,
             Detail(row.VictimSpecies, row.VictimGrowth), natural ? "TỰ NHIÊN" : row.Cause == "pvp" ? "PVP" : "KHÁC",
-            natural ? "#939A9D" : "#E79591");
+            natural ? "#99A28E" : "#E79591");
     }
 }
 
@@ -28,6 +28,14 @@ public partial class GuideWindow
 {
     public event Action<bool>? MapKillFeedEnabledChanged;
     private bool _showMapKillFeed;
+
+    /// <summary>Kill Feed is an SBTC Island API: hide its tab and setting elsewhere.</summary>
+    public void SetKillFeedAvailable(bool available)
+    {
+        var visibility = available ? Visibility.Visible : Visibility.Collapsed;
+        KillFeedNavButton.Visibility = GuideMapKillFeedCard.Visibility = visibility;
+        if (!available && KillFeedPage.Visibility == Visibility.Visible) ShowPage(OverviewPage, OverviewNavButton);
+    }
 
     public void UpdateMapKillFeedSetting(bool enabled)
     {
