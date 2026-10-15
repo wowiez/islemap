@@ -53,18 +53,32 @@ public sealed record GuideGarageApi(
     Func<CancellationToken, Task<IslePilotOverlaySkinApplyDto>> CheckSkinDelivery,
     Func<Uri, CancellationToken, Task<byte[]>> DownloadAsset,
     Func<CancellationToken, Task<SbtcVaultParkTerms>> ParkTerms,
-    Func<string, int, CancellationToken, Task<SbtcSkinPreview>>? SkinPreview = null);
+    Func<string, int, CancellationToken, Task<SbtcSkinPreview>>? SkinPreview = null)
+{
+    /// <summary>Server name used in garage and skin messages.</summary>
+    public string Label { get; init; } = "SBTC Island";
+    public Uri StudioUri { get; init; } = new("https://sbtcislandd.com/studio");
+    // SBTC's vault page has stayed hidden since 1.8.33; SDVN #3 shows its garage.
+    public bool ShowGarage { get; init; }
+    // The 3D viewer and draft saving run on SBTC's studio assets and API only.
+    public bool StudioFeatures { get; init; } = true;
+    /// <summary>Sends a saved design unchanged (glitch layers included); null when unsupported.</summary>
+    public Func<string, IslePilotOverlaySkinDraftPayloadDto, CancellationToken, Task<IslePilotOverlaySkinApplyDto>>? ApplyDraft { get; init; }
+}
 
 public sealed record SkinDraftPresentation(
     string Name,
     IslePilotOverlayGaragePaletteDto? Palette,
     IReadOnlyList<string> Colors,
-    IslePilotOverlaySkinDraftPayloadDto? Payload)
+    IslePilotOverlaySkinDraftPayloadDto? Payload,
+    bool SendsGlitch = false)
 {
-    public string Description => Payload?.RenderMode == "glitch"
-        ? "Thiết kế glitch · xem và chỉnh trong Studio SBTC"
-        : Palette is null ? "Server chưa cung cấp bảng màu · xem trong Studio SBTC" : "Thiết kế màu thường";
-    public string ActionLabel => Payload?.RenderMode == "glitch" || Palette is null ? "MỞ STUDIO" : "CHỌN";
+    // SBTC calls it "glitch", IslePilot sites "glitched".
+    public bool IsGlitch => Payload?.RenderMode is "glitch" or "glitched";
+    public string Description => IsGlitch
+        ? SendsGlitch ? "Thiết kế glitch · bấm ÁP DỤNG để gửi thẳng tới Dino đang chơi" : "Thiết kế glitch · xem và chỉnh trên web studio"
+        : Palette is null ? "Server chưa cung cấp bảng màu · xem trên web studio" : "Thiết kế màu thường";
+    public string ActionLabel => IsGlitch ? SendsGlitch ? "ÁP DỤNG" : "MỞ STUDIO" : Palette is null ? "MỞ STUDIO" : "CHỌN";
 }
 
 public sealed record GarageDinoCardPresentation(
@@ -242,12 +256,16 @@ public partial class GuideWindow : Window
     private string _skinEditorServerSlug = "sbtcisland";
     private string? _skinEditorServerId = IslePilotServerIds.SbtcIsland;
     private bool _skinEditorFemale = true;
+    // Gender of the dino being played, from telemetry; glitch designs are sent for this dino.
+    private bool? _liveFemale;
     private int _skinEditorTheme;
     private int _skinEditorPattern;
     private int _skinEditorVariation = 8;
     private bool _skinDraftLoading;
     private bool _showAllSkinDrafts = true;
     private bool _skinApplyBusy;
+    // A glitch design loaded from the drafts; cleared as soon as a colour is edited by hand.
+    private IslePilotOverlaySkinDraftPayloadDto? _skinEditorGlitchDraft;
 
     public GuideWindow(
         string? activeSpecies = null,
@@ -266,7 +284,7 @@ public partial class GuideWindow : Window
         InitializeComponent();
         _embeddedMapWindow = new LargeMapWindow(mapSource);
         _garageApi = garageApi;
-        if (garageApi is not null)
+        if (garageApi is { StudioFeatures: true })
         {
             SetValue(GarageModelControl.AssetDownloaderProperty, garageApi.DownloadAsset);
             SetValue(GarageModelControl.PreviewProviderProperty, garageApi.SkinPreview);
@@ -289,8 +307,15 @@ public partial class GuideWindow : Window
         ShowPage(OverviewPage, OverviewNavButton);
         UpdatePlayerOverview(playerOverview);
         RenderRecommendations();
-        GarageNavButton.Visibility = Visibility.Collapsed;
+        GarageNavButton.Visibility = garageApi?.ShowGarage == true ? Visibility.Visible : Visibility.Collapsed;
         SkinEditorNavButton.Visibility = garageApi is null ? Visibility.Collapsed : Visibility.Visible;
+        GarageSourceLabel.Text = $"Đồng bộ trực tiếp với {GarageLabel} · có xác nhận trước khi cất hoặc lấy Dino";
+        SkinDraftsTitle.Text = $"ĐÃ LƯU · {GarageLabel.ToUpperInvariant()}";
+        if (garageApi is { StudioFeatures: false })
+        {
+            SetValue(GarageModelControl.StudioAssetsProperty, new Uri(garageApi.StudioUri.GetLeftPart(UriPartial.Authority) + "/"));
+            SkinSaveButton.Visibility = Visibility.Collapsed;
+        }
         ApplySkinPaletteToInputs(DefaultSkinPalette());
         RenderCaptureSettings();
         UpdateMapMarkerSettings(OverlayLayoutRules.DefaultPlayerMarkerScale, wildlifeAbovePlayer: false);
@@ -363,6 +388,7 @@ public partial class GuideWindow : Window
             RefreshSkinEditorModel();
         }
 
+        _liveFemale = player.Female;
         _skinEditorServerSlug = SlugForServer(player.Server);
         _skinEditorServerId = player.ServerId ?? IslePilotServerIds.ForSlug(_skinEditorServerSlug);
         SetSbtcVoiceAvailability(SbtcZoneOverlay.IsSbtcServer(player.Server));
@@ -445,6 +471,8 @@ public partial class GuideWindow : Window
             CrashReporter.Write("GuideWindow.SkinEditorNav", exception);
         }
     }
+
+    private string GarageLabel => _garageApi?.Label ?? "SBTC Island";
 
     private void VoiceNavButton_Click(object sender, RoutedEventArgs e)
     {
@@ -627,14 +655,14 @@ public partial class GuideWindow : Window
         try
         {
             await _garageApi.SaveSkinDraft(_skinEditorServerSlug, _skinEditorSpecies, name, palette, _skinEditorFemale, _skinEditorTheme, _skinEditorPattern, _skinEditorVariation, _garageCancellation.Token);
-            SkinEditorStatusLabel.Text = "ĐÃ LƯU VÀO THIẾT KẾ SBTC";
+            SkinEditorStatusLabel.Text = $"ĐÃ LƯU VÀO THIẾT KẾ {GarageLabel.ToUpperInvariant()}";
             SkinEditorStatusLabel.Foreground = BrushFrom("#8FC7A5");
             await LoadSkinDraftsAsync();
         }
         catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidDataException or JsonException or OperationCanceledException or TelemetryAuthenticationException or IslePilotOverlayAuthenticationException)
         {
             SkinEditorStatusLabel.Text = exception is IslePilotOverlayAuthenticationException or TelemetryAuthenticationException
-                ? "CHƯA ĐĂNG NHẬP SBTC ISLAND HOẶC PHIÊN ĐÃ HẾT HẠN"
+                ? $"CHƯA ĐĂNG NHẬP {GarageLabel.ToUpperInvariant()} HOẶC PHIÊN ĐÃ HẾT HẠN"
                 : $"KHÔNG LƯU ĐƯỢC THIẾT KẾ: {exception.Message}";
             SkinEditorStatusLabel.Foreground = BrushFrom("#D2726F");
         }
@@ -674,22 +702,58 @@ public partial class GuideWindow : Window
     private async void SkinApplyButton_Click(object sender, RoutedEventArgs e)
     {
         if (_skinApplyBusy || _garageApi is null || string.IsNullOrWhiteSpace(_skinEditorSpecies)) return;
+        if (_skinEditorGlitchDraft is { } glitchDraft && _garageApi.ApplyDraft is not null)
+        {
+            await SendGlitchDraftAsync(_skinEditorSpecies, glitchDraft);
+            return;
+        }
         if (!TryReadSkinPalette(out var palette)) { SkinEditorStatusLabel.Text = "KIỂM TRA MÃ MÀU HEX"; return; }
-        _skinApplyBusy = true;
-        try
+        await SendSkinAsync(async token =>
         {
             var prepared = await _garageApi.PrepareSkinApply(_skinEditorSpecies, palette,
-                _skinEditorTheme, _skinEditorPattern, _skinEditorVariation, _garageCancellation.Token);
+                _skinEditorTheme, _skinEditorPattern, _skinEditorVariation, token);
             SkinAccessLabel.Text = prepared.Access.Message;
-            SkinEditorStatusLabel.Text = "ĐANG GỬI SKIN TỚI SBTC…";
-            var result = await _garageApi.ApplySkin(prepared, _garageCancellation.Token);
+            SkinEditorStatusLabel.Text = $"ĐANG GỬI SKIN TỚI {GarageLabel.ToUpperInvariant()}…";
+            return await _garageApi.ApplySkin(prepared with { Female = _skinEditorFemale }, token);
+        });
+    }
+
+    private Task SendGlitchDraftAsync(string species, IslePilotOverlaySkinDraftPayloadDto draft) =>
+        SendSkinAsync(token =>
+        {
+            SkinEditorStatusLabel.Text = $"ĐANG GỬI SKIN GLITCH TỚI {GarageLabel.ToUpperInvariant()}…";
+            return _garageApi!.ApplyDraft!(species, draft, token);
+        });
+
+    private async Task SendSkinAsync(Func<CancellationToken, Task<IslePilotOverlaySkinApplyDto>> send)
+    {
+        if (_garageApi is null) return;
+        if (_skinApplyBusy)
+        {
+            // One skin at a time: a second send while the first is unconfirmed is what gets a dino stuck.
+            SkinEditorStatusLabel.Text = "ĐANG GỬI SKIN TRƯỚC ĐÓ · CHỜ SERVER XÁC NHẬN RỒI THỬ LẠI";
+            SkinEditorStatusLabel.Foreground = BrushFrom("#E7B74E");
+            return;
+        }
+
+        _skinApplyBusy = true;
+        SkinDraftsList.IsEnabled = false;
+        try
+        {
+            var result = await send(_garageCancellation.Token);
             ShowSkinDelivery(result);
-            // Accepted is only an acknowledgement. Keep checking the island's result.
+            // Accepted is only an acknowledgement. Keep checking the server's result.
             for (var poll = 0; result.Pending == true && result.Accepted && poll < 15; poll++)
             {
                 await Task.Delay(TimeSpan.FromSeconds(2), _garageCancellation.Token);
                 result = await _garageApi.CheckSkinDelivery(_garageCancellation.Token);
                 ShowSkinDelivery(result);
+            }
+
+            if (result.Pending == true)
+            {
+                SkinEditorStatusLabel.Text = "SERVER CHƯA XÁC NHẬN SKIN · KIỂM TRA TRONG GAME HOẶC BẤM KIỂM TRA ĐÃ GỬI, ĐỪNG GỬI LẠI NGAY";
+                SkinEditorStatusLabel.Foreground = BrushFrom("#E7B74E");
             }
         }
         catch (OperationCanceledException) when (_garageCancellation.IsCancellationRequested) { }
@@ -698,7 +762,11 @@ public partial class GuideWindow : Window
             SkinEditorStatusLabel.Text = $"CHƯA XÁC NHẬN SKIN: {exception.Message}";
             SkinEditorStatusLabel.Foreground = BrushFrom("#D2726F");
         }
-        finally { _skinApplyBusy = false; }
+        finally
+        {
+            _skinApplyBusy = false;
+            SkinDraftsList.IsEnabled = true;
+        }
     }
 
     private void ShowSkinDelivery(IslePilotOverlaySkinApplyDto result)
@@ -740,15 +808,39 @@ public partial class GuideWindow : Window
 
         try
         {
-            if (draft.Payload?.RenderMode == "glitch")
+            if (draft.IsGlitch && draft.SendsGlitch && draft.Payload is { } glitch)
             {
-                SkinEditorStatusLabel.Text = "Skin glitch cần trình studio trên web SBTC; bảng HEX này dùng cho skin màu thường.";
+                if (string.IsNullOrWhiteSpace(_skinEditorSpecies))
+                {
+                    SkinEditorStatusLabel.Text = "CHƯA CÓ DINO ĐANG CHƠI ĐỂ ÁP SKIN";
+                    return;
+                }
+                // Glitch layers are per colour slot, not per species: any design works on the dino
+                // being played. It is sent with that dino's class and gender.
+                LoadDraftIntoEditor(draft);
+                if (_liveFemale is { } female)
+                {
+                    _skinEditorFemale = female;
+                    glitch = glitch with { Sex = female ? "female" : "male", Species = _skinEditorSpecies };
+                }
+                else
+                {
+                    glitch = glitch with { Species = _skinEditorSpecies };
+                }
+                _skinEditorGlitchDraft = glitch;
+                RefreshSkinEditorModel();
+                _ = SendGlitchDraftAsync(_skinEditorSpecies, glitch);
+                return;
+            }
+            if (draft.IsGlitch)
+            {
+                SkinEditorStatusLabel.Text = $"Skin glitch cần trình studio trên web {GarageLabel}; bảng HEX này dùng cho skin màu thường.";
                 OpenSkinStudio();
                 return;
             }
             if (draft.Palette is null)
             {
-                SkinEditorStatusLabel.Text = "Thiết kế này chưa có bảng màu trong phản hồi server. Xem trong Studio SBTC.";
+                SkinEditorStatusLabel.Text = $"Thiết kế này chưa có bảng màu trong phản hồi server. Xem trên web {GarageLabel}.";
                 OpenSkinStudio();
                 return;
             }
@@ -757,21 +849,7 @@ public partial class GuideWindow : Window
                 SkinEditorStatusLabel.Text = "Skin này thuộc loài khác. Chọn skin đúng Dino đang chơi.";
                 return;
             }
-            ApplySkinPaletteToInputs(draft.Palette);
-            if (draft.Payload is not null)
-            {
-                _skinEditorTheme = draft.Payload.Theme;
-                _skinEditorPattern = draft.Payload.Pattern;
-                _skinEditorVariation = draft.Payload.Variation;
-                if (draft.Payload.Female.HasValue)
-                {
-                    _skinEditorFemale = draft.Payload.Female.Value;
-                }
-                else if (!string.IsNullOrWhiteSpace(draft.Payload.Sex))
-                {
-                    _skinEditorFemale = string.Equals(draft.Payload.Sex, "female", StringComparison.OrdinalIgnoreCase);
-                }
-            }
+            LoadDraftIntoEditor(draft);
             RefreshSkinEditorModel();
             SkinEditorStatusLabel.Text = $"ĐÃ NẠP DRAFT {draft.Name.ToUpperInvariant()} · BẤM ÁP DỤNG ĐỂ GỬI TỚI GAME";
             SkinEditorStatusLabel.Foreground = BrushFrom("#8FC7A5");
@@ -783,9 +861,27 @@ public partial class GuideWindow : Window
         }
     }
 
-    private static void OpenSkinStudio() => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+    private void LoadDraftIntoEditor(SkinDraftPresentation draft)
     {
-        FileName = "https://sbtcislandd.com/studio", UseShellExecute = true
+        if (draft.Palette is not null) ApplySkinPaletteToInputs(draft.Palette);
+        _skinEditorGlitchDraft = null;
+        if (draft.Payload is null) return;
+        _skinEditorTheme = draft.Payload.Theme;
+        _skinEditorPattern = draft.Payload.Pattern;
+        _skinEditorVariation = draft.Payload.Variation;
+        if (draft.Payload.Female.HasValue)
+        {
+            _skinEditorFemale = draft.Payload.Female.Value;
+        }
+        else if (!string.IsNullOrWhiteSpace(draft.Payload.Sex))
+        {
+            _skinEditorFemale = string.Equals(draft.Payload.Sex, "female", StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    private void OpenSkinStudio() => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+    {
+        FileName = (_garageApi?.StudioUri ?? new Uri("https://sbtcislandd.com/studio")).AbsoluteUri, UseShellExecute = true
     });
 
     private async Task LoadSkinDraftsAsync()
@@ -798,7 +894,7 @@ public partial class GuideWindow : Window
         if (_skinDraftLoading) return;
         _skinDraftLoading = true;
         SkinDraftsRefreshButton.IsEnabled = false;
-        SkinDraftsStatusLabel.Text = "Đang tải thiết kế đã lưu từ Studio SBTC…";
+        SkinDraftsStatusLabel.Text = $"Đang tải thiết kế đã lưu từ {GarageLabel}…";
         SkinDraftsStatusLabel.Foreground = BrushFrom("#CCC7B5");
         try
         {
@@ -819,12 +915,13 @@ public partial class GuideWindow : Window
                         displayName,
                         draft.Palette,
                         draft.Palette is null ? Array.Empty<string>() : PaletteColors(draft.Palette),
-                        draft.Draft.GetPayload());
+                        draft.Draft.GetPayload(),
+                        SendsGlitch: _garageApi.ApplyDraft is not null);
                 })
                 .ToArray();
             SkinDraftsList.ItemsSource = rows;
             var partial = !string.IsNullOrWhiteSpace(result.Message);
-            var message = result.Drafts.Count == 0 ? (partial ? "Chưa đọc được đầy đủ kho thiết kế." : "Chưa có thiết kế tự lưu trong kho Studio SBTC.")
+            var message = result.Drafts.Count == 0 ? (partial ? "Chưa đọc được đầy đủ kho thiết kế." : $"Chưa có thiết kế đã lưu trên {GarageLabel}.")
                 : rows.Length == 0 ? "Không có thiết kế cho loài hiện tại. Bấm TẤT CẢ ĐÃ LƯU để xem kho."
                 : $"Đang hiển thị {rows.Length} / {result.Drafts.Count} thiết kế{(partial ? " đã nhận" : " đã lưu")}.";
             SkinDraftsStatusLabel.Text = string.IsNullOrWhiteSpace(result.Message) ? message : message + " " + result.Message;
@@ -835,7 +932,7 @@ public partial class GuideWindow : Window
             var authenticationError = exception is IslePilotOverlayAuthenticationException or TelemetryAuthenticationException;
             if (authenticationError) SkinDraftsList.ItemsSource = Array.Empty<SkinDraftPresentation>();
             SkinDraftsStatusLabel.Text = authenticationError
-                ? "CHƯA ĐĂNG NHẬP SBTC ISLAND HOẶC PHIÊN ĐÃ HẾT HẠN"
+                ? $"CHƯA ĐĂNG NHẬP {GarageLabel.ToUpperInvariant()} HOẶC PHIÊN ĐÃ HẾT HẠN"
                 : $"Không tải được thiết kế đã lưu: {exception.Message}";
             SkinDraftsStatusLabel.Foreground = BrushFrom("#D2726F");
         }
@@ -889,6 +986,7 @@ public partial class GuideWindow : Window
     private void SkinHexInput_TextChanged(object sender, TextChangedEventArgs e)
     {
         if (_settingSkinInputs || !IsInitialized) return;
+        _skinEditorGlitchDraft = null;
         RenderSkinInputs();
     }
 
@@ -924,7 +1022,7 @@ public partial class GuideWindow : Window
 
         if (valid && TryReadSkinPalette(out var palette))
         {
-            SkinEditorModel.SetModel(_skinEditorSpecies, palette, _skinEditorPattern);
+            SkinEditorModel.SetModel(_skinEditorSpecies, palette, _skinEditorPattern, _skinEditorGlitchDraft?.GlitchLab);
             SkinEditorStatusLabel.Text = "BẢNG MÀU HỢP LỆ · #RRGGBB";
             SkinEditorStatusLabel.Foreground = BrushFrom("#869279");
         }
@@ -941,7 +1039,7 @@ public partial class GuideWindow : Window
         SkinEditorModelLabel.Text = species is null
             ? "CHƯA CÓ DINO HIỆN TẠI"
             : $"ĐANG CHỈNH: {species.ToUpperInvariant()}";
-        if (TryReadSkinPalette(out var palette)) SkinEditorModel.SetModel(species, palette, _skinEditorPattern);
+        if (TryReadSkinPalette(out var palette)) SkinEditorModel.SetModel(species, palette, _skinEditorPattern, _skinEditorGlitchDraft?.GlitchLab);
     }
 
     private bool TryReadSkinPalette(out IslePilotOverlayGaragePaletteDto palette)
@@ -1090,7 +1188,7 @@ public partial class GuideWindow : Window
             card.LiveSwap ? "Đổi Dino đang chơi" : "Lấy Dino khỏi Garage",
             card.LiveSwap
                 ? $"Server này hỗ trợ đổi trực tiếp. {card.DisplayName} ({card.Species}) sẽ được đổi sang Dino đang chơi."
-                : $"Lấy {card.DisplayName} ({card.Species}) từ kho SBTC? Bạn cần spawn cùng loài để server giao Dino. Kho chỉ giải phóng slot khi server xác nhận.");
+                : $"Lấy {card.DisplayName} ({card.Species}) từ Garage {GarageLabel}? Bạn cần spawn cùng loài để server giao Dino. Garage chỉ giải phóng slot khi server xác nhận.");
     }
 
     private void ShowGarageConfirmation(
@@ -1157,7 +1255,7 @@ public partial class GuideWindow : Window
         }
         catch (Exception exception) when (exception is IslePilotOverlayAuthenticationException or SbtcIslandAuthenticationException)
         {
-            ShowGarageCommandResult(false, "Phiên Steam đã hết hạn", "Đăng nhập lại Steam SBTC rồi thử lại.");
+            ShowGarageCommandResult(false, "Phiên đăng nhập đã hết hạn", $"Đăng nhập lại {GarageLabel} ở màn hình chính rồi thử lại.");
         }
         catch (Exception exception) when (
             exception is HttpRequestException or IOException or InvalidDataException or System.Text.Json.JsonException ||
@@ -1282,7 +1380,7 @@ public partial class GuideWindow : Window
     }
 
     private static string ErrorMessage(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? "SBTC từ chối lệnh. Hãy kiểm tra trạng thái trong game." : value;
+        string.IsNullOrWhiteSpace(value) ? "Server từ chối lệnh. Hãy kiểm tra trạng thái trong game." : value;
 
     private async Task LoadGarageAsync(bool force)
     {
@@ -1293,9 +1391,10 @@ public partial class GuideWindow : Window
 
         _garageLoading = true;
         GarageRefreshButton.IsEnabled = false;
+        SetGarageSpinner(true);
         GarageStatePanel.Visibility = Visibility.Visible;
         GarageStateTitle.Text = "Đang tải Dino Garage";
-        GarageStateMessage.Text = "Đang đọc dữ liệu trực tiếp từ SBTC Island…";
+        GarageStateMessage.Text = $"Đang đọc dữ liệu trực tiếp từ {GarageLabel}…";
         if (!_garageLoaded)
         {
             GarageCards.Visibility = Visibility.Collapsed;
@@ -1336,7 +1435,7 @@ public partial class GuideWindow : Window
         }
         catch (Exception exception) when (exception is IslePilotOverlayAuthenticationException or SbtcIslandAuthenticationException)
         {
-            ShowGarageError("Phiên Steam đã hết hạn", "Đăng nhập lại Steam SBTC để đọc Dino Garage.");
+            ShowGarageError("Phiên đăng nhập đã hết hạn", $"Đăng nhập lại {GarageLabel} ở màn hình chính để đọc Dino Garage.");
         }
         catch (Exception exception) when (
             exception is HttpRequestException or IOException or InvalidDataException or System.Text.Json.JsonException ||
@@ -1346,6 +1445,7 @@ public partial class GuideWindow : Window
         }
         finally
         {
+            SetGarageSpinner(false);
             _garageLoading = false;
             if (!_garageCancellation.IsCancellationRequested)
             {
@@ -1353,6 +1453,11 @@ public partial class GuideWindow : Window
             }
         }
     }
+
+    private void SetGarageSpinner(bool spinning) =>
+        GarageSpinnerRotation.BeginAnimation(RotateTransform.AngleProperty, spinning
+            ? new DoubleAnimation(0, 360, TimeSpan.FromSeconds(0.9)) { RepeatBehavior = RepeatBehavior.Forever }
+            : null);
 
     private void ShowGarageError(string title, string message)
     {

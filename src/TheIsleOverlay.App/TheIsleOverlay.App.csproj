@@ -45,7 +45,7 @@
     <Product>Isle of Wie</Product>
     <Description>Isle of Wie - The Isle Live Map (Isle Live Map) overlay for The Isle Evrima.</Description>
     <Authors>IsleLiveMap</Authors>
-    <Version>2.0.0</Version>
+    <Version>2.0.1</Version>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <ApplicationIcon>Assets\IsleLiveMap.ico</ApplicationIcon>
   </PropertyGroup>

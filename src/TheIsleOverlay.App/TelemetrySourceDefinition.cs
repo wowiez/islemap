@@ -13,10 +13,6 @@ public enum TelemetrySourceKind
     IslePilot,
     Pandora,
 
-    // An IslePilot instance on the server's own domain: same overlay API and Steam
-    // handshake, but hosted outside islepilot.eu.
-    IslePilotHosted,
-
     // SBTC Island's own site (sbtcislandd.com): Steam sign-in, /api/positions for the
     // live map and /api/live for the dino's vitals and growth.
     SbtcIsland
@@ -74,8 +70,6 @@ public sealed record TelemetrySourceDefinition
                 BaseUri = BaseUri,
                 SessionCookieHeader = cookieValue
             }),
-        TelemetrySourceKind.IslePilotHosted => throw new NotSupportedException(
-            "IslePilot servers on a custom domain connect through the overlay session, not a cookie provider."),
         _ => throw new ArgumentOutOfRangeException()
     };
 
@@ -143,7 +137,9 @@ public sealed record TelemetrySourceDefinition
         Id = "sdvn3",
         DisplayName = "[SEA/VN]-SDVN-#3-X3",
         ShortName = "SDVN #3",
-        Kind = TelemetrySourceKind.IslePilotHosted,
+        // Own-domain IslePilot with its overlay API disabled (410 overlay_disabled), so
+        // it runs on the website session (islepilot_player) like the other IslePilot sites.
+        Kind = TelemetrySourceKind.IslePilot,
         BaseUri = new Uri("https://3.sdvn.org/"),
         LoginUri = new Uri("https://3.sdvn.org/api/player/steam/login?redirect=%2Fp%2Fsdvn3123123123%2Fmap"),
         CookieName = "islepilot_player",
@@ -172,10 +168,6 @@ public sealed record TelemetrySourceDefinition
         Sdvn3,
         Pandora
     ];
-
-    public string AccountLabel => Kind == TelemetrySourceKind.IslePilotHosted
-        ? ShortName
-        : DisplayName;
 
     public static TelemetrySourceDefinition? FromId(string? id) =>
         All.FirstOrDefault(source => string.Equals(source.Id, id, StringComparison.OrdinalIgnoreCase));

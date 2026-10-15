@@ -333,28 +333,28 @@
         </Border>
 
         <Border x:Name="MapKillFeedPanel" Grid.Row="4" Width="{Binding Width, ElementName=ActivityPanel}" HorizontalAlignment="Center"
-                Visibility="Collapsed" Margin="0,8,0,0" Padding="8,6"
-                Background="{StaticResource HudPatternBrush}" BorderBrush="#555A604D" BorderThickness="1" CornerRadius="4">
+                Visibility="Collapsed" Margin="0,8,0,0" Padding="9,7"
+                Background="{StaticResource HudPatternBrush}" BorderThickness="0" CornerRadius="10">
             <Border.LayoutTransform>
                 <ScaleTransform ScaleX="{Binding ScaleX, ElementName=ActivityReadabilityScaleTransform}"
                                 ScaleY="{Binding ScaleY, ElementName=ActivityReadabilityScaleTransform}" />
             </Border.LayoutTransform>
             <StackPanel>
                 <Grid Margin="0,0,0,5">
-                    <TextBlock Text="KILL FEED · SBTC" Foreground="#E7B74E" FontFamily="{StaticResource WieFont}" FontSize="10" />
-                    <TextBlock x:Name="MapKillFeedStatus" Text="Đang tải…" HorizontalAlignment="Right" Foreground="#98A49D" FontSize="8" />
+                    <TextBlock x:Name="MapKillFeedTitle" Text="KILL FEED · SBTC" Foreground="#C9A95A" FontFamily="{StaticResource WieFont}" FontSize="10" FontWeight="SemiBold" />
+                    <TextBlock x:Name="MapKillFeedStatus" Text="Đang tải…" HorizontalAlignment="Right" Foreground="#98A18E" FontFamily="{StaticResource WieFont}" FontSize="8.5" />
                 </Grid>
                 <ItemsControl x:Name="MapKillFeedRows">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Margin="0,3,0,3">
-                                <TextBlock Text="{Binding Summary}" Foreground="#EEF3E8" FontFamily="{StaticResource WieFont}" FontSize="10" TextTrimming="CharacterEllipsis" ToolTip="{Binding Summary}" />
-                                <TextBlock Text="{Binding Detail}" Foreground="#98A49D" FontFamily="{StaticResource WieFont}" FontSize="8.5" TextTrimming="CharacterEllipsis" ToolTip="{Binding Detail}" />
+                                <TextBlock Text="{Binding Summary}" Foreground="{Binding Accent}" FontFamily="{StaticResource WieFont}" FontSize="10" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding Summary}" />
+                                <TextBlock Text="{Binding Detail}" Foreground="#98A18E" FontFamily="{StaticResource WieFont}" FontSize="8.5" TextTrimming="CharacterEllipsis" ToolTip="{Binding Detail}" />
                             </StackPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <TextBlock x:Name="MapKillFeedEmpty" Text="Đang tải Kill Feed…" Foreground="#98A49D" FontSize="9" TextWrapping="Wrap" />
+                <TextBlock x:Name="MapKillFeedEmpty" Text="Đang tải Kill Feed…" Foreground="#98A18E" FontFamily="{StaticResource WieFont}" FontSize="9" TextWrapping="Wrap" />
             </StackPanel>
         </Border>
 
@@ -442,7 +442,7 @@
                 <Grid x:Name="MapKillFeedSettingRow" Margin="0,7,0,0" Visibility="Collapsed">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                     <TextBlock Text="KILL FEED" Foreground="#E9E1C9" FontFamily="{StaticResource WieFont}" FontSize="10" VerticalAlignment="Center" />
-                    <Button x:Name="MapKillFeedToggleButton" Grid.Column="1" Style="{StaticResource ChromeButton}" Content="KILL FEED · OFF" Padding="8,4" Click="MapKillFeedToggleButton_Click" ToolTip="Hiện Kill Feed SBTC cạnh minimap · cập nhật mỗi 5 giây" />
+                    <Button x:Name="MapKillFeedToggleButton" Grid.Column="1" Style="{StaticResource ChromeButton}" Content="KILL FEED · OFF" Padding="8,4" Click="MapKillFeedToggleButton_Click" ToolTip="Hiện Kill Feed SBTC cạnh minimap · cập nhật mỗi 2 giây" />
                 </Grid>
                 </StackPanel>
 

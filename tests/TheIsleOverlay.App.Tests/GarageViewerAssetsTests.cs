@@ -94,8 +94,8 @@ public sealed class GarageViewerAssetsTests
         Assert.True(File.Exists(Path.Combine(root, "skin-material.js")));
         Assert.True(File.Exists(Path.Combine(root, "vendor", "meshopt_decoder.module.js")));
         Assert.DoesNotContain(": 'body';", script, StringComparison.Ordinal);
-        Assert.Contains("targetRotationY - model.rotation.y", script, StringComparison.Ordinal);
-        Assert.Contains("targetRotationZ - model.rotation.z", script, StringComparison.Ordinal);
+        Assert.Contains("orbit.targetTheta - orbit.theta", script, StringComparison.Ordinal);
+        Assert.Contains("window.devicePixelRatio", script, StringComparison.Ordinal);
     }
 
     [Fact]

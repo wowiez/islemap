@@ -588,7 +588,6 @@ public partial class MainWindow : Window
 
     private static bool UsesLiveOverlayMap(TelemetrySourceDefinition? source) =>
         source?.Kind is TelemetrySourceKind.IslePilot
-            or TelemetrySourceKind.IslePilotHosted
             or TelemetrySourceKind.SbtcIsland;
 
     private void StartNpcapPositionSource()
@@ -1844,6 +1843,12 @@ public partial class MainWindow : Window
             _sbtcApiHttpClient = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromMinutes(2) };
             _sbtcGarageApi = SbtcGuideGarageApi.Create(_sbtcApiHttpClient, _requestedSource, _providedCookie);
         }
+        else if (_sbtcGarageApi is null && _requestedSource == TelemetrySourceDefinition.Sdvn3 && !string.IsNullOrWhiteSpace(_providedCookie))
+        {
+            // UseCookies off: the session goes in by hand and a rotated Set-Cookie must not add a second one.
+            _sbtcApiHttpClient = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false }) { Timeout = TimeSpan.FromSeconds(30) };
+            _sbtcGarageApi = WebsiteGuideGarageApi.Create(_sbtcApiHttpClient, _requestedSource, _providedCookie);
+        }
         var guideWindow = new GuideWindow(
             _activeSpeciesName,
             MapImage.Source,
@@ -1863,6 +1868,8 @@ public partial class MainWindow : Window
         guideWindow.UpdateMapKillFeedSetting(_layoutSettings.ShowMapKillFeed);
         guideWindow.SetKillFeedAvailable(_killFeedAvailable);
         guideWindow.MapKillFeedEnabledChanged += GuideWindow_MapKillFeedEnabledChanged;
+        guideWindow.SetKillFeedSpecies(_layoutSettings.KillFeedSpecies);
+        guideWindow.KillFeedSpeciesChanged += GuideWindow_KillFeedSpeciesChanged;
         guideWindow.UpdateMapLayerFilters(_layoutSettings.ShowMapZones, _layoutSettings.ShowWildlife);
         guideWindow.MapLayerFiltersChanged += MapWindow_MapLayerFiltersChanged;
         guideWindow.MapMarkerSettingsChanged += GuideWindow_MapMarkerSettingsChanged;
@@ -1886,6 +1893,7 @@ public partial class MainWindow : Window
         if (_guideWindow is not null)
         {
             _guideWindow.MapKillFeedEnabledChanged -= GuideWindow_MapKillFeedEnabledChanged;
+            _guideWindow.KillFeedSpeciesChanged -= GuideWindow_KillFeedSpeciesChanged;
             _guideWindow.MapMarkerSettingsChanged -= GuideWindow_MapMarkerSettingsChanged;
             _guideWindow.MapLayerFiltersChanged -= MapWindow_MapLayerFiltersChanged;
             _guideWindow.DestinationChanged -= GuideWindow_DestinationChanged;

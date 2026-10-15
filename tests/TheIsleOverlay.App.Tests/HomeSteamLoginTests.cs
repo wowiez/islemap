@@ -57,21 +57,44 @@ public sealed class HomeSteamLoginTests
     }
 
     [Fact]
-    public void AccountList_OffersEveryHostForTheSameSavedSession()
+    public void AccountList_KeepsTheOldSdvnRowButAsksForAWebsiteLogin()
     {
         var credentials = new TheIsleOverlay.IslePilot.IslePilotOverlayAuthResult(
             "76561199264909938",
             "overlay-token",
             "waowi");
 
-        var choices = HomeWindow.BuildAccountChoices([credentials]);
+        // Only players whose last server was SDVN #3 keep the row.
+        Assert.Single(HomeWindow.BuildAccountChoices([credentials]));
+        var choices = HomeWindow.BuildAccountChoices([credentials], keepSdvnRelogin: true);
 
         Assert.Equal(2, choices.Count);
         Assert.Equal("STEAM · ISLEPILOT", choices[0].Detail);
         Assert.Null(choices[0].Source);
-        Assert.Equal("STEAM · SDVN #3", choices[1].Detail);
-        Assert.Equal("sdvn3", choices[1].Source?.Id);
-        Assert.All(choices, choice => Assert.Equal(credentials.OverlayToken, choice.Credentials!.OverlayToken));
+        Assert.Same(credentials, choices[0].Credentials);
+
+        // SDVN switched its overlay API off, so the overlay token no longer reaches it.
+        var sdvn = choices[1];
+        Assert.Equal("sdvn3", sdvn.Source?.Id);
+        Assert.Null(sdvn.Credentials);
+        Assert.True(sdvn.NeedsWebsiteLogin);
+        Assert.False(sdvn.IsWebsiteSession);
+        Assert.Equal("WEBSITE · 3.sdvn.org · cần đăng nhập lại", sdvn.Detail);
+    }
+
+    [Fact]
+    public void SavedSdvnWebsiteSession_ReplacesTheReloginRow()
+    {
+        var credentials = new TheIsleOverlay.IslePilot.IslePilotOverlayAuthResult("synthetic", "synthetic-token", null);
+
+        var choices = HomeWindow.BuildAccountChoices(
+            [credentials],
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["sdvn3"] = "synthetic-cookie" });
+
+        var sdvn = Assert.Single(choices, choice => choice.Source?.Id == "sdvn3");
+        Assert.True(sdvn.IsWebsiteSession);
+        Assert.False(sdvn.NeedsWebsiteLogin);
+        Assert.Equal("WEBSITE · 3.sdvn.org · phiên đã lưu", sdvn.Detail);
     }
 
     [Fact]
@@ -106,51 +129,6 @@ public sealed class HomeSteamLoginTests
             });
 
         Assert.Empty(choices);
-    }
-
-    [Fact]
-    public async Task HostedVaultIsFoldedIntoTheSharedSessionAndRemoved()
-    {
-        var directory = Path.Combine(Path.GetTempPath(), "islemap-credential-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(directory);
-        try
-        {
-            var hostedPath = Path.Combine(directory, "islepilot-overlay-sdvn3.credential");
-            var sharedPath = Path.Combine(directory, "islepilot-overlay.credential");
-            var credentials = new TheIsleOverlay.IslePilot.IslePilotOverlayAuthResult(
-                "76561199264909938",
-                "overlay-token",
-                "waowi");
-            await new TheIsleOverlay.IslePilot.IslePilotCredentialStore(hostedPath).SaveAsync(credentials);
-
-            var sharedStore = new TheIsleOverlay.IslePilot.IslePilotCredentialStore(sharedPath);
-            await HomeWindow.ImportHostedCredentialsAsync([hostedPath], sharedStore, CancellationToken.None);
-
-            var imported = Assert.Single(await sharedStore.LoadAllAsync());
-            Assert.Equal(credentials.SteamId, imported.SteamId);
-            Assert.Equal(credentials.OverlayToken, imported.OverlayToken);
-            Assert.False(File.Exists(hostedPath));
-        }
-        finally
-        {
-            Directory.Delete(directory, recursive: true);
-        }
-    }
-
-    [Fact]
-    public void AccountEntries_NameTheServerTheyBelongTo()
-    {
-        var credentials = new TheIsleOverlay.IslePilot.IslePilotOverlayAuthResult(
-            "76561199264909938",
-            "overlay-token",
-            "waowi");
-
-        var network = new HomeWindow.SteamAccountChoice(credentials, null);
-        Assert.Equal("STEAM · ISLEPILOT", network.Detail);
-
-        var sdvn = new HomeWindow.SteamAccountChoice(credentials, TelemetrySourceDefinition.Sdvn3);
-        Assert.Equal("STEAM · SDVN #3", sdvn.Detail);
-        Assert.Equal("SDVN #3", TelemetrySourceDefinition.Sdvn3.AccountLabel);
     }
 
     [Fact]
@@ -189,11 +167,13 @@ public sealed class HomeSteamLoginTests
         Assert.Null(IslePilotLoginErrorPresentation.DescribeHostError(pageText, "3.sdvn.org"));
 
     [Fact]
-    public void Sdvn3_ConnectsThroughItsOwnIslePilotDomain()
+    public void Sdvn3_ConnectsThroughItsOwnWebsiteSession()
     {
         var source = TelemetrySourceDefinition.Sdvn3;
 
-        Assert.Equal(TelemetrySourceKind.IslePilotHosted, source.Kind);
+        Assert.Equal(TelemetrySourceKind.IslePilot, source.Kind);
+        Assert.Equal("islepilot_player", source.CookieName);
+        Assert.Contains(source, HomeWindow.WebsiteSources);
         Assert.Equal("3.sdvn.org", source.BaseUri.Host);
         Assert.Equal("sdvn3123123123", source.ServerSlug);
         Assert.Equal("https://3.sdvn.org/api/player/steam/login?redirect=%2Fp%2Fsdvn3123123123%2Fmap", source.LoginUri.AbsoluteUri);

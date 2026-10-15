@@ -5,13 +5,13 @@ using TheIsleOverlay.Sbtc;
 
 namespace TheIsleOverlay.App;
 
-public sealed record MapKillFeedRowPresentation(string Summary, string Detail)
+public sealed record MapKillFeedRowPresentation(string Summary, string Detail, string Accent)
 {
     public static MapKillFeedRowPresentation From(SbtcKillFeedRow row)
     {
         var value = KillFeedRowPresentation.From(row);
         return new($"{value.Killer} → {value.Victim}",
-            $"{row.At.ToLocalTime():HH:mm:ss} · {value.KillerDetail} → {value.VictimDetail}");
+            $"{row.At.ToLocalTime():HH:mm:ss} · {value.KillerDetail} → {value.VictimDetail}", value.Accent);
     }
 }
 
@@ -22,6 +22,7 @@ public partial class MainWindow
     private DispatcherTimer? _mapKillFeedTimer;
     private CancellationTokenSource? _mapKillFeedRequest;
     private bool _mapKillFeedLoading;
+    private bool _mapKillFeedStale;
     private bool _mapKillFeedDisposed;
     private DateTimeOffset? _mapKillFeedLastSuccess;
     private bool _killFeedAvailable;
@@ -46,8 +47,9 @@ public partial class MainWindow
     private void InitializeMapKillFeed()
     {
         _mapKillFeedClient = new SbtcKillFeedClient(_mapKillFeedHttp);
-        _mapKillFeedTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        _mapKillFeedTimer = new DispatcherTimer { Interval = KillFeedPolling.Interval };
         _mapKillFeedTimer.Tick += async (_, _) => await RefreshMapKillFeedAsync();
+        RenderMapKillFeedTitle();
         UpdateMapKillFeedPolling();
     }
 
@@ -55,6 +57,26 @@ public partial class MainWindow
         SetMapKillFeedEnabled(!_layoutSettings.ShowMapKillFeed);
 
     private void GuideWindow_MapKillFeedEnabledChanged(bool enabled) => SetMapKillFeedEnabled(enabled);
+
+    // Same filter as the F8 tab: picking a species there filters this panel too.
+    private void GuideWindow_KillFeedSpeciesChanged(string? species)
+    {
+        if (string.Equals(species, _layoutSettings.KillFeedSpecies, StringComparison.OrdinalIgnoreCase)) return;
+        _layoutSettings = _layoutSettings with { KillFeedSpecies = species };
+        _layoutSettingsStore.Save(_layoutSettings);
+        RenderMapKillFeedTitle();
+        MapKillFeedRows.ItemsSource = Array.Empty<MapKillFeedRowPresentation>();
+        MapKillFeedEmpty.Visibility = Visibility.Visible;
+        MapKillFeedEmpty.Text = "Đang tải…";
+        _mapKillFeedLastSuccess = null;
+        if (_mapKillFeedLoading) _mapKillFeedStale = true;
+        else _ = RefreshMapKillFeedAsync();
+    }
+
+    private void RenderMapKillFeedTitle() =>
+        MapKillFeedTitle.Text = string.IsNullOrWhiteSpace(_layoutSettings.KillFeedSpecies)
+            ? "KILL FEED · SBTC"
+            : $"KILL FEED · {_layoutSettings.KillFeedSpecies.ToUpperInvariant()}";
 
     private void SetMapKillFeedEnabled(bool enabled)
     {
@@ -78,7 +100,7 @@ public partial class MainWindow
         if (enabled && IsLoaded)
         {
             _mapKillFeedTimer.Start();
-            if (_mapKillFeedLastSuccess is null || DateTimeOffset.UtcNow - _mapKillFeedLastSuccess >= TimeSpan.FromSeconds(5))
+            if (_mapKillFeedLastSuccess is null || DateTimeOffset.UtcNow - _mapKillFeedLastSuccess >= KillFeedPolling.Interval)
                 _ = RefreshMapKillFeedAsync();
         }
         else
@@ -94,10 +116,13 @@ public partial class MainWindow
         _mapKillFeedLoading = true;
         using var request = CancellationTokenSource.CreateLinkedTokenSource(_shutdown.Token);
         _mapKillFeedRequest = request;
+        var species = _layoutSettings.KillFeedSpecies;
         try
         {
-            var feed = await _mapKillFeedClient.LoadAsync(cancellationToken: request.Token);
-            if (!request.IsCancellationRequested && !_mapKillFeedDisposed)
+            var feed = await _mapKillFeedClient.LoadAsync(species, request.Token);
+            // Drop a result fetched for a filter that has since changed.
+            if (!request.IsCancellationRequested && !_mapKillFeedDisposed &&
+                string.Equals(species, _layoutSettings.KillFeedSpecies, StringComparison.OrdinalIgnoreCase))
                 RenderMapKillFeed(feed, DateTimeOffset.UtcNow);
         }
         catch (OperationCanceledException) when (request.IsCancellationRequested) { }
@@ -114,6 +139,12 @@ public partial class MainWindow
             _mapKillFeedRequest = null;
             _mapKillFeedLoading = false;
         }
+
+        if (_mapKillFeedStale && !_mapKillFeedDisposed)
+        {
+            _mapKillFeedStale = false;
+            await RefreshMapKillFeedAsync();
+        }
     }
 
     internal void RenderMapKillFeed(SbtcKillFeed feed, DateTimeOffset loadedAt)
@@ -122,8 +153,10 @@ public partial class MainWindow
         var rows = available ? feed.Rows.OrderByDescending(row => row.At).Take(5).Select(MapKillFeedRowPresentation.From).ToArray() : [];
         MapKillFeedRows.ItemsSource = rows;
         MapKillFeedEmpty.Visibility = rows.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
-        MapKillFeedEmpty.Text = feed.Gated ? "Server đang giới hạn quyền xem." : available ? "Chưa có bản ghi." : "Kill Feed tạm thời chưa khả dụng.";
-        MapKillFeedStatus.Text = available ? $"{loadedAt.ToLocalTime():HH:mm:ss} · 5s" : "Chưa có dữ liệu";
+        MapKillFeedEmpty.Text = feed.Gated ? "Server đang giới hạn quyền xem."
+            : available ? string.IsNullOrWhiteSpace(_layoutSettings.KillFeedSpecies) ? "Chưa có bản ghi." : $"Chưa có bản ghi cho {_layoutSettings.KillFeedSpecies}."
+            : "Kill Feed tạm thời chưa khả dụng.";
+        MapKillFeedStatus.Text = available ? $"{loadedAt.ToLocalTime():HH:mm:ss} · 2s" : "Chưa có dữ liệu";
         if (available) _mapKillFeedLastSuccess = loadedAt;
     }
 

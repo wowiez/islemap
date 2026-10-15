@@ -1,0 +1,521 @@
+{
+ "Allosaurus": {
+  "name": "Allosaurus",
+  "folder": "Allosaurus",
+  "glbModel": "/cdn/skinviewer/Allosaurus/Allosaurus.glb",
+  "tmcMap": "/cdn/skinviewer/Allosaurus/T_Allosaurus_M.png",
+  "normalMap": "/cdn/skinviewer/Allosaurus/T_Allosaurus_N.webp",
+  "patterns": {
+   "1": "/cdn/skinviewer/Allosaurus/T_Allosaurus_Adult_Pattern_1.png",
+   "2": "/cdn/skinviewer/Allosaurus/T_Allosaurus_Adult_Pattern_2.png",
+   "3": "/cdn/skinviewer/Allosaurus/T_Allosaurus_Adult_Pattern_3.png"
+  },
+  "juvenilePattern": "/cdn/skinviewer/Allosaurus/T_Allosaurus_Juvenile_Pattern.png",
+  "hatchlingPattern": "/cdn/skinviewer/Allosaurus/T_Allosaurus_Hatchling_Pattern.png",
+  "racMap": "/cdn/skinviewer/Allosaurus/T_Allosaurus_RAC.webp",
+  "detailScale": 12,
+  "glbScale": 0.0261,
+  "glbPosition": [
+   0,
+   -2.4,
+   0
+  ]
+ },
+ "Beipiaosaurus": {
+  "name": "Beipiaosaurus",
+  "folder": "Beipi",
+  "glbModel": "/cdn/skinviewer/Beipi/Beipiaosaurus.glb",
+  "normalMap": "/cdn/skinviewer/Beipi/Beipaosaurus_Adult_Normal.webp",
+  "patterns": {
+   "1": "/cdn/skinviewer/Beipi/T_Beipiaosaurus_Pattern_Adult_1.png",
+   "2": "/cdn/skinviewer/Beipi/T_Beipiaosaurus_Pattern_Adult_2.png",
+   "3": "/cdn/skinviewer/Beipi/T_Beipiaosaurus_Pattern_Adult_3.png"
+  },
+  "juvenilePattern": "/cdn/skinviewer/Beipi/T_Beipiaosaurus_Pattern_Juvie.png",
+  "hatchlingPattern": "/cdn/skinviewer/Beipi/T_Beipiaosaurus_Pattern_Hatchling.png",
+  "racMap": "/cdn/skinviewer/Beipi/T_Beipiaosaurus_Adult_RAC.webp",
+  "detailScale": 12,
+  "glbScale": 0.06,
+  "glbPosition": [
+   0,
+   -2.4,
+   0
+  ]
+ },
+ "Carnotaurus": {
+  "name": "Carnotaurus",
+  "folder": "Carno",
+  "glbModel": "/cdn/skinviewer/Carno/Carnotaurus.glb",
+  "tmcMap": "/cdn/skinviewer/Carno/T_Carno_Adult_Mouth-Claws-Teeth.png",
+  "normalMap": "/cdn/skinviewer/Carno/T_Carno_Default_New_N.webp",
+  "patterns": {
+   "1": "/cdn/skinviewer/Carno/T_Carno_Adult_Male_Pattern_1.png",
+   "2": "/cdn/skinviewer/Carno/T_Carno_Adult_Pattern_2.png",
+   "3": "/cdn/skinviewer/Carno/T_Carnotaurus_Adult_Pattern_3.png",
+   "4": "/cdn/skinviewer/Carno/T_Carnotaurus_Adult_Pattern4.png"
+  },
+  "juvenilePattern": "/cdn/skinviewer/Carno/T_Carno_Juvie_Pattern.png",
+  "hatchlingPattern": "/cdn/skinviewer/Carno/T_Carno_Hatchling_Pattern.png",
+  "racMap": "/cdn/skinviewer/Carno/T_Carno_Default_New_RAC.webp",
+  "patternMasks": {
+   "4": "/cdn/skinviewer/Carno/T_Carno_Adult_Mouth-Claws-Teeth.png"
+  },
+  "detailScale": 12,
+  "glbScale": 0.0241,
+  "glbPosition": [
+   0,
+   -2.4,
+   0
+  ]
+ },
+ "Ceratosaurus": {
+  "name": "Ceratosaurus",
+  "folder": "Cerato",
+  "glbModel": "/cdn/skinviewer/Cerato/Ceratosaurus.glb",
+  "tmcMap": "/cdn/skinviewer/Cerato/T_Cerato_Adult_Mouth-Teeth-Claws.png",
+  "normalMap": "/cdn/skinviewer/Cerato/T_Cerato_Adult_N.webp",
+  "patterns": {
+   "1": "/cdn/skinviewer/Cerato/T_Ceratosaurus_Adult_Pattern_1.png",
+   "2": "/cdn/skinviewer/Cerato/T_Ceratosaurus_Adult_Pattern_2.png",
+   "3": "/cdn/skinviewer/Cerato/T_Ceratosaurus_Adult_Pattern_3.png"
+  },
+  "juvenilePattern": "/cdn/skinviewer/Cerato/T_Ceratosaurus_Juvenile_Pattern.png",
+  "hatchlingPattern": "/cdn/skinviewer/Cerato/T_Ceratosaurus_Hatchling_Pattern.png",
+  "racMap": "/cdn/skinviewer/Cerato/T_Cerato_Adult_RAC.webp",
+  "maskMap": "/cdn/skinviewer/Cerato/T_Cerato_Adult_Mouth-Teeth-Claws.png",
+  "detailScale": 12,
+  "glbScale": 0.0315,
+  "glbPosition": [
+   0,
+   -2.4,
+   0
+  ]
+ },
+ "Deinosuchus": {
+  "name": "Deinosuchus",
+  "folder": "Deino",
+  "glbModel": "/cdn/skinviewer/Deino/Deinosuchus.glb",
+  "tmcMap": "/cdn/skinviewer/Deino/T_Deinosuchus_Detail_M.png",
+  "normalMap": "/cdn/skinviewer/Deino/T_Deinosuchus_N.webp",
+  "patterns": {
+   "1": "/cdn/skinviewer/Deino/T_Deinosuchus_Adult_Pattern_M.png",
+   "2": "/cdn/skinviewer/Deino/T_Deino_Adult_Pattern_2.png",
+   "3": "/cdn/skinviewer/Deino/T_Deinosuchus_Adult_Pattern_3.png"
+  },
+  "juvenilePattern": "/cdn/skinviewer/Deino/T_Deinosuchus_Juvie_Pattern.png",
+  "hatchlingPattern": "/cdn/skinviewer/Deino/T_Deino_Hatchling_Pattern.png",
+  "racMap": "/cdn/skinviewer/Deino/T_Deinosuchus_RAC.webp",
+  "detailScale": 12,
+  "glbScale": 0.0229,
+  "glbPosition": [
+   0,
+   -0.55,
+   1.5
+  ],
+  "previewClip": "Swim_Idle_Surface"
+ },
+ "Diabloceratops": {
+  "name": "Diabloceratops",
+  "folder": "Dibble",
+  "glbModel": "/cdn/skinviewer/Dibble/Diabloceratops.glb",
+  "tmcMap": "/cdn/skinviewer/Dibble/T_Diablo_Adult_Mouth-Claws.png",
+  "normalMap": "/cdn/skinviewer/Dibble/T_Diablo_Adult_N.webp",
+  "patterns": {
+   "1": "/cdn/skinviewer/Dibble/T_Diabloceratops_Adult_Pattern_1.png",
+   "2": "/cdn/skinviewer/Dibble/T_Diabloceratops_Adult_Pattern_2.png",
+   "3": "/cdn/skinviewer/Dibble/T_Diabloceratops_Adult_Pattern_3.png"
+  },
+  "juvenilePattern": "/cdn/skinviewer/Dibble/T_Diabloceratops_Juvie_Pattern.png",
+  "hatchlingPattern": "/cdn/skinviewer/Dibble/T_Diabloceratops_Hatch_Pattern.png",
+  "racMap": "/cdn/skinviewer/Dibble/T_Diablo_RAC.webp",
+  "maskMap": "/cdn/skinviewer/Dibble/T_Diablo_Adult_Mouth-Claws.png",
+  "overlayDefaults": [
+   {
+    "color": "#0f0b06",
+    "alpha": 1
+   },
+   {
+    "color": "#0d0d0d",
+    "alpha": 1
+   },
+   {
+    "color": "#0d0d0d",
+    "alpha": 1
+   }
+  ],
+  "detailScale": 10,
+  "glbScale": 0.03,
+  "glbPosition": [
+   0,
+   -2.4,
+   0
+  ]
+ },
+ "Dilophosaurus": {
+  "name": "Dilophosaurus",
+  "folder": "Dilo",
+  "glbModel": "/cdn/skinviewer/Dilo/Dilophosaurus.glb",
+  "normalMap": "/cdn/skinviewer/Dilo/T_Dilo_Base_N.webp",
+  "patterns": {
+   "1": "/cdn/skinviewer/Dilo/T_Dilophosaurus_Adult_Pattern_Default.png",
+   "2": "/cdn/skinviewer/Dilo/T_Dilophosaurus_Adult_Pattern_2.png",
+   "3": "/cdn/skinviewer/Dilo/T_Dilophosaurus_Adult_Pattern_3.png"
+  },
+  "juvenilePattern": "/cdn/skinviewer/Dilo/T_Dilophosaurus_Juvenile_Pattern.png",
+  "hatchlingPattern": "/cdn/skinviewer/Dilo/T_Dilophosaurus_Hatchling_Pattern.png",
+  "racMap": "/cdn/skinviewer/Dilo/T_Dilo_Base_RAC.webp",
+  "detailScale": 12,
+  "glbScale": 0.027,
+  "glbPosition": [
+   0,
+   -2.4,
+   0
+  ]
+ },
+ "Dryosaurus": {
+  "name": "Dryosaurus",
+  "folder": "Dryo",
+  "glbModel": "/cdn/skinviewer/Dryo/Dryosaurus.glb",
+  "tmcMap": "/cdn/skinviewer/Dryo/T_Dryosaurus_Detail_M.png",
+  "normalMap": "/cdn/skinviewer/Dryo/T_Dryosaurus_N.webp",
+  "patterns": {
+   "1": "/cdn/skinviewer/Dryo/T_Dryosaurus_Adult_Pattern_1.png",
+   "2": "/cdn/skinviewer/Dryo/T_Dryosaurus_Adult_Pattern_2.png",
+   "3": "/cdn/skinviewer/Dryo/T_Dryosaurus_Adult_Pattern_3.png"
+  },
+  "juvenilePattern": "/cdn/skinviewer/Dryo/T_Dyosaurus_Juvenile_Pattern.png",
+  "hatchlingPattern": "/cdn/skinviewer/Dryo/T_Dryosaurus_Hatchling_Pattern.png",
+  "racMap": "/cdn/skinviewer/Dryo/T_Dryosaurus_RAC.webp",
+  "detailScale": 12,
+  "glbScale": 0.047,
+  "glbPosition": [
+   0,
+   -2.4,
+   0
+  ]
+ },
+ "Gallimimus": {
+  "name": "Gallimimus",
+  "folder": "Galli",
+  "glbModel": "/cdn/skinviewer/Galli/Gallimimus.glb",
+  "tmcMap": "/cdn/skinviewer/Galli/T_Gallimimus_Adult_TMC.png",
+  "normalMap": "/cdn/skinviewer/Galli/T_Galli_Adult_Base_N.webp",
+  "patterns": {
+   "1": "/cdn/skinviewer/Galli/T_Gallimimus_Adult_Pattern_1.png",
+   "2": "/cdn/skinviewer/Galli/T_Gallimimus_Adult_Pattern_2.png",
+   "3": "/cdn/skinviewer/Galli/T_Gallimimus_Adult_Pattern_3.png"
+  },
+  "juvenilePattern": "/cdn/skinviewer/Galli/T_Gallimimus_Juvenile_Pattern.png",
+  "hatchlingPattern": "/cdn/skinviewer/Galli/T_Gallimimus_Hatchling_Pattern.png",
+  "racMap": "/cdn/skinviewer/Galli/T_Galli_Adult_Base_RAC.webp",
+  "detailScale": 12,
+  "glbScale": 0.03,
+  "glbPosition": [
+   0,
+   -2.45,
+   0.4
+  ]
+ },
+ "Herrerasaurus": {
+  "name": "Herrerasaurus",
+  "folder": "Herrera",
+  "glbModel": "/cdn/skinviewer/Herrera/Herrerasaurus.glb",
+  "tmcMap": "/cdn/skinviewer/Herrera/T_Herrerasaurus_M.png",
+  "normalMap": "/cdn/skinviewer/Herrera/T_Herrerasaurus_N.webp",
+  "patterns": {
+   "1": "/cdn/skinviewer/Herrera/Herrera_Adult_Pattern.png",
+   "2": "/cdn/skinviewer/Herrera/Herrera_Adult_Pattern_2.png",
+   "3": "/cdn/skinviewer/Herrera/T_Herrerasaurus_Adult_Pattern_3.png",
+   "4": "/cdn/skinviewer/Herrera/T_Herrerasaurus_Adult_Pattern_4.png"
+  },
+  "juvenilePattern": "/cdn/skinviewer/Herrera/Herrera_Juvie_Pattern.png",
+  "hatchlingPattern": "/cdn/skinviewer/Herrera/Herrera_Hatch_Pattern.png",
+  "racMap": "/cdn/skinviewer/Herrera/T_Herrerasaurus_RAC.webp",
+  "patternMasks": {
+   "4": "/cdn/skinviewer/Herrera/T_Herrerasaurus_M.png"
+  },
+  "detailScale": 12,
+  "glbScale": 0.0574,
+  "glbPosition": [
+   0,
+   -2.4,
+   0
+  ]
+ },
+ "Hypsilophodon": {
+  "name": "Hypsilophodon",
+  "folder": "Hypsi",
+  "glbModel": "/cdn/skinviewer/Hypsi/Hypsilophodon.glb",
+  "normalMap": "/cdn/skinviewer/Hypsi/T_Hypsilophodon_N.webp",
+  "patterns": {
+   "1": "/cdn/skinviewer/Hypsi/T_Hypsilophodon_Adult_Pattern_1_Male.png",
+   "2": "/cdn/skinviewer/Hypsi/T_Hypsilophodon_Adult_Pattern_2_Male.png",
+   "3": "/cdn/skinviewer/Hypsi/T_Hypsilophodon_Adult_Pattern_3_Male.png"
+  },
+  "juvenilePattern": "/cdn/skinviewer/Hypsi/T_Hypsilophodon_Juvenile_Pattern.png",
+  "hatchlingPattern": "/cdn/skinviewer/Hypsi/T_Hypsilophodon_Hatchling_Pattern.png",
+  "racMap": "/cdn/skinviewer/Hypsi/T_Hypsilophodon_RAC.webp",
+  "detailScale": 12,
+  "glbScale": 0.085,
+  "glbPosition": [
+   0,
+   -2.4,
+   0
+  ]
+ },
+ "Kentrosaurus": {
+  "name": "Kentrosaurus",
+  "folder": "Kentro",
+  "glbModel": "/cdn/skinviewer/Kentro/Kentrosaurus.glb",
+  "tmcMap": "/cdn/skinviewer/Kentro/T_Kentrosaurus_Adult_Mask_TMC.png",
+  "normalMap": "/cdn/skinviewer/Kentro/T_Kentrosaurus_Normal.webp",
+  "patterns": {
+   "1": "/cdn/skinviewer/Kentro/T_Kentrosaurus_Adult_Pattern_1.png",
+   "2": "/cdn/skinviewer/Kentro/T_Kentrosaurus_Adult_Pattern_2.png",
+   "3": "/cdn/skinviewer/Kentro/T_Kentrosaurus_Adult_Pattern_3.png"
+  },
+  "juvenilePattern": "/cdn/skinviewer/Kentro/T_Kentrosaurus_Juvie_Pattern.png",
+  "hatchlingPattern": "/cdn/skinviewer/Kentro/T_Kentrosaurus_Hatchling_Pattern.png",
+  "racMap": "/cdn/skinviewer/Kentro/T_Kentrosaurus_Mask_RAC.webp",
+  "maskMap": "/cdn/skinviewer/Kentro/T_Kentrosaurus_Adult_Mask_TMC.png",
+  "detailScale": 12,
+  "glbScale": 0.039,
+  "glbPosition": [
+   0,
+   -2.4,
+   0
+  ]
+ },
+ "Maiasaura": {
+  "name": "Maiasaura",
+  "folder": "Maiasaura",
+  "glbModel": "/cdn/skinviewer/Maiasaura/Maiasaura.glb",
+  "tmcMap": "/cdn/skinviewer/Maiasaura/T_Maiasaura_M.png",
+  "normalMap": "/cdn/skinviewer/Maiasaura/T_Maiasaura_N.webp",
+  "patterns": {
+   "1": "/cdn/skinviewer/Maiasaura/T_Maiasaura_Pattern_Adult_1.png",
+   "2": "/cdn/skinviewer/Maiasaura/T_Maiasaura_Pattern_Adult_2.png",
+   "3": "/cdn/skinviewer/Maiasaura/T_Maiasaura_Pattern_Adult_3.png"
+  },
+  "juvenilePattern": "/cdn/skinviewer/Maiasaura/T_Maiasaura_Pattern_Juvie.png",
+  "hatchlingPattern": "/cdn/skinviewer/Maiasaura/T_Maiasaura_Pattern_Hatchling.png",
+  "racMap": "/cdn/skinviewer/Maiasaura/T_Maiasaura_RAC.webp",
+  "detailScale": 12,
+  "glbScale": 0.023,
+  "glbPosition": [
+   -2.2,
+   -2.25,
+   0.85
+  ]
+ },
+ "Austroraptor": {
+  "name": "Austroraptor",
+  "folder": "Austro",
+  "glbModel": "/cdn/skinviewer/Austro/Austroraptor.glb",
+  "normalMap": "/cdn/skinviewer/Austro/T_Austroraptor_Adult_N.webp",
+  "patterns": {
+   "1": "/cdn/skinviewer/Austro/T_Austroraptor_Adult_Pattern_1.png",
+   "2": "/cdn/skinviewer/Austro/T_Austroraptor_Adult_Pattern_2.png",
+   "3": "/cdn/skinviewer/Austro/T_Austroraptor_Adult_Pattern_3.png",
+   "4": "/cdn/skinviewer/Austro/T_Austroraptor_Adult_Pattern_Heron_M.png"
+  },
+  "juvenilePattern": "/cdn/skinviewer/Austro/T_Austroraptor_Juvenile_Pattern.png",
+  "hatchlingPattern": "/cdn/skinviewer/Austro/T_Austroraptor_Hatchling_Pattern.png",
+  "racMap": "/cdn/skinviewer/Austro/T_Austroraptor_RAC.webp",
+  "detailScale": 12,
+  "glbScale": 0.047,
+  "glbPosition": [
+   0,
+   -2.4,
+   0
+  ]
+ },
+ "Omniraptor": {
+  "name": "Omniraptor",
+  "folder": "Omni",
+  "glbModel": "/cdn/skinviewer/Omni/Omniraptor.glb",
+  "tmcMap": "/cdn/skinviewer/Omni/T_Omniraptor_Detail_M.png",
+  "normalMap": "/cdn/skinviewer/Omni/T_Omniraptor_N.webp",
+  "patterns": {
+   "1": "/cdn/skinviewer/Omni/T_Omniraptor_Adult_Pattern_1.png",
+   "2": "/cdn/skinviewer/Omni/T_Omniraptor_Adult_Pattern_2.png",
+   "3": "/cdn/skinviewer/Omni/T_Omniraptor_Adult_Pattern_3.png",
+   "4": "/cdn/skinviewer/Omni/T_Omniraptor_Adult_Pattern_4.png",
+   "5": "/cdn/skinviewer/Omni/T_Omniraptor_Adult_Pattern_Python.png"
+  },
+  "juvenilePattern": "/cdn/skinviewer/Omni/T_Omniraptor_Juvenile_Pattern.png",
+  "hatchlingPattern": "/cdn/skinviewer/Omni/T_Omniraptor_Hatchling_Pattern.png",
+  "racMap": "/cdn/skinviewer/Omni/T_Omniraptor_RAC.webp",
+  "patternMasks": {
+   "5": "/cdn/skinviewer/Omni/T_Omniraptor_Detail_M.png"
+  },
+  "detailScale": 12,
+  "glbScale": 0.047,
+  "glbPosition": [
+   0,
+   -2.4,
+   0
+  ]
+ },
+ "Pachycephalosaurus": {
+  "name": "Pachycephalosaurus",
+  "folder": "Pachy",
+  "glbModel": "/cdn/skinviewer/Pachy/Pachycephalosaurus.glb",
+  "tmcMap": "/cdn/skinviewer/Pachy/T_Pachycephalosaurus_Mask_TMC.png",
+  "normalMap": "/cdn/skinviewer/Pachy/T_Pachy_Default_New_N.webp",
+  "patterns": {
+   "1": "/cdn/skinviewer/Pachy/T_Pachycephalosaurus_Adult_Pattern_1.png",
+   "2": "/cdn/skinviewer/Pachy/T_Pachycephalosaurus_Adult_Pattern_2.png",
+   "3": "/cdn/skinviewer/Pachy/T_Pachycephalosaurus_Adult_Pattern_3.png",
+   "4": "/cdn/skinviewer/Pachy/T_Pachycephalosaurus_Adult_Pattern_Ram_Male.png"
+  },
+  "juvenilePattern": "/cdn/skinviewer/Pachy/T_Pachycephalosaurus_Juvenile_Pattern.png",
+  "hatchlingPattern": "/cdn/skinviewer/Pachy/T_Pachycephalosaurus_Hatchling_Pattern.png",
+  "racMap": "/cdn/skinviewer/Pachy/T_Pachy_Default_New_RAC.webp",
+  "patternMasks": {
+   "4": "/cdn/skinviewer/Pachy/T_Pachycephalosaurus_Mask_TMC.png"
+  },
+  "detailScale": 12,
+  "glbScale": 0.037,
+  "glbPosition": [
+   0,
+   -2.4,
+   0
+  ]
+ },
+ "Pteranodon": {
+  "name": "Pteranodon",
+  "folder": "Pter",
+  "glbModel": "/cdn/skinviewer/Pter/Pteranodon.glb",
+  "tmcMap": "/cdn/skinviewer/Pter/T_Pteranodon_Detail_M.png",
+  "normalMap": "/cdn/skinviewer/Pter/T_Pteranodon_N.webp",
+  "patterns": {
+   "1": "/cdn/skinviewer/Pter/T_Pteranodon_Adult_Pattern_1.png",
+   "2": "/cdn/skinviewer/Pter/T_Pteranodon_Adult_Pattern_2.png",
+   "3": "/cdn/skinviewer/Pter/T_Pteranodon_Adult_Pattern_3.png"
+  },
+  "juvenilePattern": "/cdn/skinviewer/Pter/T_Pteranodon_Juvenile_Pattern.png",
+  "racMap": "/cdn/skinviewer/Pter/T_Pteranodon_RAC.webp",
+  "detailScale": 12,
+  "glbScale": 0.051,
+  "glbPosition": [
+   0,
+   -2.15,
+   0
+  ]
+ },
+ "Stegosaurus": {
+  "name": "Stegosaurus",
+  "folder": "Stego",
+  "glbModel": "/cdn/skinviewer/Stego/Stegosaurus.glb",
+  "tmcMap": "/cdn/skinviewer/Stego/T_Stegosaurus_Detail_M.png",
+  "normalMap": "/cdn/skinviewer/Stego/T_Stegosaurus_N.webp",
+  "patterns": {
+   "1": "/cdn/skinviewer/Stego/T_Stegosaurus_Adult_Pattern_1.png",
+   "2": "/cdn/skinviewer/Stego/T_Stegosaurus_Adult_Pattern_2.png",
+   "3": "/cdn/skinviewer/Stego/T_Stegosaurus_Adult_Pattern_3.png"
+  },
+  "juvenilePattern": "/cdn/skinviewer/Stego/T_Stegosaurus_Juvenile_Pattern.png",
+  "hatchlingPattern": "/cdn/skinviewer/Stego/T_Stegosaurus_Hatchling_Pattern.png",
+  "racMap": "/cdn/skinviewer/Stego/T_Stegosaurus_RAC.webp",
+  "maskMap": "/cdn/skinviewer/Stego/T_Stegosaurus_Detail_M.png",
+  "detailScale": 12,
+  "glbScale": 0.0252,
+  "glbPosition": [
+   0,
+   -2.4,
+   0
+  ]
+ },
+ "Tenontosaurus": {
+  "name": "Tenontosaurus",
+  "folder": "Teno",
+  "glbModel": "/cdn/skinviewer/Teno/Tenontosaurus.glb",
+  "tmcMap": "/cdn/skinviewer/Teno/T_Tenontosaurus_Detail_M.png",
+  "normalMap": "/cdn/skinviewer/Teno/T_Tenontosaurus_N.webp",
+  "patterns": {
+   "1": "/cdn/skinviewer/Teno/T_Tenontosaurus_Adult_Pattern_1.png",
+   "2": "/cdn/skinviewer/Teno/T_Tenontosaurus_Adult_Pattern_2.png",
+   "3": "/cdn/skinviewer/Teno/T_Tenontosaurus_Adult_Pattern_3.png"
+  },
+  "juvenilePattern": "/cdn/skinviewer/Teno/T_Tenontosaurus_Juvenile_Pattern.png",
+  "hatchlingPattern": "/cdn/skinviewer/Teno/T_Tenontosaurus_Hatchling_Pattern.png",
+  "racMap": "/cdn/skinviewer/Teno/T_Tenontosaurus_RAC.webp",
+  "maskMap": "/cdn/skinviewer/Teno/T_Tenontosaurus_Detail_M.png",
+  "detailScale": 12,
+  "glbScale": 0.0248,
+  "glbPosition": [
+   0,
+   -2.4,
+   0
+  ]
+ },
+ "Triceratops": {
+  "name": "Triceratops",
+  "folder": "Triceratops",
+  "glbModel": "/cdn/skinviewer/Triceratops/Triceratops.glb",
+  "tmcMap": "/cdn/skinviewer/Triceratops/T_Triceratops_Detail_M.png",
+  "normalMap": "/cdn/skinviewer/Triceratops/T_Triceratops_N.webp",
+  "patterns": {
+   "1": "/cdn/skinviewer/Triceratops/T_Triceratops_Adult_Pattern_1.png",
+   "2": "/cdn/skinviewer/Triceratops/T_Triceratops_Adult_Pattern_2.png",
+   "3": "/cdn/skinviewer/Triceratops/T_Triceratops_Adult_Pattern_3.png"
+  },
+  "juvenilePattern": "/cdn/skinviewer/Triceratops/T_Triceratops_Juvenile_Pattern.png",
+  "hatchlingPattern": "/cdn/skinviewer/Triceratops/T_Triceratops_Hatchling_Pattern.png",
+  "racMap": "/cdn/skinviewer/Triceratops/T_Triceratops_RAC.webp",
+  "detailScale": 12,
+  "glbScale": 0.019,
+  "glbPosition": [
+   0,
+   -2.4,
+   0
+  ]
+ },
+ "Troodon": {
+  "name": "Troodon",
+  "folder": "Troodon",
+  "glbModel": "/cdn/skinviewer/Troodon/Troodon.glb",
+  "tmcMap": "/cdn/skinviewer/Troodon/T_Troodon_Detail_M.png",
+  "normalMap": "/cdn/skinviewer/Troodon/T_Troodon_N.webp",
+  "patterns": {
+   "1": "/cdn/skinviewer/Troodon/T_Troodon_Adult_Pattern_1.png",
+   "2": "/cdn/skinviewer/Troodon/T_Troodon_Adult_Pattern_2.png",
+   "3": "/cdn/skinviewer/Troodon/T_Troodon_Adult_Pattern_3.png"
+  },
+  "juvenilePattern": "/cdn/skinviewer/Troodon/T_Troodon_Juvenile_Pattern.png",
+  "hatchlingPattern": "/cdn/skinviewer/Troodon/T_Troodon_Hatchling_Pattern.png",
+  "racMap": "/cdn/skinviewer/Troodon/T_Troodon_RAC.webp",
+  "maskMap": "/cdn/skinviewer/Troodon/T_Troodon_Detail_M.png",
+  "detailScale": 12,
+  "glbScale": 0.065,
+  "glbPosition": [
+   0,
+   -2.4,
+   0
+  ]
+ },
+ "Tyrannosaurus": {
+  "name": "Tyrannosaurus",
+  "folder": "Tyrannosaurus",
+  "glbModel": "/cdn/skinviewer/Tyrannosaurus/Tyrannosaurus.glb",
+  "tmcMap": "/cdn/skinviewer/Tyrannosaurus/T_Tyrannosaurus_Detail_M.png",
+  "normalMap": "/cdn/skinviewer/Tyrannosaurus/T_Tyrannosaurus_N.webp",
+  "patterns": {
+   "1": "/cdn/skinviewer/Tyrannosaurus/T_Tyrannosaurus_Adult_Pattern_1.png",
+   "2": "/cdn/skinviewer/Tyrannosaurus/T_Tyrannosaurus_Adult_Pattern_2.png",
+   "3": "/cdn/skinviewer/Tyrannosaurus/T_Tyrannosaurus_Adult_Pattern_3.png"
+  },
+  "juvenilePattern": "/cdn/skinviewer/Tyrannosaurus/T_Tyrannosaurus_Juvie_Pattern.png",
+  "hatchlingPattern": "/cdn/skinviewer/Tyrannosaurus/T_Tyrannosaurus_Hatchling_Pattern.png",
+  "racMap": "/cdn/skinviewer/Tyrannosaurus/T_Tyrannosaurus_RAC.webp",
+  "maskMap": "/cdn/skinviewer/Tyrannosaurus/T_Tyrannosaurus_Detail_M.png",
+  "detailScale": 12,
+  "glbScale": 0.0195,
+  "glbPosition": [
+   0,
+   -2.55,
+   0
+  ]
+ }
+}

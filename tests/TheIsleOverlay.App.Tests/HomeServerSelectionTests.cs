@@ -31,7 +31,7 @@ public sealed class HomeServerSelectionTests
     public void Selection_RestoresWebsiteAndHostedServerOrFallsBackWhenRemoved()
     {
         var account = new IslePilotOverlayAuthResult("synthetic-account", "synthetic-token", "Tester");
-        var choices = HomeWindow.BuildAccountChoices([account], new Dictionary<string, string> { ["sbtc"] = "session=synthetic" });
+        var choices = HomeWindow.BuildAccountChoices([account], new Dictionary<string, string> { ["sbtc"] = "session=synthetic" }, keepSdvnRelogin: true);
         Assert.True(HomeWindow.SelectSavedServer(choices, "sbtc", account.SteamId)!.IsWebsiteSession);
         Assert.Equal("sdvn3", HomeWindow.SelectSavedServer(choices, "sdvn3", account.SteamId)!.Source!.Id);
         Assert.Null(HomeWindow.SelectSavedServer(choices, "islepilot", account.SteamId)!.Source);

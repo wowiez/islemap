@@ -5,7 +5,7 @@
 **2. Kết nối:** Chọn đúng nguồn trên Home:
 
 - DinoVietNam / Premium / HoHo / server trên mạng IslePilot → **ĐĂNG NHẬP STEAM** một lần, app tự nhận server đang chơi.
-- SDVN #3 (server chạy IslePilot riêng trên `3.sdvn.org`) → nút **SDVN #3 X3 GROW**, đăng nhập Steam một lần cho host này.
+- SDVN #3 (server chạy IslePilot riêng trên `3.sdvn.org`) → nút **SDVN #3 X3 GROW**, đăng nhập Steam trên website của server một lần; F8 có thêm Garage và Skin của SDVN.
 - EraGaming → **ERAGAMING**. PANDORA → **PANDORA**.
 
 Hoàn tất đăng nhập ngay trong cửa sổ tool rồi bấm **KIỂM TRA PHIÊN** nếu cửa sổ chưa tự đóng.

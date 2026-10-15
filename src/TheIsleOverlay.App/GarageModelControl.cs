@@ -27,6 +27,12 @@ public sealed class GarageModelControl : ContentControl
     public static readonly DependencyProperty PreviewProviderProperty = DependencyProperty.RegisterAttached(
         "PreviewProvider", typeof(Func<string, int, CancellationToken, Task<SbtcSkinPreview>>), typeof(GarageModelControl),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.Inherits));
+    // Origin of an IslePilot web studio (SDVN #3). Its public skin viewer assets are proxied through
+    // https://isle-sdvn.local with a disk cache and the viewer paints the skin itself.
+    public static readonly DependencyProperty StudioAssetsProperty = DependencyProperty.RegisterAttached(
+        "StudioAssets", typeof(Uri), typeof(GarageModelControl),
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.Inherits));
+    private const string StudioAssetHost = "isle-sdvn.local";
     private static readonly HttpClient Client = CreateHttpClient();
     private static readonly string Cache = Path.Combine(AppPaths.Root, "GarageModels");
     private static readonly ConcurrentDictionary<string, Task<ModelBundle>> Downloads = new();
@@ -61,6 +67,7 @@ public sealed class GarageModelControl : ContentControl
     private WebView2CompositionControl? _browser;
     private string? _requestedSpecies;
     private IslePilotOverlayGaragePaletteDto? _requestedPalette;
+    private IslePilotOverlaySkinGlitchLabDto? _requestedGlitch;
     private int _requestedPattern;
     private bool _viewerReady;
     private int _generation;
@@ -88,12 +95,15 @@ public sealed class GarageModelControl : ContentControl
         e.Handled = true;
         if (_browser?.CoreWebView2 is not null)
         {
-            _ = _browser.CoreWebView2.ExecuteScriptAsync($"window.__viewerZoom && window.__viewerZoom({e.Delta});");
+            // WPF Delta is positive for wheel-up; the viewer takes DOM deltaY (positive = wheel-down = zoom out).
+            _ = _browser.CoreWebView2.ExecuteScriptAsync($"window.__viewerZoom && window.__viewerZoom({-e.Delta});");
         }
     }
 
-    public void SetModel(string? species, IslePilotOverlayGaragePaletteDto? palette, int pattern = 0)
+    public void SetModel(string? species, IslePilotOverlayGaragePaletteDto? palette, int pattern = 0,
+        IslePilotOverlaySkinGlitchLabDto? glitch = null)
     {
+        _requestedGlitch = glitch;
         var normalized = species?.Trim();
         if (normalized?.StartsWith("BP_", StringComparison.OrdinalIgnoreCase) == true) normalized = normalized[3..];
         if (normalized?.EndsWith("_C", StringComparison.OrdinalIgnoreCase) == true) normalized = normalized[..^2];
@@ -137,6 +147,7 @@ public sealed class GarageModelControl : ContentControl
         var downloadKey = species + "|" + patternIndex;
         var assetDownloader = GetValue(AssetDownloaderProperty) as Func<Uri, CancellationToken, Task<byte[]>>;
         var previewProvider = GetValue(PreviewProviderProperty) as Func<string, int, CancellationToken, Task<SbtcSkinPreview>>;
+        var studio = GetValue(StudioAssetsProperty) as Uri;
         ShowMessage("ĐANG LẤY DỮ LIỆU 3D MODEL…");
         WebView2CompositionControl? browser = null;
         try
@@ -155,15 +166,23 @@ public sealed class GarageModelControl : ContentControl
 
         try
         {
-            var preview = previewProvider is null ? SbtcSkinPreview.Basic
-                : await previewProvider(species, patternIndex, CancellationToken.None);
-            if (generation != _generation) return;
-            downloadKey += "|" + preview.Build + "|" + preview.PatternAsset + "|" + preview.UtilityAsset;
-            var assets = await Downloads.GetOrAdd(downloadKey, _ => DownloadAsync(species, patternIndex, assetDownloader, preview));
-            if (generation != _generation) return;
+            ModelBundle? assets = null;
+            if (studio is null)
+            {
+                var preview = previewProvider is null ? SbtcSkinPreview.Basic
+                    : await previewProvider(species, patternIndex, CancellationToken.None);
+                if (generation != _generation) return;
+                downloadKey += "|" + preview.Build + "|" + preview.PatternAsset + "|" + preview.UtilityAsset;
+                assets = await Downloads.GetOrAdd(downloadKey, _ => DownloadAsync(species, patternIndex, assetDownloader, preview));
+                if (generation != _generation) return;
+            }
             var environment = await IslePilotWebViewEnvironment.GetAsync();
             if (generation != _generation) return;
             await browser.EnsureCoreWebView2Async(environment);
+            if (generation != _generation) return;
+            // The viewer is local files: never serve a cached viewer.js from an older app version.
+            await browser.CoreWebView2.CallDevToolsProtocolMethodAsync("Network.enable", "{}");
+            await browser.CoreWebView2.CallDevToolsProtocolMethodAsync("Network.setCacheDisabled", "{\"cacheDisabled\":true}");
             if (generation != _generation) return;
             browser.CoreWebView2.SetVirtualHostNameToFolderMapping("isle-viewer.local",
                 Path.Combine(AppContext.BaseDirectory, "Assets", "GarageViewer"), CoreWebView2HostResourceAccessKind.DenyCors);
@@ -178,13 +197,40 @@ public sealed class GarageModelControl : ContentControl
                 if (!Uri.TryCreate(e.Uri, UriKind.Absolute, out var uri) || uri.Scheme != "https" || uri.Host != "isle-viewer.local") e.Cancel = true;
             };
             browser.CoreWebView2.NewWindowRequested += (_, e) => e.Handled = true;
+            if (studio is not null)
+            {
+                var core = browser.CoreWebView2;
+                core.AddWebResourceRequestedFilter($"https://{StudioAssetHost}/*", CoreWebView2WebResourceContext.All);
+                core.WebResourceRequested += async (_, e) =>
+                {
+                    var deferral = e.GetDeferral();
+                    try { e.Response = await StudioAssetResponseAsync(core.Environment, studio, e.Request.Uri); }
+                    finally { deferral.Complete(); }
+                };
+            }
             browser.CoreWebView2.WebMessageReceived += (sender, e) =>
             {
                 if (generation != _generation || e.Source != "https://isle-viewer.local/viewer.html") return;
                 try
                 {
                     using var message = JsonDocument.Parse(e.WebMessageAsJson);
-                    if (message.RootElement.TryGetProperty("initialized", out _))
+                    if (message.RootElement.TryGetProperty("initialized", out _) && assets is null)
+                    {
+                        _viewerReady = true;
+                        browser.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new
+                        {
+                            sdvn = new
+                            {
+                                species,
+                                // The studio numbers patterns from 1.
+                                pattern = patternIndex + 1,
+                                palette = _requestedPalette,
+                                glitchLab = _requestedGlitch,
+                                renderMode = _requestedGlitch is null ? "standard" : "glitched"
+                            }
+                        }, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+                    }
+                    else if (message.RootElement.TryGetProperty("initialized", out _) && assets is not null)
                     {
                         _viewerReady = true;
                         browser.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new
@@ -201,11 +247,13 @@ public sealed class GarageModelControl : ContentControl
                     {
                         SendPalette();
                     }
-                    else if (message.RootElement.TryGetProperty("error", out _))
+                    else if (message.RootElement.TryGetProperty("error", out var error))
                     {
                         Downloads.TryRemove(downloadKey, out _);
                         Stop();
-                        ShowMessage("Model 3D bị lỗi. Bấm Làm mới để tải lại.");
+                        ShowMessage(error.ValueKind == JsonValueKind.String && error.GetString() == "species"
+                            ? "Loài này chưa có model 3D."
+                            : "Model 3D bị lỗi. Bấm Làm mới để tải lại.");
                     }
                 }
                 catch (Exception jsonEx)
@@ -238,7 +286,7 @@ public sealed class GarageModelControl : ContentControl
         {
             Downloads.TryRemove(downloadKey, out _);
             Stop();
-            ShowMessage("Chưa tải được skin SBTC. Kiểm tra phiên Steam / kết nối rồi bấm Làm mới.");
+            ShowMessage("Chưa tải được skin. Kiểm tra kết nối rồi bấm Làm mới.");
         }
         catch (Exception ex) when (generation == _generation)
         {
@@ -248,6 +296,51 @@ public sealed class GarageModelControl : ContentControl
             ShowMessage("Không thể khởi động 3D model trên thiết bị này. Bấm Làm mới để thử lại.");
         }
         catch (Exception) when (generation != _generation) { }
+    }
+
+    /// <summary>
+    /// Serves a studio viewer file from the disk cache, downloading it once. Only the public
+    /// /cdn/skinviewer/ tree of the configured studio is reachable; nothing else is proxied.
+    /// </summary>
+    private static async Task<CoreWebView2WebResourceResponse> StudioAssetResponseAsync(
+        CoreWebView2Environment environment, Uri studio, string requestUri)
+    {
+        var path = StudioAssetPath(requestUri);
+        var contentType = Path.GetExtension(path ?? string.Empty).ToLowerInvariant() switch
+        {
+            ".glb" => "model/gltf-binary",
+            ".png" => "image/png",
+            ".webp" => "image/webp",
+            _ => null
+        };
+        if (path is null || contentType is null)
+            return environment.CreateWebResourceResponse(null, 404, "Not Found", "Access-Control-Allow-Origin: *");
+        try
+        {
+            var cached = Path.Combine(Cache, "studio-" + studio.Host, path.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+            Directory.CreateDirectory(Path.GetDirectoryName(cached)!);
+            await DownloadFileAsync(new Uri(studio, path), cached,
+                contentType == "model/gltf-binary" ? IsValidGlb : IsValidImage,
+                (uri, token) => Client.GetByteArrayAsync(uri, token));
+            return environment.CreateWebResourceResponse(new MemoryStream(await File.ReadAllBytesAsync(cached)), 200, "OK",
+                $"Content-Type: {contentType}\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: max-age=31536000");
+        }
+        catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidDataException
+                                               or TaskCanceledException or UnauthorizedAccessException)
+        {
+            return environment.CreateWebResourceResponse(null, 502, "Bad Gateway", "Access-Control-Allow-Origin: *");
+        }
+    }
+
+    internal static string? StudioAssetPath(string requestUri)
+    {
+        if (!Uri.TryCreate(requestUri, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps ||
+            uri.Host != StudioAssetHost || !string.IsNullOrEmpty(uri.Query)) return null;
+        var path = uri.AbsolutePath;
+        return path.StartsWith("/cdn/skinviewer/", StringComparison.Ordinal) && !path.Contains("..", StringComparison.Ordinal) &&
+               path.All(c => char.IsAsciiLetterOrDigit(c) || c is '/' or '_' or '-' or '.')
+            ? path
+            : null;
     }
 
     private static HttpClient CreateHttpClient()
@@ -469,7 +562,9 @@ public sealed class GarageModelControl : ContentControl
         {
             _browser.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new
             {
-                palette = _requestedPalette
+                palette = _requestedPalette,
+                glitchLab = _requestedGlitch,
+                renderMode = _requestedGlitch is null ? "standard" : "glitched"
             }, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
         }
         catch (InvalidOperationException)

@@ -7,7 +7,7 @@
 ## Nguồn telemetry
 
 - **IslePilot Network** — đăng nhập Steam một lần và tự nhận server hiện tại; hỗ trợ mọi server nằm trên mạng IslePilot (DinoVietNam, Premium, HoHo…).
-- **SDVN #3** — server chạy bản IslePilot riêng trên tên miền `3.sdvn.org` nên có nút kết nối riêng: đăng nhập Steam một lần cho host đó, app dùng thẳng overlay API của host (chỉ số, marker, vùng) và lưu token riêng theo host, không ảnh hưởng phiên IslePilot Network.
+- **SDVN #3** — server chạy bản IslePilot riêng trên `3.sdvn.org` và đã tắt overlay API, nên app đăng nhập Steam trên website của server (cookie `islepilot_player`, mã hóa DPAPI) rồi đọc chỉ số, marker và Garage qua API website. F8 có Garage SDVN (xem, cất, lấy Dino) và Skin (xem thiết kế đã lưu, gửi màu tới Dino đang chơi).
 - **EraGaming** — kết nối trực tiếp bằng phiên đăng nhập tại `https://eragamingvn.net/live-map`.
 - **PANDORA** — kết nối trực tiếp bằng phiên đăng nhập tại `https://islapandora.eu/live-map`.
 

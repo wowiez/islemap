@@ -1,3 +1,15 @@
+# Isle of Wie 2.0.1
+
+- SDVN #3 đã tắt overlay API, nên app chuyển sang đăng nhập Steam trên website `3.sdvn.org` và đọc chỉ số, marker qua API website. Tài khoản SDVN cũ vẫn nằm trong danh sách, khi chọn sẽ báo cần đăng nhập lại website.
+- F8 có Garage SDVN #3: xem Dino đã cất, cất Dino đang chơi (chờ đếm ngược nếu server yêu cầu), lấy Dino ra. Mọi lệnh đều phải xác nhận trước.
+- F8 Skin cho SDVN #3: xem thiết kế đã lưu trên website, nạp vào bảng HEX rồi gửi màu tới Dino đang chơi. Thiết kế glitch bấm ÁP DỤNG là gửi thẳng vào game. Lưu thiết kế vẫn làm trên web.
+- Xem skin 3D ngay trong app cho SDVN #3 (Garage và Skin), màu và hiệu ứng glitch giống studio trên web; model tải một lần rồi lưu cache.
+- Thẻ Garage dùng màu thanh giống HUD (vàng growth, xanh lá HP, cam food, xanh dương water, vàng stamina).
+- Sửa cuộn chuột trong khung 3D bị ngược (cuộn lên là phóng to).
+- Model 3D nét hơn (vẽ theo độ phân giải thật của màn hình, khử răng cưa, lọc texture) và có ánh sáng môi trường; kéo chuột giờ xoay camera quanh Dino như trên web, có quán tính.
+- Áp skin glitch luôn gửi đúng dữ liệu glitch (không rơi về màu phẳng); chặn gửi chồng khi lệnh trước chưa xác nhận để tránh kẹt.
+- Kill Feed SBTC dùng màu theo app và cập nhật mỗi 2 giây. Lọc theo loài trong F8 thì Kill Feed cạnh minimap cũng lọc theo, và app nhớ loài đã chọn.
+
 # Isle of Wie 2.0.0
 
 Isle Live Map đổi tên thành **Isle of Wie**, kèm giao diện mới theo logo.

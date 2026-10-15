@@ -12,6 +12,8 @@ public sealed record OverlayLayoutSettings
     public double PlayerMarkerScale { get; init; } = OverlayLayoutRules.DefaultPlayerMarkerScale;
     public bool WildlifeAbovePlayer { get; init; }
     public bool ShowMapKillFeed { get; init; }
+    // Species picked in the F8 kill feed; the minimap panel uses the same filter. Null = all.
+    public string? KillFeedSpecies { get; init; }
     public bool ShowMapZones { get; init; } = true;
     public bool ShowWildlife { get; init; } = true;
     public bool ShowMap { get; init; } = true;

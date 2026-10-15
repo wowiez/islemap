@@ -240,7 +240,6 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <ComboBox x:Name="SteamAccountSelector" Style="{StaticResource SteamAccountCombo}"
                                           SelectionChanged="SteamAccountSelector_SelectionChanged">
@@ -264,10 +263,6 @@
                                         <TextBlock Text="THÊM TÀI KHOẢN" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>
-                                <Button x:Name="RemoveWebsiteSessionButton" Grid.Column="2"
-                                        Style="{StaticResource HomeChromeButton}" Content="XÓA PHIÊN"
-                                        Margin="8,0,0,0" Visibility="Collapsed"
-                                        Click="RemoveWebsiteSessionButton_Click" />
                             </Grid>
 
                             <Grid>
@@ -282,6 +277,11 @@
                                         Style="{StaticResource HomeChromeButton}" Content="XÓA TÀI KHOẢN"
                                         FontSize="11" Padding="10,5" Margin="10,0,0,0" Visibility="Collapsed"
                                         Click="LogoutSteamButton_Click" />
+                                <!-- Same slot as XÓA TÀI KHOẢN: a row is either a Steam account or a website session. -->
+                                <Button x:Name="RemoveWebsiteSessionButton" Grid.Column="1"
+                                        Style="{StaticResource HomeChromeButton}" Content="XÓA PHIÊN"
+                                        FontSize="11" Padding="10,5" Margin="10,0,0,0" Visibility="Collapsed"
+                                        Click="RemoveWebsiteSessionButton_Click" />
                             </Grid>
                         </StackPanel>
                     </HeaderedContentControl>

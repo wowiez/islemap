@@ -474,6 +474,8 @@ internal sealed record IslePilotOverlaySkinSetPayloadDto
     public int Theme { get; init; }
     public double[] Underbelly { get; init; } = [];
     public int Variation { get; init; }
+    // Glitch skins replace the seven colour slots with raw X/Y/Z/A values.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public bool? Glitch { get; init; }
 
     public static IslePilotOverlaySkinSetPayloadDto FromPalette(
         string species,
@@ -492,6 +494,8 @@ internal sealed record IslePilotOverlaySkinSetPayloadDto
         {
             if (string.IsNullOrWhiteSpace(value)) return [0, 0, 0, 1];
             var hex = value.Trim().TrimStart('#');
+            // The web studio never sends pure black (the game treats it as "unset").
+            if (hex == "000000") hex = "010101";
             if (hex.Length != 6 || !int.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var rgb))
                 throw new ArgumentException("Bảng màu phải dùng mã hex dạng #RRGGBB.", nameof(palette));
             var r = (rgb >> 16 & 255) / 255d;
@@ -532,13 +536,31 @@ internal sealed record IslePilotOverlaySkinSetPayloadDto
         string species, IslePilotOverlaySkinDraftPayloadDto payload, bool? female = null)
     {
         var isFemale = female ?? (!string.Equals(payload.Sex, "male", StringComparison.OrdinalIgnoreCase));
-        return FromPalette(
+        var standard = FromPalette(
             species,
             payload.Palette ?? new IslePilotOverlayGaragePaletteDto(),
             isFemale,
             payload.Theme,
             payload.Pattern,
             payload.Variation);
+        if (payload.RenderMode is not ("glitched" or "glitch") || payload.GlitchLab?.Layers is not { Count: > 0 } layers)
+            return standard;
+
+        // Same as the web studio's buildSkinExportPayload: a zero or missing value becomes 1e-4.
+        static double Raw(double? value) => value is { } number && double.IsFinite(number) ? number == 0 ? 1e-4 : number : 1e-4;
+        double[] Layer(string key, double[] fallback) =>
+            layers.TryGetValue(key, out var layer) ? [Raw(layer.X), Raw(layer.Y), Raw(layer.Z), Raw(layer.A ?? 1)] : fallback;
+        return standard with
+        {
+            Glitch = true,
+            Body = Layer("m", standard.Body),
+            Markings = Layer("f", standard.Markings),
+            Flank = Layer("b", standard.Flank),
+            Underbelly = Layer("u", standard.Underbelly),
+            Detail1 = Layer("d1", standard.Detail1),
+            MaleDisplay = Layer("md", standard.MaleDisplay),
+            Eyes = Layer("e", standard.Eyes)
+        };
     }
 }
 

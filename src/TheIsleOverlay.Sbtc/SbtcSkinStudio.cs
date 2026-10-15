@@ -55,7 +55,8 @@ public sealed record SbtcSkinRecipe
 }
 
 public sealed record SbtcSkinAccess(bool Enabled, bool Advanced, string LiveSpecies, bool GenesEnabled, double? Cost, double? Balance, string Message);
-public sealed record SbtcPreparedSkinApply(string Species, SbtcSkinRecipe Recipe, SbtcSkinAccess Access);
+// Female is filled in by the editor; SBTC derives it server side and ignores it.
+public sealed record SbtcPreparedSkinApply(string Species, SbtcSkinRecipe Recipe, SbtcSkinAccess Access, bool? Female = null);
 public sealed record SbtcSkinAttempt(string Intent, string RetryKey, string? ServerRequestId = null);
 public sealed record SbtcVaultParkTerms(bool UsesCave, double? Cost, string? Currency, double? Days, string Message);
 public interface ISbtcSkinAttemptStore

@@ -139,15 +139,8 @@ public partial class HomeWindow : Window
     /// Counts the servers that run their own website login, so the label cannot go stale
     /// when a source is added (SBTC Island joined EraGaming, PANDORA and SDVN #3).
     /// </summary>
-    private void RenderOwnSourceCount()
-    {
-        var count = TelemetrySourceDefinition.All.Count(source =>
-            source.Kind is TelemetrySourceKind.EraGaming
-                or TelemetrySourceKind.Pandora
-                or TelemetrySourceKind.SbtcIsland
-                or TelemetrySourceKind.IslePilotHosted);
-        OwnSourceCountLabel.Text = $"· {count} nguồn";
-    }
+    private void RenderOwnSourceCount() =>
+        OwnSourceCountLabel.Text = $"· {WebsiteSources.Count} nguồn";
 
     private void GuestModeButton_Click(object sender, RoutedEventArgs e)
     {
@@ -181,14 +174,6 @@ public partial class HomeWindow : Window
 
         try
         {
-            if (source.Kind == TelemetrySourceKind.IslePilotHosted)
-            {
-                // Own-domain IslePilot host: Steam handshake and overlay token come
-                // from that host, so the shared network session is untouched.
-                await ConnectHostedIslePilotAsync(source);
-                return;
-            }
-
             var loginWindow = new LoginWindow(source, (cookie, token) => ValidateSessionAsync(source, cookie, token))
             {
                 Owner = this
@@ -272,6 +257,7 @@ public partial class HomeWindow : Window
         EraSourceButton.IsEnabled = enabled;
         SbtcSourceButton.IsEnabled = enabled;
         PandoraSourceButton.IsEnabled = enabled;
+        SdvnSourceButton.IsEnabled = enabled;
     }
 
     private static string FriendlyError(Exception exception) => exception switch

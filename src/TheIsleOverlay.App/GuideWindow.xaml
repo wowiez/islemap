@@ -494,7 +494,9 @@
                                             </StackPanel>
                                             <StackPanel Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center">
                                                 <ContentControl Style="{StaticResource WieIcon}" Tag="{StaticResource IconArrowRight}" Foreground="{Binding Accent}" Width="22" Height="22" HorizontalAlignment="Center" />
-                                                <TextBlock Text="{Binding Cause}" Foreground="#99A38E" FontSize="10" HorizontalAlignment="Center" />
+                                                <Border BorderBrush="{Binding Accent}" BorderThickness="1" CornerRadius="8" Padding="7,1" Margin="0,3,0,0" HorizontalAlignment="Center">
+                                                    <TextBlock Text="{Binding Cause}" Foreground="{Binding Accent}" FontSize="10" FontWeight="SemiBold" />
+                                                </Border>
                                             </StackPanel>
                                             <StackPanel Grid.Column="3" VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding Victim}" Foreground="#F1EBD6" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
@@ -524,7 +526,7 @@
                                 <TextBlock Text="Dinosaur đã lưu" Foreground="#FAF7EC"
                                            FontFamily="{StaticResource WieFont}" FontSize="30"
                                            FontWeight="Bold" Margin="0,3,0,2" />
-                                <TextBlock Text="Đồng bộ trực tiếp với SBTC Island · có xác nhận trước khi cất hoặc lấy Dino"
+                                <TextBlock x:Name="GarageSourceLabel" Text="Đồng bộ trực tiếp với server · có xác nhận trước khi cất hoặc lấy Dino"
                                            Foreground="#8E9882" FontSize="12" />
                             </StackPanel>
                             <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom">
@@ -549,7 +551,9 @@
                                 <Border Width="26" Height="26" CornerRadius="13" Background="#1F3026"
                                         HorizontalAlignment="Left">
                                     <Path Data="M3,8 A5,5 0 1 1 8,13" Stroke="#DBD4BD" StrokeThickness="1.6"
-                                          Width="13" Height="13" Stretch="Uniform" />
+                                          Width="13" Height="13" Stretch="Uniform" RenderTransformOrigin="0.5,0.5">
+                                        <Path.RenderTransform><RotateTransform x:Name="GarageSpinnerRotation" /></Path.RenderTransform>
+                                    </Path>
                                 </Border>
                                 <StackPanel Grid.Column="1">
                                     <TextBlock x:Name="GarageStateTitle" Text="Đang chờ mở Garage"
@@ -605,12 +609,12 @@
                                                     <TextBlock Grid.Column="1" Text="{Binding GrowthLabel}" Foreground="#F1EBD6" FontWeight="SemiBold" />
                                                 </Grid>
                                                 <ProgressBar Value="{Binding Growth}" Style="{StaticResource GuideProgress}"
-                                                             Height="5" Foreground="{Binding AccentColor}" Margin="0,6,0,12" />
+                                                             Height="5" Foreground="{StaticResource WieGold}" Margin="0,6,0,12" />
 
-                                                <Grid Margin="0,0,0,7"><Grid.ColumnDefinitions><ColumnDefinition Width="65" /><ColumnDefinition Width="*" /><ColumnDefinition Width="42" /></Grid.ColumnDefinitions><TextBlock Text="HEALTH" Foreground="#7C876F" FontSize="9" /><ProgressBar Grid.Column="1" Value="{Binding Health}" Style="{StaticResource GuideProgress}" Height="5" VerticalAlignment="Center" Foreground="#D8D1BB" /><TextBlock Grid.Column="2" Text="{Binding HealthLabel}" Foreground="#B2B9AA" FontSize="9" HorizontalAlignment="Right" /></Grid>
-                                                <Grid Margin="0,0,0,7"><Grid.ColumnDefinitions><ColumnDefinition Width="65" /><ColumnDefinition Width="*" /><ColumnDefinition Width="42" /></Grid.ColumnDefinitions><TextBlock Text="FOOD" Foreground="#7C876F" FontSize="9" /><ProgressBar Grid.Column="1" Value="{Binding Hunger}" Style="{StaticResource GuideProgress}" Height="5" VerticalAlignment="Center" Foreground="#B3A37E" /><TextBlock Grid.Column="2" Text="{Binding HungerLabel}" Foreground="#B2B9AA" FontSize="9" HorizontalAlignment="Right" /></Grid>
-                                                <Grid Margin="0,0,0,7"><Grid.ColumnDefinitions><ColumnDefinition Width="65" /><ColumnDefinition Width="*" /><ColumnDefinition Width="42" /></Grid.ColumnDefinitions><TextBlock Text="WATER" Foreground="#7C876F" FontSize="9" /><ProgressBar Grid.Column="1" Value="{Binding Thirst}" Style="{StaticResource GuideProgress}" Height="5" VerticalAlignment="Center" Foreground="#7D9EAA" /><TextBlock Grid.Column="2" Text="{Binding ThirstLabel}" Foreground="#B2B9AA" FontSize="9" HorizontalAlignment="Right" /></Grid>
-                                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65" /><ColumnDefinition Width="*" /><ColumnDefinition Width="42" /></Grid.ColumnDefinitions><TextBlock Text="STAMINA" Foreground="#7C876F" FontSize="9" /><ProgressBar Grid.Column="1" Value="{Binding Stamina}" Style="{StaticResource GuideProgress}" Height="5" VerticalAlignment="Center" Foreground="#ACB3A3" /><TextBlock Grid.Column="2" Text="{Binding StaminaLabel}" Foreground="#B2B9AA" FontSize="9" HorizontalAlignment="Right" /></Grid>
+                                                <Grid Margin="0,0,0,7"><Grid.ColumnDefinitions><ColumnDefinition Width="65" /><ColumnDefinition Width="*" /><ColumnDefinition Width="42" /></Grid.ColumnDefinitions><TextBlock Text="HEALTH" Foreground="#7C876F" FontSize="9" /><ProgressBar Grid.Column="1" Value="{Binding Health}" Style="{StaticResource GuideProgress}" Height="5" VerticalAlignment="Center" Foreground="#55D64E" /><TextBlock Grid.Column="2" Text="{Binding HealthLabel}" Foreground="#B2B9AA" FontSize="9" HorizontalAlignment="Right" /></Grid>
+                                                <Grid Margin="0,0,0,7"><Grid.ColumnDefinitions><ColumnDefinition Width="65" /><ColumnDefinition Width="*" /><ColumnDefinition Width="42" /></Grid.ColumnDefinitions><TextBlock Text="FOOD" Foreground="#7C876F" FontSize="9" /><ProgressBar Grid.Column="1" Value="{Binding Hunger}" Style="{StaticResource GuideProgress}" Height="5" VerticalAlignment="Center" Foreground="#E49428" /><TextBlock Grid.Column="2" Text="{Binding HungerLabel}" Foreground="#B2B9AA" FontSize="9" HorizontalAlignment="Right" /></Grid>
+                                                <Grid Margin="0,0,0,7"><Grid.ColumnDefinitions><ColumnDefinition Width="65" /><ColumnDefinition Width="*" /><ColumnDefinition Width="42" /></Grid.ColumnDefinitions><TextBlock Text="WATER" Foreground="#7C876F" FontSize="9" /><ProgressBar Grid.Column="1" Value="{Binding Thirst}" Style="{StaticResource GuideProgress}" Height="5" VerticalAlignment="Center" Foreground="#31A9D7" /><TextBlock Grid.Column="2" Text="{Binding ThirstLabel}" Foreground="#B2B9AA" FontSize="9" HorizontalAlignment="Right" /></Grid>
+                                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65" /><ColumnDefinition Width="*" /><ColumnDefinition Width="42" /></Grid.ColumnDefinitions><TextBlock Text="STAMINA" Foreground="#7C876F" FontSize="9" /><ProgressBar Grid.Column="1" Value="{Binding Stamina}" Style="{StaticResource GuideProgress}" Height="5" VerticalAlignment="Center" Foreground="#E6D24D" /><TextBlock Grid.Column="2" Text="{Binding StaminaLabel}" Foreground="#B2B9AA" FontSize="9" HorizontalAlignment="Right" /></Grid>
 
                                                 <Button Content="{Binding ActionLabel}" Tag="{Binding DinoId}"
                                                         Style="{StaticResource NavButton}" Margin="0,13,0,0"
@@ -709,15 +713,15 @@
                                     <Grid Margin="0,0,0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="92"/><ColumnDefinition Width="*"/><ColumnDefinition Width="34"/></Grid.ColumnDefinitions><TextBlock Text="Răng" Foreground="#E1DAC2" VerticalAlignment="Center"/><TextBox x:Name="SkinTeethHex" Grid.Column="1" Tag="teeth" Style="{StaticResource HexInput}" TextChanged="SkinHexInput_TextChanged"/><Button x:Name="SkinTeethSwatch" Grid.Column="2" Tag="teeth" Margin="7,2,0,2" Style="{StaticResource ColorPickerButton}" Click="SkinColorPickerButton_Click"/></Grid>
                                     <Grid Margin="0,0,0,6"><Grid.ColumnDefinitions><ColumnDefinition Width="92"/><ColumnDefinition Width="*"/><ColumnDefinition Width="34"/></Grid.ColumnDefinitions><TextBlock Text="Miệng" Foreground="#E1DAC2" VerticalAlignment="Center"/><TextBox x:Name="SkinMouthHex" Grid.Column="1" Tag="mouth" Style="{StaticResource HexInput}" TextChanged="SkinHexInput_TextChanged"/><Button x:Name="SkinMouthSwatch" Grid.Column="2" Tag="mouth" Margin="7,2,0,2" Style="{StaticResource ColorPickerButton}" Click="SkinColorPickerButton_Click"/></Grid>
                                     <Grid Margin="0,0,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="92"/><ColumnDefinition Width="*"/><ColumnDefinition Width="34"/></Grid.ColumnDefinitions><TextBlock Text="Móng" Foreground="#E1DAC2" VerticalAlignment="Center"/><TextBox x:Name="SkinClawsHex" Grid.Column="1" Tag="claws" Style="{StaticResource HexInput}" TextChanged="SkinHexInput_TextChanged"/><Button x:Name="SkinClawsSwatch" Grid.Column="2" Tag="claws" Margin="7,2,0,2" Style="{StaticResource ColorPickerButton}" Click="SkinColorPickerButton_Click"/></Grid>
-                                    <Button Content="ÁP DỤNG" Style="{StaticResource PrimaryButton}" Padding="12,9" Margin="0,2,0,7" Click="SkinApplyButton_Click" />
-                                    <Button Content="LƯU DRAFT" Style="{StaticResource PrimaryButton}" Padding="12,9" Margin="0,0,0,12" Click="SkinSaveButton_Click" />
+                                    <Button Content="ÁP DỤNG" Style="{StaticResource PrimaryButton}" Padding="12,6" Margin="0,2,0,7" FontSize="10.5" Click="SkinApplyButton_Click" />
+                                    <Button x:Name="SkinSaveButton" Content="LƯU DRAFT" Style="{StaticResource PrimaryButton}" Padding="12,9" Margin="0,0,0,12" Click="SkinSaveButton_Click" />
                                     <UniformGrid Columns="2" Margin="0,0,0,2">
                                         <Button Content="MẶC ĐỊNH" Style="{StaticResource NavButton}" Padding="9,7" Margin="0,0,6,6" Click="SkinDefaultButton_Click" />
                                         <Button Content="NGẪU NHIÊN" Style="{StaticResource NavButton}" Padding="9,7" Margin="0,0,0,6" Click="SkinRandomButton_Click" />
                                         <Button Content="COPY JSON" Style="{StaticResource NavButton}" Padding="9,7" Margin="0,0,6,0" Click="SkinCopyJsonButton_Click" />
                                         <Button Content="PASTE JSON" Style="{StaticResource NavButton}" Padding="9,7" Margin="0" Click="SkinPasteJsonButton_Click" />
                                     </UniformGrid>
-                                    <TextBlock Text="ĐÃ LƯU · SBTC STUDIO" Foreground="#F5F0DD" FontWeight="SemiBold" Margin="0,14,0,5" />
+                                    <TextBlock x:Name="SkinDraftsTitle" Text="ĐÃ LƯU" Foreground="#F5F0DD" FontWeight="SemiBold" Margin="0,14,0,5" />
                                     <Grid>
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                         <Button x:Name="SkinShowAllDraftsButton" Content="CHỈ LOÀI HIỆN TẠI" Style="{StaticResource NavButton}" Padding="8,5" HorizontalAlignment="Left" Click="SkinShowAllDraftsButton_Click" />
@@ -765,7 +769,7 @@
                                                             <ItemsControl.ItemTemplate><DataTemplate><Border Width="15" Height="15" CornerRadius="3" Background="{Binding}" Margin="0,0,3,0"/></DataTemplate></ItemsControl.ItemTemplate>
                                                         </ItemsControl>
                                                     </StackPanel>
-                                                    <Button Grid.Column="1" Content="{Binding ActionLabel}" Tag="{Binding}" Style="{StaticResource NavButton}" Padding="9,5" Margin="10,2,2,2" Cursor="Hand" Click="SkinDraftApplyButton_Click" />
+                                                    <Button Grid.Column="1" Content="{Binding ActionLabel}" Tag="{Binding}" Style="{StaticResource NavButton}" Padding="10,3" Margin="10,0,2,0" FontSize="10" VerticalAlignment="Center" Cursor="Hand" Click="SkinDraftApplyButton_Click" />
                                                 </Grid>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
@@ -945,7 +949,7 @@
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="120" /></Grid.ColumnDefinitions>
                                 <StackPanel>
                                     <TextBlock Text="Kill feed trên map" Foreground="#E7E0C8" FontFamily="{StaticResource WieFont}" FontWeight="SemiBold" FontSize="13" />
-                                    <TextBlock Text="Hiện cạnh minimap · cập nhật mỗi 5 giây · mặc định tắt" Foreground="#99A28E" FontSize="11" Margin="0,4,12,0" />
+                                    <TextBlock Text="Hiện cạnh minimap · cập nhật mỗi 2 giây · mặc định tắt" Foreground="#99A28E" FontSize="11" Margin="0,4,12,0" />
                                 </StackPanel>
                                 <Button x:Name="GuideMapKillFeedButton" Grid.Column="1" Content="TẮT" Style="{StaticResource SettingsActionButton}" Click="GuideMapKillFeedButton_Click" />
                             </Grid>
